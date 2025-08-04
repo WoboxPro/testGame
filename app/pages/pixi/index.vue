@@ -32,12 +32,44 @@ onMounted(async () => {
     app.stage.addChild(graphics2);
     // --- Конец второго квадрата ---
 
+    // --- Управление клавиатурой для красного квадрата ---
+    const keys = {};
+    const speed = 5;
+
+    const onKeyDown = (e) => {
+      keys[e.code] = true;
+    };
+    const onKeyUp = (e) => {
+      keys[e.code] = false;
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    // --- Конец блока управления ---
+
     app.ticker.add((ticker) => {
-      graphics.rotation += 0.01 * ticker.deltaTime;
-      graphics2.rotation -= 0.015 * ticker.deltaTime; // Вращаем в другую сторону и чуть быстрее
+      // Движение красного квадрата
+      if (keys['ArrowUp']) {
+        graphics.y -= speed * ticker.deltaTime;
+      }
+      if (keys['ArrowDown']) {
+        graphics.y += speed * ticker.deltaTime;
+      }
+      if (keys['ArrowLeft']) {
+        graphics.x -= speed * ticker.deltaTime;
+      }
+      if (keys['ArrowRight']) {
+        graphics.x += speed * ticker.deltaTime;
+      }
+
+      // Вращение белого квадрата (оставляем как было)
+      graphics2.rotation -= 0.015 * ticker.deltaTime;
     });
 
     onUnmounted(() => {
+      // Обязательно удаляем слушатели при размонтировании компонента
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
       app.destroy(true, true);
     });
   }
