@@ -85,10 +85,12 @@ onMounted(async () => {
     }
     // --- Конец системы коллизий ---
 
-    // --- Управление ---
+    // --- Управление и состояние игры ---
     const keys = {};
     const speed = 5;
-    const mousePosition = { x: 400, y: 300 }; // Начальная позиция мыши в центре
+    const mousePosition = { x: 400, y: 300 };
+    const bullets = []; // Массив для хранения снарядов
+    const bulletSpeed = 8;
 
     // Слушатели для клавиатуры
     const onKeyDown = (e) => { keys[e.code] = true; };
@@ -96,51 +98,77 @@ onMounted(async () => {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
-    // Слушатель для мыши, чтобы отслеживать ее положение
+    // Слушатели для мыши
     app.stage.interactive = true;
     app.stage.hitArea = app.screen;
     app.stage.on('pointermove', (event) => {
       mousePosition.x = event.global.x;
       mousePosition.y = event.global.y;
     });
+    app.stage.on('pointerdown', () => {
+      // Создаем снаряд при клике
+      const bullet = new PIXI.Graphics();
+      const angle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
+      
+      // Свойства для движения снаряда
+      bullet.vx = Math.cos(angle) * bulletSpeed;
+      bullet.vy = Math.sin(angle) * bulletSpeed;
+
+      bullet.circle(0, 0, 4).fill(0xffff00); // Желтый круг радиусом 4
+      bullet.position.set(graphics.x, graphics.y);
+      
+      bullets.push(bullet);
+      app.stage.addChild(bullet);
+    });
     // --- Конец блока управления ---
 
     // --- Логика игры в каждом кадре ---
-    const rotationSpeed = 0.1; // Плавность поворота
+    const rotationSpeed = 0.1;
 
     app.ticker.add((ticker) => {
-      // --- Логика поворота (в сторону мыши) ---
+      // --- Логика игрока ---
+      // Поворот в сторону мыши
       const targetRotation = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
       let delta = targetRotation - graphics.rotation;
-      // Коррекция для кратчайшего пути поворота
       if (delta > Math.PI) delta -= 2 * Math.PI;
       if (delta < -Math.PI) delta += 2 * Math.PI;
       graphics.rotation += delta * rotationSpeed;
 
-      // --- Логика движения (по клавиатуре) ---
+      // Движение по клавиатуре
       const movement = { x: 0, y: 0 };
       if (keys['ArrowUp'])    movement.y = -1;
       if (keys['ArrowDown'])  movement.y = 1;
       if (keys['ArrowLeft'])  movement.x = -1;
       if (keys['ArrowRight']) movement.x = 1;
-
       graphics.x += movement.x * speed * ticker.deltaTime;
       graphics.y += movement.y * speed * ticker.deltaTime;
 
-      // --- Проверка коллизий ---
+      // --- Логика снарядов ---
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx * ticker.deltaTime;
+        b.y += b.vy * ticker.deltaTime;
+
+        // Удаляем снаряд, если он улетел за экран
+        if (b.x < -10 || b.x > app.screen.width + 10 || b.y < -10 || b.y > app.screen.height + 10) {
+          app.stage.removeChild(b);
+          b.destroy();
+          bullets.splice(i, 1);
+        }
+      }
+
+      // --- Проверка коллизий игрока с коробками ---
       for (const obstacle of obstacles) {
         if (obstacle.isAlive && obstacle.entityType === 'box' && checkAABBCollision(graphics, obstacle)) {
           respawn(obstacle);
         }
       }
-      // --- Конец проверки коллизий ---
-
-      // --- Проверка границ ---
+      
+      // --- Проверка границ для игрока ---
       const boundLeft = 25, boundRight = 25, boundTop = 25, boundBottom = 25;
       graphics.x = Math.max(boundLeft, Math.min(graphics.x, app.screen.width - boundRight));
       graphics.y = Math.max(boundTop, Math.min(graphics.y, app.screen.height - boundBottom));
-      // --- Конец проверки границ ---
-
+      
       // --- Логика других объектов ---
       if (graphics2.isAlive) {
         graphics2.rotation -= 0.015 * ticker.deltaTime;
@@ -148,10 +176,8 @@ onMounted(async () => {
     });
 
     onUnmounted(() => {
-      // Обязательно удаляем слушатели при размонтировании компонента
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
-      // Слушатель мыши (`pointermove`) удаляется автоматически при уничтожении `app`.
       app.destroy(true, true);
     });
   }
