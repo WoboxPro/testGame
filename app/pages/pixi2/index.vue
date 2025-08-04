@@ -32,6 +32,7 @@ onMounted(async () => {
     // --- Второй квадрат (белый) ---
     const graphics2 = new PIXI.Graphics();
     graphics2.entityType = 'box'; // Идентификатор для объекта
+    graphics2.isAlive = true; // Флаг, показывающий, активен ли объект
     graphics2.rect(0, 0, 40, 40).fill(0xffffff);
     graphics2.pivot.set(20, 20);
     graphics2.position.set(200, 250);
@@ -40,6 +41,21 @@ onMounted(async () => {
 
     // --- Система коллизий ---
     const obstacles = [graphics2]; // Список всех препятствий
+    const respawnDelay = 2000; // Задержка респауна в мс
+
+    // Функция для "пересоздания" объекта в случайном месте
+    function respawn(obj) {
+      obj.isAlive = false;
+      obj.visible = false;
+
+      setTimeout(() => {
+        const margin = 50; // Отступ от краев, чтобы не появляться на границе
+        obj.x = Math.random() * (app.screen.width - margin * 2) + margin;
+        obj.y = Math.random() * (app.screen.height - margin * 2) + margin;
+        obj.isAlive = true;
+        obj.visible = true;
+      }, respawnDelay);
+    }
 
     // Функция проверки столкновения.
     // Мы будем проверять столкновение "хитбокса" игрока с границами препятствия.
@@ -50,7 +66,7 @@ onMounted(async () => {
       // Создаем "хитбокс" для игрока, который немного меньше его реальных границ.
       // Это нужно, потому что getBounds() создает большой прямоугольник вокруг повернутой фигуры.
       // Уменьшая его, мы делаем коллизию более точной к видимой части треугольника.
-      const inset = 15; // << Поэкспериментируйте с этим значением, чтобы добиться нужного эффекта
+      const inset = 10; // << Поэкспериментируйте с этим значением, чтобы добиться нужного эффекта
       const playerHitbox = new PIXI.Rectangle(
         boundsPlayer.x + inset,
         boundsPlayer.y + inset,
@@ -109,24 +125,18 @@ onMounted(async () => {
       if (delta < -Math.PI) delta += 2 * Math.PI;
       graphics.rotation += delta * rotationSpeed;
 
-      // Сохраняем старую позицию перед движением
-      const oldPosition = { x: graphics.x, y: graphics.y };
-
       // Применяем движение к координатам
       graphics.x += movement.x * speed * ticker.deltaTime;
       graphics.y += movement.y * speed * ticker.deltaTime;
 
       // --- Проверка коллизий ---
       for (const obstacle of obstacles) {
-        if (obstacle.entityType !== graphics.entityType && checkAABBCollision(graphics, obstacle)) {
-          // При столкновении, возвращаем на предыдущую позицию
-          graphics.x = oldPosition.x;
-          graphics.y = oldPosition.y;
-          break; // Выходим из цикла, так как коллизия уже обработана
+        // Проверяем столкновение только с "живыми" коробками
+        if (obstacle.isAlive && obstacle.entityType === 'box' && checkAABBCollision(graphics, obstacle)) {
+          respawn(obstacle); // Запускаем респаун
         }
       }
       // --- Конец проверки коллизий ---
-
 
       // --- Проверка границ для красного треугольника ---
       // Размеры "полусторон" от точки pivot (25, 0)
@@ -139,8 +149,10 @@ onMounted(async () => {
       graphics.y = Math.max(boundTop, Math.min(graphics.y, app.screen.height - boundBottom));
       // --- Конец проверки границ ---
 
-      // Вращение белого квадрата (оставляем как было)
-      graphics2.rotation -= 0.015 * ticker.deltaTime;
+      // Вращение белого квадрата (оставляем как было, если он видим)
+      if (graphics2.isAlive) {
+        graphics2.rotation -= 0.015 * ticker.deltaTime;
+      }
     });
 
     onUnmounted(() => {
