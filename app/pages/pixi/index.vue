@@ -52,20 +52,35 @@ onMounted(async () => {
     window.addEventListener('keyup', onKeyUp);
     // --- Конец блока управления ---
 
+    // --- Логика поворота и движения ---
+    let targetRotation = 0;
+    const rotationSpeed = 0.1; // Плавность поворота (0.1 = 10% от разницы за кадр)
+
     app.ticker.add((ticker) => {
-      // Движение красного треугольника
-      if (keys['ArrowUp']) {
-        graphics.y -= speed * ticker.deltaTime;
+      const movement = { x: 0, y: 0 };
+
+      // Определяем направление движения по нажатым клавишам
+      if (keys['ArrowUp'])    movement.y = -1;
+      if (keys['ArrowDown'])  movement.y = 1;
+      if (keys['ArrowLeft'])  movement.x = -1;
+      if (keys['ArrowRight']) movement.x = 1;
+
+      // Если есть движение, вычисляем целевой угол
+      if (movement.x !== 0 || movement.y !== 0) {
+        targetRotation = Math.atan2(movement.y, movement.x);
       }
-      if (keys['ArrowDown']) {
-        graphics.y += speed * ticker.deltaTime;
-      }
-      if (keys['ArrowLeft']) {
-        graphics.x -= speed * ticker.deltaTime;
-      }
-      if (keys['ArrowRight']) {
-        graphics.x += speed * ticker.deltaTime;
-      }
+
+      // Плавно поворачиваем треугольник к целевому углу
+      let delta = targetRotation - graphics.rotation;
+      // Эта магия нужна, чтобы поворот всегда шел по кратчайшему пути
+      if (delta > Math.PI) delta -= 2 * Math.PI;
+      if (delta < -Math.PI) delta += 2 * Math.PI;
+      graphics.rotation += delta * rotationSpeed;
+
+      // Применяем движение к координатам
+      // Умножаем на speed и deltaTime для консистентной скорости
+      graphics.x += movement.x * speed * ticker.deltaTime;
+      graphics.y += movement.y * speed * ticker.deltaTime;
 
       // --- Проверка границ для красного треугольника ---
       // Размеры "полусторон" от точки pivot (50, 0)
