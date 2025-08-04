@@ -20,22 +20,54 @@ onMounted(async () => {
 
     // --- Создание красного треугольника ---
     const graphics = new PIXI.Graphics();
-    // Рисуем треугольник по координатам вершин [x1, y1, x2, y2, x3, y3]
-    // Получается фигура, вытянутая вправо
-    graphics.poly([0, -50, 100, 0, 0, 50]).fill(0xde3249);
-    // Ставим опорную точку в центр основания для интуитивного управления
-    graphics.pivot.set(50, 0);
+    graphics.entityType = 'player'; // Уникальный идентификатор для игрока
+    // Рисуем треугольник, уменьшенный в 2 раза
+    graphics.poly([0, -25, 50, 0, 0, 25]).fill(0xde3249);
+    // Ставим опорную точку в центр основания
+    graphics.pivot.set(25, 0);
     graphics.position.set(400, 300);
     app.stage.addChild(graphics);
     // --- Конец создания треугольника ---
 
-    // --- Второй квадрат (синий) ---
+    // --- Второй квадрат (белый) ---
     const graphics2 = new PIXI.Graphics();
-    graphics2.rect(0, 0, 80, 80).fill(0xffffff); // Синий цвет и размер 80x80
-    graphics2.pivot.set(40, 40); // Центр для квадрата 80x80
-    graphics2.position.set(200, 250); // Другая позиция
+    graphics2.entityType = 'box'; // Идентификатор для объекта
+    graphics2.rect(0, 0, 40, 40).fill(0xffffff);
+    graphics2.pivot.set(20, 20);
+    graphics2.position.set(200, 250);
     app.stage.addChild(graphics2);
     // --- Конец второго квадрата ---
+
+    // --- Система коллизий ---
+    const obstacles = [graphics2]; // Список всех препятствий
+
+    // Функция проверки столкновения.
+    // Мы будем проверять столкновение "хитбокса" игрока с границами препятствия.
+    function checkAABBCollision(player, obstacle) {
+      const boundsObstacle = obstacle.getBounds();
+      const boundsPlayer = player.getBounds();
+
+      // Создаем "хитбокс" для игрока, который немного меньше его реальных границ.
+      // Это нужно, потому что getBounds() создает большой прямоугольник вокруг повернутой фигуры.
+      // Уменьшая его, мы делаем коллизию более точной к видимой части треугольника.
+      const inset = 10; // << Поэкспериментируйте с этим значением, чтобы добиться нужного эффекта
+      const playerHitbox = new PIXI.Rectangle(
+        boundsPlayer.x + inset,
+        boundsPlayer.y + inset,
+        boundsPlayer.width - inset * 2,
+        boundsPlayer.height - inset * 2
+      );
+
+      // Предотвращаем отрицательные размеры хитбокса, если inset слишком большой
+      if (playerHitbox.width < 0) playerHitbox.width = 0;
+      if (playerHitbox.height < 0) playerHitbox.height = 0;
+
+      return playerHitbox.x < boundsObstacle.x + boundsObstacle.width &&
+             playerHitbox.x + playerHitbox.width > boundsObstacle.x &&
+             playerHitbox.y < boundsObstacle.y + boundsObstacle.height &&
+             playerHitbox.y + playerHitbox.height > boundsObstacle.y;
+    }
+    // --- Конец системы коллизий ---
 
     // --- Управление клавиатурой для красного треугольника ---
     const keys = {};
@@ -77,17 +109,31 @@ onMounted(async () => {
       if (delta < -Math.PI) delta += 2 * Math.PI;
       graphics.rotation += delta * rotationSpeed;
 
+      // Сохраняем старую позицию перед движением
+      const oldPosition = { x: graphics.x, y: graphics.y };
+
       // Применяем движение к координатам
-      // Умножаем на speed и deltaTime для консистентной скорости
       graphics.x += movement.x * speed * ticker.deltaTime;
       graphics.y += movement.y * speed * ticker.deltaTime;
 
+      // --- Проверка коллизий ---
+      for (const obstacle of obstacles) {
+        if (obstacle.entityType !== graphics.entityType && checkAABBCollision(graphics, obstacle)) {
+          // При столкновении, возвращаем на предыдущую позицию
+          graphics.x = oldPosition.x;
+          graphics.y = oldPosition.y;
+          break; // Выходим из цикла, так как коллизия уже обработана
+        }
+      }
+      // --- Конец проверки коллизий ---
+
+
       // --- Проверка границ для красного треугольника ---
-      // Размеры "полусторон" от точки pivot (50, 0)
-      const boundLeft = 50;   // Расстояние от pivot до левого края (вершины 0, -50 и 0, 50)
-      const boundRight = 50;  // Расстояние от pivot до правого края (вершина 100, 0)
-      const boundTop = 50;    // Расстояние от pivot до верхней вершины (0, -50)
-      const boundBottom = 50; // Расстояние от pivot до нижней вершины (0, 50)
+      // Размеры "полусторон" от точки pivot (25, 0)
+      const boundLeft = 25;
+      const boundRight = 25;
+      const boundTop = 25;
+      const boundBottom = 25;
 
       graphics.x = Math.max(boundLeft, Math.min(graphics.x, app.screen.width - boundRight));
       graphics.y = Math.max(boundTop, Math.min(graphics.y, app.screen.height - boundBottom));
