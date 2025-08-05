@@ -57,6 +57,32 @@
       </div>
 
       <div class="setting-group">
+        <label>Разброс (0-1):</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="1" 
+          step="0.05" 
+          v-model="weaponSettings.spread"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ Number(weaponSettings.spread).toFixed(2) }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Макс. угол разброса (градусы):</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="45" 
+          step="1" 
+          v-model="weaponSettings.maxSpreadAngle"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.maxSpreadAngle }}°</span>
+      </div>
+
+      <div class="setting-group">
         <label>
           <input 
             type="checkbox" 
@@ -168,6 +194,8 @@ const weaponSettings = reactive({
   penetration: 2,
   maxRange: 400,
   fireRate: 200,
+  spread: 0.1,          // Интенсивность разброса (0 = нет разброса, 1 = максимальный)
+  maxSpreadAngle: 5,    // Максимальный угол разброса в градусах
   autoFire: true
 });
 
@@ -181,6 +209,8 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.penetration = Number(weaponSettings.penetration);
     gameWeaponConfig.maxRange = Number(weaponSettings.maxRange);
     gameWeaponConfig.fireRate = Number(weaponSettings.fireRate);
+    gameWeaponConfig.spread = Number(weaponSettings.spread);
+    gameWeaponConfig.maxSpreadAngle = Number(weaponSettings.maxSpreadAngle);
     gameWeaponConfig.autoFire = weaponSettings.autoFire;
   }
 };
@@ -193,6 +223,8 @@ const loadPreset = (presetName) => {
       penetration: 2,
       maxRange: 400,
       fireRate: 150,
+      spread: 0.25,
+      maxSpreadAngle: 8,
       autoFire: true
     },
     sniper: {
@@ -200,6 +232,8 @@ const loadPreset = (presetName) => {
       penetration: 5,
       maxRange: 800,
       fireRate: 800,
+      spread: 0.05,
+      maxSpreadAngle: 2,
       autoFire: false
     },
     shotgun: {
@@ -207,6 +241,8 @@ const loadPreset = (presetName) => {
       penetration: 1,
       maxRange: 200,
       fireRate: 600,
+      spread: 0.8,
+      maxSpreadAngle: 25,
       autoFire: false
     }
   };
@@ -306,6 +342,8 @@ onMounted(async () => {
       penetration: weaponSettings.penetration,
       maxRange: weaponSettings.maxRange,
       fireRate: weaponSettings.fireRate,
+      spread: weaponSettings.spread,
+      maxSpreadAngle: weaponSettings.maxSpreadAngle,
       autoFire: weaponSettings.autoFire
     };
     
@@ -329,9 +367,24 @@ onMounted(async () => {
       
       const bullet = new PIXI.Graphics();
       bullet.entityType = 'bullet';
-      const angle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
-      bullet.vx = Math.cos(angle) * weaponConfig.bulletSpeed;
-      bullet.vy = Math.sin(angle) * weaponConfig.bulletSpeed;
+      
+      // Базовый угол в сторону курсора
+      const baseAngle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
+      
+      // Вычисляем разброс
+      let finalAngle = baseAngle;
+      if (weaponConfig.spread > 0 && weaponConfig.maxSpreadAngle > 0) {
+        // Генерируем случайное отклонение от -1 до 1
+        const randomSpread = (Math.random() - 0.5) * 2;
+        
+        // Применяем интенсивность разброса и максимальный угол
+        const spreadAngleRad = (randomSpread * weaponConfig.spread * weaponConfig.maxSpreadAngle) * (Math.PI / 180);
+        finalAngle = baseAngle + spreadAngleRad;
+      }
+      
+      // Вычисляем скорость с учетом финального угла
+      bullet.vx = Math.cos(finalAngle) * weaponConfig.bulletSpeed;
+      bullet.vy = Math.sin(finalAngle) * weaponConfig.bulletSpeed;
       
       // Свойства снаряда
       bullet.penetrationLeft = weaponConfig.penetration; // Сколько целей еще может пробить
