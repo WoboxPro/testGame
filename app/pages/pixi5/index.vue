@@ -31,6 +31,19 @@
       </div>
 
       <div class="setting-group">
+        <label>Количество снарядов:</label>
+        <input 
+          type="range" 
+          min="1" 
+          max="8" 
+          step="1" 
+          v-model="weaponSettings.bulletsPerShot"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.bulletsPerShot }}</span>
+      </div>
+
+      <div class="setting-group">
         <label>Дальность:</label>
         <input 
           type="range" 
@@ -104,6 +117,30 @@
           />
           Автоматическая стрельба
         </label>
+      </div>
+
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.fanSpread"
+            @change="updateWeaponConfig"
+          />
+          Веерная стрельба
+        </label>
+      </div>
+
+      <div class="setting-group">
+        <label>Угол веера (градусы):</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="90" 
+          step="5" 
+          v-model="weaponSettings.fanAngle"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.fanAngle }}°</span>
       </div>
 
       <div class="presets">
@@ -205,11 +242,14 @@ const pixiContainer = ref(null);
 const weaponSettings = reactive({
   bulletSpeed: 10,
   penetration: 2,
+  bulletsPerShot: 1,        // Количество снарядов за выстрел
   maxRange: 400,
   bulletLifetime: 2.0,      // Время жизни снаряда в секундах
   fireRate: 200,
   spread: 0.1,              // Интенсивность разброса (0 = нет разброса, 1 = максимальный)
   maxSpreadAngle: 5,        // Максимальный угол разброса в градусах
+  fanSpread: false,         // Веерная стрельба вместо случайного разброса
+  fanAngle: 30,             // Угол веера в градусах
   autoFire: true
 });
 
@@ -221,11 +261,14 @@ const updateWeaponConfig = () => {
   if (gameWeaponConfig) {
     gameWeaponConfig.bulletSpeed = Number(weaponSettings.bulletSpeed);
     gameWeaponConfig.penetration = Number(weaponSettings.penetration);
+    gameWeaponConfig.bulletsPerShot = Number(weaponSettings.bulletsPerShot);
     gameWeaponConfig.maxRange = Number(weaponSettings.maxRange);
     gameWeaponConfig.bulletLifetime = Number(weaponSettings.bulletLifetime);
     gameWeaponConfig.fireRate = Number(weaponSettings.fireRate);
     gameWeaponConfig.spread = Number(weaponSettings.spread);
     gameWeaponConfig.maxSpreadAngle = Number(weaponSettings.maxSpreadAngle);
+    gameWeaponConfig.fanSpread = weaponSettings.fanSpread;
+    gameWeaponConfig.fanAngle = Number(weaponSettings.fanAngle);
     gameWeaponConfig.autoFire = weaponSettings.autoFire;
   }
 };
@@ -236,31 +279,40 @@ const loadPreset = (presetName) => {
     assault: {
       bulletSpeed: 12,
       penetration: 2,
+      bulletsPerShot: 1,
       maxRange: 400,
       bulletLifetime: 1.5,
       fireRate: 150,
       spread: 0.25,
       maxSpreadAngle: 8,
+      fanSpread: false,      // Автомат использует случайный разброс
+      fanAngle: 20,
       autoFire: true
     },
     sniper: {
       bulletSpeed: 20,
       penetration: 5,
+      bulletsPerShot: 1,
       maxRange: 800,
       bulletLifetime: 3.0,
       fireRate: 800,
       spread: 0.05,
       maxSpreadAngle: 2,
+      fanSpread: false,      // Снайперка без веера
+      fanAngle: 0,
       autoFire: false
     },
     shotgun: {
       bulletSpeed: 8,
       penetration: 1,
+      bulletsPerShot: 5,      // Дробовик стреляет сразу 5 снарядами!
       maxRange: 200,
       bulletLifetime: 1.0,
       fireRate: 600,
-      spread: 0.8,
-      maxSpreadAngle: 25,
+      spread: 0.3,
+      maxSpreadAngle: 15,
+      fanSpread: true,       // Дробовик использует веер!
+      fanAngle: 45,          // Широкий веер 45 градусов
       autoFire: false
     }
   };
@@ -358,11 +410,14 @@ onMounted(async () => {
     const weaponConfig = {
       bulletSpeed: weaponSettings.bulletSpeed,
       penetration: weaponSettings.penetration,
+      bulletsPerShot: weaponSettings.bulletsPerShot,
       maxRange: weaponSettings.maxRange,
       bulletLifetime: weaponSettings.bulletLifetime,
       fireRate: weaponSettings.fireRate,
       spread: weaponSettings.spread,
       maxSpreadAngle: weaponSettings.maxSpreadAngle,
+      fanSpread: weaponSettings.fanSpread,
+      fanAngle: weaponSettings.fanAngle,
       autoFire: weaponSettings.autoFire
     };
     
@@ -384,39 +439,48 @@ onMounted(async () => {
       const currentTime = Date.now();
       if (currentTime - lastFireTime < weaponConfig.fireRate) return; // Проверка скорострельности
       
-      const bullet = new PIXI.Graphics();
-      bullet.entityType = 'bullet';
-      
       // Базовый угол в сторону курсора
       const baseAngle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
       
-      // Вычисляем разброс
-      let finalAngle = baseAngle;
-      if (weaponConfig.spread > 0 && weaponConfig.maxSpreadAngle > 0) {
-        // Генерируем случайное отклонение от -1 до 1
-        const randomSpread = (Math.random() - 0.5) * 2;
+      // Создаем столько пуль, сколько указано в bulletsPerShot
+      for (let i = 0; i < weaponConfig.bulletsPerShot; i++) {
+        const bullet = new PIXI.Graphics();
+        bullet.entityType = 'bullet';
         
-        // Применяем интенсивность разброса и максимальный угол
-        const spreadAngleRad = (randomSpread * weaponConfig.spread * weaponConfig.maxSpreadAngle) * (Math.PI / 180);
-        finalAngle = baseAngle + spreadAngleRad;
+        // Вычисляем угол для каждой пули
+        let finalAngle = baseAngle;
+        
+        if (weaponConfig.fanSpread && weaponConfig.bulletsPerShot > 1) {
+          // ВЕЕРНАЯ СТРЕЛЬБА: равномерное распределение по дуге
+          const fanAngleRad = (weaponConfig.fanAngle * Math.PI) / 180;
+          const stepAngle = fanAngleRad / (weaponConfig.bulletsPerShot - 1);
+          const startAngle = baseAngle - fanAngleRad / 2;
+          finalAngle = startAngle + (stepAngle * i);
+          
+        } else if (!weaponConfig.fanSpread && weaponConfig.spread > 0 && weaponConfig.maxSpreadAngle > 0) {
+          // СЛУЧАЙНЫЙ РАЗБРОС: как было раньше
+          const randomSpread = (Math.random() - 0.5) * 2;
+          const spreadAngleRad = (randomSpread * weaponConfig.spread * weaponConfig.maxSpreadAngle) * (Math.PI / 180);
+          finalAngle = baseAngle + spreadAngleRad;
+        }
+        
+        // Вычисляем скорость с учетом финального угла
+        bullet.vx = Math.cos(finalAngle) * weaponConfig.bulletSpeed;
+        bullet.vy = Math.sin(finalAngle) * weaponConfig.bulletSpeed;
+        
+        // Свойства снаряда
+        bullet.penetrationLeft = weaponConfig.penetration; // Сколько целей еще может пробить
+        bullet.distanceTraveled = 0; // Пройденное расстояние
+        bullet.timeAlive = 0; // Время жизни в секундах
+        bullet.maxLifetime = weaponConfig.bulletLifetime; // Максимальное время жизни
+        bullet.startX = graphics.x; // Начальная позиция для расчета дальности
+        bullet.startY = graphics.y;
+        
+        bullet.circle(0, 0, 4).fill(0xffff00);
+        bullet.position.set(graphics.x, graphics.y);
+        bullets.push(bullet);
+        app.stage.addChild(bullet);
       }
-      
-      // Вычисляем скорость с учетом финального угла
-      bullet.vx = Math.cos(finalAngle) * weaponConfig.bulletSpeed;
-      bullet.vy = Math.sin(finalAngle) * weaponConfig.bulletSpeed;
-      
-      // Свойства снаряда
-      bullet.penetrationLeft = weaponConfig.penetration; // Сколько целей еще может пробить
-      bullet.distanceTraveled = 0; // Пройденное расстояние
-      bullet.timeAlive = 0; // Время жизни в секундах
-      bullet.maxLifetime = weaponConfig.bulletLifetime; // Максимальное время жизни
-      bullet.startX = graphics.x; // Начальная позиция для расчета дальности
-      bullet.startY = graphics.y;
-      
-      bullet.circle(0, 0, 4).fill(0xffff00);
-      bullet.position.set(graphics.x, graphics.y);
-      bullets.push(bullet);
-      app.stage.addChild(bullet);
       
       lastFireTime = currentTime;
     }
