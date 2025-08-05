@@ -1,12 +1,221 @@
 <template>
-  <div ref="pixiContainer"></div>
+  <div class="game-container">
+    <div ref="pixiContainer" class="game-canvas"></div>
+    <div class="settings-panel">
+      <h3>Настройки оружия</h3>
+      
+      <div class="setting-group">
+        <label>Скорость снаряда:</label>
+        <input 
+          type="range" 
+          min="5" 
+          max="20" 
+          step="1" 
+          v-model="weaponSettings.bulletSpeed"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.bulletSpeed }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Пробитие:</label>
+        <input 
+          type="range" 
+          min="1" 
+          max="10" 
+          step="1" 
+          v-model="weaponSettings.penetration"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.penetration }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Дальность:</label>
+        <input 
+          type="range" 
+          min="100" 
+          max="800" 
+          step="50" 
+          v-model="weaponSettings.maxRange"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.maxRange }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Скорострельность (мс):</label>
+        <input 
+          type="range" 
+          min="50" 
+          max="1000" 
+          step="50" 
+          v-model="weaponSettings.fireRate"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.fireRate }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.autoFire"
+            @change="updateWeaponConfig"
+          />
+          Автоматическая стрельба
+        </label>
+      </div>
+
+      <div class="presets">
+        <h4>Пресеты:</h4>
+        <button @click="loadPreset('assault')">Автомат</button>
+        <button @click="loadPreset('sniper')">Снайперка</button>
+        <button @click="loadPreset('shotgun')">Дробовик</button>
+      </div>
+    </div>
+  </div>
 </template>
 
+<style scoped>
+.game-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.game-canvas {
+  flex-shrink: 0;
+}
+
+.settings-panel {
+  width: 300px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.settings-panel h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.setting-group {
+  margin-bottom: 20px;
+}
+
+.setting-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #555;
+}
+
+.setting-group input[type="range"] {
+  width: 200px;
+  margin-right: 10px;
+}
+
+.setting-group input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.setting-group span {
+  font-weight: bold;
+  color: #007acc;
+}
+
+.presets {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.presets h4 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.presets button {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background: #007acc;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.presets button:hover {
+  background: #005a99;
+}
+</style>
+
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, reactive } from 'vue';
 import * as PIXI from 'pixi.js';
 
 const pixiContainer = ref(null);
+
+// Реактивные настройки оружия для UI
+const weaponSettings = reactive({
+  bulletSpeed: 10,
+  penetration: 2,
+  maxRange: 400,
+  fireRate: 200,
+  autoFire: true
+});
+
+// Переменная для хранения ссылки на weaponConfig из игрового цикла
+let gameWeaponConfig = null;
+
+// Функция для обновления конфигурации оружия в игре
+const updateWeaponConfig = () => {
+  if (gameWeaponConfig) {
+    gameWeaponConfig.bulletSpeed = Number(weaponSettings.bulletSpeed);
+    gameWeaponConfig.penetration = Number(weaponSettings.penetration);
+    gameWeaponConfig.maxRange = Number(weaponSettings.maxRange);
+    gameWeaponConfig.fireRate = Number(weaponSettings.fireRate);
+    gameWeaponConfig.autoFire = weaponSettings.autoFire;
+  }
+};
+
+// Функция для загрузки пресетов
+const loadPreset = (presetName) => {
+  const presets = {
+    assault: {
+      bulletSpeed: 12,
+      penetration: 2,
+      maxRange: 400,
+      fireRate: 150,
+      autoFire: true
+    },
+    sniper: {
+      bulletSpeed: 20,
+      penetration: 5,
+      maxRange: 800,
+      fireRate: 800,
+      autoFire: false
+    },
+    shotgun: {
+      bulletSpeed: 8,
+      penetration: 1,
+      maxRange: 200,
+      fireRate: 600,
+      autoFire: false
+    }
+  };
+  
+  if (presets[presetName]) {
+    Object.assign(weaponSettings, presets[presetName]);
+    updateWeaponConfig();
+  }
+};
 
 onMounted(async () => {
   if (process.client && pixiContainer.value) {
@@ -93,12 +302,15 @@ onMounted(async () => {
     
     // --- Настройки оружия ---
     const weaponConfig = {
-      bulletSpeed: 10,        // Скорость полета снаряда
-      penetration: 2,         // Сколько целей может пробить снаряд
-      maxRange: 400,          // Максимальная дальность полета
-      fireRate: 200,          // Задержка между выстрелами в мс (меньше = быстрее)
-      autoFire: true          // true = автоматическая стрельба, false = по клику
+      bulletSpeed: weaponSettings.bulletSpeed,
+      penetration: weaponSettings.penetration,
+      maxRange: weaponSettings.maxRange,
+      fireRate: weaponSettings.fireRate,
+      autoFire: weaponSettings.autoFire
     };
+    
+    // Сохраняем ссылку для обновления из UI
+    gameWeaponConfig = weaponConfig;
     
     // --- Состояние стрельбы ---
     let isMouseDown = false;
