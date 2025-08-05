@@ -90,13 +90,50 @@ onMounted(async () => {
     const speed = 5;
     const mousePosition = { x: 400, y: 300 };
     const bullets = [];
-    const bulletSpeed = 8;
+    
+    // --- Настройки оружия ---
+    const weaponConfig = {
+      bulletSpeed: 10,        // Скорость полета снаряда
+      penetration: 2,         // Сколько целей может пробить снаряд
+      maxRange: 400,          // Максимальная дальность полета
+      fireRate: 200,          // Задержка между выстрелами в мс (меньше = быстрее)
+      autoFire: true          // true = автоматическая стрельба, false = по клику
+    };
+    
+    // --- Состояние стрельбы ---
+    let isMouseDown = false;
+    let lastFireTime = 0;
 
     // Слушатели для клавиатуры
     const onKeyDown = (e) => { keys[e.code] = true; };
     const onKeyUp = (e) => { keys[e.code] = false; };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+
+    // Функция создания снаряда
+    function createBullet() {
+      const currentTime = Date.now();
+      if (currentTime - lastFireTime < weaponConfig.fireRate) return; // Проверка скорострельности
+      
+      const bullet = new PIXI.Graphics();
+      bullet.entityType = 'bullet';
+      const angle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
+      bullet.vx = Math.cos(angle) * weaponConfig.bulletSpeed;
+      bullet.vy = Math.sin(angle) * weaponConfig.bulletSpeed;
+      
+      // Свойства снаряда
+      bullet.penetrationLeft = weaponConfig.penetration; // Сколько целей еще может пробить
+      bullet.distanceTraveled = 0; // Пройденное расстояние
+      bullet.startX = graphics.x; // Начальная позиция для расчета дальности
+      bullet.startY = graphics.y;
+      
+      bullet.circle(0, 0, 4).fill(0xffff00);
+      bullet.position.set(graphics.x, graphics.y);
+      bullets.push(bullet);
+      app.stage.addChild(bullet);
+      
+      lastFireTime = currentTime;
+    }
 
     // Слушатели для мыши
     app.stage.interactive = true;
@@ -105,16 +142,23 @@ onMounted(async () => {
       mousePosition.x = event.global.x;
       mousePosition.y = event.global.y;
     });
+    
+    // Обработка нажатия мыши
     app.stage.on('pointerdown', () => {
-      const bullet = new PIXI.Graphics();
-      bullet.entityType = 'bullet'; // Идентификатор снаряда
-      const angle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
-      bullet.vx = Math.cos(angle) * bulletSpeed;
-      bullet.vy = Math.sin(angle) * bulletSpeed;
-      bullet.circle(0, 0, 4).fill(0xffff00);
-      bullet.position.set(graphics.x, graphics.y);
-      bullets.push(bullet);
-      app.stage.addChild(bullet);
+      isMouseDown = true;
+      if (!weaponConfig.autoFire) {
+        createBullet(); // Для одиночной стрельбы стреляем сразу
+      }
+    });
+    
+    // Обработка отпускания мыши
+    app.stage.on('pointerup', () => {
+      isMouseDown = false;
+    });
+    
+    // Обработка выхода курсора за пределы canvas
+    app.stage.on('pointerupoutside', () => {
+      isMouseDown = false;
     });
     // --- Конец блока управления ---
 
@@ -136,24 +180,53 @@ onMounted(async () => {
       graphics.x += movement.x * speed * ticker.deltaTime;
       graphics.y += movement.y * speed * ticker.deltaTime;
 
+      // --- Автоматическая стрельба ---
+      if (weaponConfig.autoFire && isMouseDown) {
+        createBullet();
+      }
+
       // --- Логика снарядов и их коллизий ---
       for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
+        const oldX = b.x;
+        const oldY = b.y;
+        
         b.x += b.vx * ticker.deltaTime;
         b.y += b.vy * ticker.deltaTime;
+        
+        // Обновляем пройденное расстояние
+        const dx = b.x - oldX;
+        const dy = b.y - oldY;
+        b.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
 
-        let hit = false;
-        // Проверяем попадание в каждую цель
+        let shouldRemove = false;
+        
+        // Проверяем дальность полета
+        if (b.distanceTraveled > weaponConfig.maxRange) {
+          shouldRemove = true;
+        }
+        
+        // Проверяем выход за границы экрана
+        if (b.x < -10 || b.x > app.screen.width + 10 || b.y < -10 || b.y > app.screen.height + 10) {
+          shouldRemove = true;
+        }
+        
+        // Проверяем попадания в цели
         for (const obstacle of obstacles) {
-          if (obstacle.isAlive && checkBulletObstacleCollision(b, obstacle)) {
+          if (obstacle.isAlive && b.penetrationLeft > 0 && checkBulletObstacleCollision(b, obstacle)) {
             respawn(obstacle);
-            hit = true;
-            break; // Один снаряд - одна цель
+            b.penetrationLeft--; // Уменьшаем пробитие
+            
+            // Если пробитие закончилось, снаряд исчезает
+            if (b.penetrationLeft <= 0) {
+              shouldRemove = true;
+            }
+            break; // Обрабатываем только одно попадание за кадр
           }
         }
 
-        // Удаляем снаряд, если он улетел за экран или попал в цель
-        if (hit || b.x < -10 || b.x > app.screen.width + 10 || b.y < -10 || b.y > app.screen.height + 10) {
+        // Удаляем снаряд если нужно
+        if (shouldRemove) {
           app.stage.removeChild(b);
           b.destroy();
           bullets.splice(i, 1);
