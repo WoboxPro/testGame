@@ -167,6 +167,80 @@
         <span>{{ weaponSettings.explosionRadius }}px</span>
       </div>
 
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.ricochetWalls"
+            @change="updateWeaponConfig"
+          />
+          Рикошет от стен
+        </label>
+      </div>
+
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.ricochetEnemies"
+            @change="updateWeaponConfig"
+          />
+          Рикошет от врагов
+        </label>
+      </div>
+
+      <div class="setting-group">
+        <label>Количество рикошетов:</label>
+        <input 
+          type="range" 
+          min="1" 
+          max="10" 
+          step="1" 
+          v-model="weaponSettings.maxRicochets"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.maxRicochets }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Отдача оружия:</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="10" 
+          step="0.5" 
+          v-model="weaponSettings.recoil"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ Number(weaponSettings.recoil).toFixed(1) }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Урон пули:</label>
+        <input 
+          type="range" 
+          min="1" 
+          max="10" 
+          step="1" 
+          v-model="weaponSettings.bulletDamage"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.bulletDamage }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Урон взрыва:</label>
+        <input 
+          type="range" 
+          min="1" 
+          max="20" 
+          step="1" 
+          v-model="weaponSettings.explosionDamage"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.explosionDamage }}</span>
+      </div>
+
       <div class="presets">
         <h4>Пресеты:</h4>
         <button @click="loadPreset('assault')">Автомат</button>
@@ -279,6 +353,12 @@ const weaponSettings = reactive({
   fanAngle: 30,             // Угол веера в градусах
   explosiveRounds: false,   // Взрывчатые снаряды
   explosionRadius: 50,      // Радиус взрыва в пикселях
+  ricochetWalls: false,     // Рикошет от стен (границ экрана)
+  ricochetEnemies: false,   // Рикошет от врагов (когда пробитие кончилось)
+  maxRicochets: 3,          // Максимальное количество рикошетов
+  recoil: 2.0,              // Сила отдачи оружия (0 = нет отдачи, 10 = максимальная)
+  bulletDamage: 1,          // Урон от прямого попадания пули
+  explosionDamage: 3,       // Урон от взрыва
   autoFire: true
 });
 
@@ -300,6 +380,12 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.fanAngle = Number(weaponSettings.fanAngle);
     gameWeaponConfig.explosiveRounds = weaponSettings.explosiveRounds;
     gameWeaponConfig.explosionRadius = Number(weaponSettings.explosionRadius);
+    gameWeaponConfig.ricochetWalls = weaponSettings.ricochetWalls;
+    gameWeaponConfig.ricochetEnemies = weaponSettings.ricochetEnemies;
+    gameWeaponConfig.maxRicochets = Number(weaponSettings.maxRicochets);
+    gameWeaponConfig.recoil = Number(weaponSettings.recoil);
+    gameWeaponConfig.bulletDamage = Number(weaponSettings.bulletDamage);
+    gameWeaponConfig.explosionDamage = Number(weaponSettings.explosionDamage);
     gameWeaponConfig.autoFire = weaponSettings.autoFire;
   }
 };
@@ -320,6 +406,12 @@ const loadPreset = (presetName) => {
       fanAngle: 20,
       explosiveRounds: false, // Обычные снаряды
       explosionRadius: 40,
+      ricochetWalls: true,   // Автомат с рикошетом от стен
+      ricochetEnemies: false,
+      maxRicochets: 2,
+      recoil: 1.5,           // Небольшая отдача автомата
+      bulletDamage: 2,       // Средний урон пули
+      explosionDamage: 4,    // Средний урон взрыва
       autoFire: true
     },
     sniper: {
@@ -335,6 +427,12 @@ const loadPreset = (presetName) => {
       fanAngle: 0,
       explosiveRounds: true, // Взрывчатые снайперские снаряды!
       explosionRadius: 70,   // Большой радиус взрыва
+      ricochetWalls: false,  // Снайперка без рикошетов
+      ricochetEnemies: false,
+      maxRicochets: 1,
+      recoil: 8.0,           // Сильная отдача снайперки!
+      bulletDamage: 10,      // Максимальный урон пули!
+      explosionDamage: 15,   // Огромный урон взрыва!
       autoFire: false
     },
     shotgun: {
@@ -350,6 +448,12 @@ const loadPreset = (presetName) => {
       fanAngle: 45,          // Широкий веер 45 градусов
       explosiveRounds: false, // Обычная дробь
       explosionRadius: 30,
+      ricochetWalls: true,   // Дробь рикошетит от стен
+      ricochetEnemies: true, // И от врагов когда пробитие кончается!
+      maxRicochets: 4,       // Много рикошетов для дроби
+      recoil: 4.5,           // Средняя отдача дробовика
+      bulletDamage: 1,       // Малый урон одной дробинки
+      explosionDamage: 2,    // Малый урон взрыва
       autoFire: false
     }
   };
@@ -385,6 +489,8 @@ onMounted(async () => {
     const graphics2 = new PIXI.Graphics();
     graphics2.entityType = 'box'; // Идентификатор для объекта
     graphics2.isAlive = true; // Флаг, показывающий, активен ли объект
+    graphics2.health = 1; // Здоровье врага (пока 1 хит = смерть)
+    graphics2.maxHealth = 1; // Максимальное здоровье для восстановления при респавне
     graphics2.rect(0, 0, 40, 40).fill(0xffffff);
     graphics2.pivot.set(20, 20);
     graphics2.position.set(200, 250);
@@ -402,6 +508,7 @@ onMounted(async () => {
         const margin = 50;
         obj.x = Math.random() * (app.screen.width - margin * 2) + margin;
         obj.y = Math.random() * (app.screen.height - margin * 2) + margin;
+        obj.health = obj.maxHealth; // Восстанавливаем здоровье при респавне
         obj.isAlive = true;
         obj.visible = true;
       }, respawnDelay);
@@ -435,6 +542,21 @@ onMounted(async () => {
       const obstacleRadius = 20; // Упрощенный "хитбокс" квадрата
       return distance < bulletRadius + obstacleRadius;
     }
+    
+    // Функция нанесения урона объекту
+    function dealDamage(target, damage) {
+      if (!target.isAlive) return false;
+      
+      target.health -= damage;
+      
+      // Проверяем, погиб ли объект
+      if (target.health <= 0) {
+        respawn(target);
+        return true; // Объект уничтожен
+      }
+      
+      return false; // Объект выжил
+    }
     // --- Конец системы коллизий ---
 
     // --- Управление и состояние игры ---
@@ -458,6 +580,12 @@ onMounted(async () => {
       fanAngle: weaponSettings.fanAngle,
       explosiveRounds: weaponSettings.explosiveRounds,
       explosionRadius: weaponSettings.explosionRadius,
+      ricochetWalls: weaponSettings.ricochetWalls,
+      ricochetEnemies: weaponSettings.ricochetEnemies,
+      maxRicochets: weaponSettings.maxRicochets,
+      recoil: weaponSettings.recoil,
+      bulletDamage: weaponSettings.bulletDamage,
+      explosionDamage: weaponSettings.explosionDamage,
       autoFire: weaponSettings.autoFire
     };
     
@@ -475,7 +603,7 @@ onMounted(async () => {
     window.addEventListener('keyup', onKeyUp);
 
     // --- Функция создания взрыва ---
-    function createExplosion(x, y, radius) {
+    function createExplosion(x, y, radius, damage = weaponConfig.explosionDamage) {
       // Создаем визуальный эффект взрыва
       const explosion = new PIXI.Graphics();
       explosion.circle(0, 0, radius).fill(0xff6600); // Оранжевый цвет взрыва
@@ -495,7 +623,7 @@ onMounted(async () => {
           // Взрыв попадает, если расстояние от центра взрыва до центра препятствия 
           // меньше суммы радиуса взрыва и размера препятствия
           if (distance <= radius + obstacleRadius) {
-            respawn(obstacle); // Взрыв уничтожает препятствие
+            dealDamage(obstacle, damage); // Наносим урон взрывом
           }
         }
       }
@@ -560,6 +688,8 @@ onMounted(async () => {
         bullet.distanceTraveled = 0; // Пройденное расстояние
         bullet.timeAlive = 0; // Время жизни в секундах
         bullet.maxLifetime = weaponConfig.bulletLifetime; // Максимальное время жизни
+        bullet.ricochetsLeft = weaponConfig.maxRicochets; // Количество оставшихся рикошетов
+        bullet.damage = weaponConfig.bulletDamage; // Урон пули
         bullet.startX = graphics.x; // Начальная позиция для расчета дальности
         bullet.startY = graphics.y;
         
@@ -567,6 +697,28 @@ onMounted(async () => {
         bullet.position.set(graphics.x, graphics.y);
         bullets.push(bullet);
         app.stage.addChild(bullet);
+      }
+      
+      // --- Применяем отдачу оружия ---
+      if (weaponConfig.recoil > 0) {
+        // Базовый угол выстрела (в сторону курсора)
+        const baseAngle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
+        
+        // Отдача в противоположную сторону
+        const recoilAngle = baseAngle + Math.PI; // + 180 градусов
+        const recoilForce = weaponConfig.recoil * weaponConfig.bulletsPerShot; // Увеличиваем отдачу для множественных снарядов
+        
+        // Применяем силу отдачи к игроку
+        const recoilX = Math.cos(recoilAngle) * recoilForce;
+        const recoilY = Math.sin(recoilAngle) * recoilForce;
+        
+        graphics.x += recoilX;
+        graphics.y += recoilY;
+        
+        // Проверяем границы после отдачи
+        const boundLeft = 25, boundRight = 25, boundTop = 25, boundBottom = 25;
+        graphics.x = Math.max(boundLeft, Math.min(graphics.x, app.screen.width - boundRight));
+        graphics.y = Math.max(boundTop, Math.min(graphics.y, app.screen.height - boundBottom));
       }
       
       lastFireTime = currentTime;
@@ -651,20 +803,77 @@ onMounted(async () => {
           shouldRemove = true;
         }
         
-        // Проверяем выход за границы экрана
+        // Проверяем рикошет от стен (границы экрана)
+        if (weaponConfig.ricochetWalls && b.ricochetsLeft > 0) {
+          let hasRicocheted = false;
+          
+          // Проверяем левую и правую стены
+          if (b.x <= 4 || b.x >= app.screen.width - 4) {
+            b.vx = -b.vx; // Инвертируем горизонтальную скорость
+            b.x = Math.max(4, Math.min(b.x, app.screen.width - 4)); // Корректируем позицию
+            hasRicocheted = true;
+          }
+          
+          // Проверяем верхнюю и нижнюю стены
+          if (b.y <= 4 || b.y >= app.screen.height - 4) {
+            b.vy = -b.vy; // Инвертируем вертикальную скорость
+            b.y = Math.max(4, Math.min(b.y, app.screen.height - 4)); // Корректируем позицию
+            hasRicocheted = true;
+          }
+          
+          if (hasRicocheted) {
+            b.ricochetsLeft--; // Уменьшаем количество рикошетов
+          }
+        }
+        
+        // Проверяем выход за границы экрана (если рикошеты кончились или отключены)
         if (b.x < -10 || b.x > app.screen.width + 10 || b.y < -10 || b.y > app.screen.height + 10) {
           shouldRemove = true;
         }
         
         // Проверяем попадания в цели
         for (const obstacle of obstacles) {
-          if (obstacle.isAlive && b.penetrationLeft > 0 && checkBulletObstacleCollision(b, obstacle)) {
-            respawn(obstacle);
-            b.penetrationLeft--; // Уменьшаем пробитие
+          if (obstacle.isAlive && checkBulletObstacleCollision(b, obstacle)) {
             
-            // Если пробитие закончилось, снаряд исчезает
-            if (b.penetrationLeft <= 0) {
-              shouldRemove = true;
+            if (b.penetrationLeft > 0) {
+              // Есть пробитие - наносим урон цели
+              dealDamage(obstacle, b.damage);
+              b.penetrationLeft--; // Уменьшаем пробитие
+              
+              // Если пробитие закончилось, проверяем рикошет от врагов
+              if (b.penetrationLeft <= 0) {
+                if (weaponConfig.ricochetEnemies && b.ricochetsLeft > 0) {
+                  // Рикошет от врага: отражаем снаряд в случайном направлении
+                  const randomAngle = Math.random() * Math.PI * 2;
+                  const currentSpeed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+                  b.vx = Math.cos(randomAngle) * currentSpeed;
+                  b.vy = Math.sin(randomAngle) * currentSpeed;
+                  b.ricochetsLeft--; // Уменьшаем количество рикошетов
+                  
+                  // Восстанавливаем минимальное пробитие для следующих целей
+                  b.penetrationLeft = 1;
+                } else {
+                  shouldRemove = true;
+                }
+              }
+            } else {
+              // Пробития нет, но возможен рикошет от врагов
+              if (weaponConfig.ricochetEnemies && b.ricochetsLeft > 0) {
+                dealDamage(obstacle, b.damage);
+                
+                // Рикошет от врага: отражаем снаряд в случайном направлении
+                const randomAngle = Math.random() * Math.PI * 2;
+                const currentSpeed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+                b.vx = Math.cos(randomAngle) * currentSpeed;
+                b.vy = Math.sin(randomAngle) * currentSpeed;
+                b.ricochetsLeft--; // Уменьшаем количество рикошетов
+                
+                // Восстанавливаем минимальное пробитие для следующих целей
+                b.penetrationLeft = 1;
+              } else {
+                // Нет ни пробития, ни рикошетов - снаряд исчезает
+                shouldRemove = true;
+              }
             }
             break; // Обрабатываем только одно попадание за кадр
           }
