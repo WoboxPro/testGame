@@ -11,6 +11,14 @@
           <option value="raycast">Векторная (лучевая)</option>
         </select>
       </div>
+
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'raycast'">
+        <label>Анимация векторной стрельбы:</label>
+        <select v-model="weaponSettings.raycastAnimation" @change="updateWeaponConfig">
+          <option value="laser">🔴 Лазер (видимый луч)</option>
+          <option value="impact">💥 Попадания (только точки)</option>
+        </select>
+      </div>
       
       <div class="setting-group">
         <label>Скорость снаряда:</label>
@@ -263,6 +271,7 @@
         <button @click="loadPreset('sniper')">Снайперка</button>
         <button @click="loadPreset('shotgun')">Дробовик</button>
         <button @click="loadPreset('laser')">🔴 Лазер</button>
+        <button @click="loadPreset('sniper_ray')">💥 Снайпер</button>
       </div>
     </div>
   </div>
@@ -383,6 +392,7 @@ const pixiContainer = ref(null);
 // Реактивные настройки оружия для UI
 const weaponSettings = reactive({
   weaponType: 'projectile', // Тип оружия: 'projectile' - пули, 'raycast' - векторная стрельба
+  raycastAnimation: 'laser', // Анимация векторной стрельбы: 'laser' - видимый луч, 'impact' - только точки попаданий
   bulletSpeed: 10,
   penetration: 2,
   bulletsPerShot: 1,        // Количество снарядов за выстрел
@@ -411,6 +421,7 @@ let gameWeaponConfig = null;
 const updateWeaponConfig = () => {
   if (gameWeaponConfig) {
     gameWeaponConfig.weaponType = weaponSettings.weaponType;
+    gameWeaponConfig.raycastAnimation = weaponSettings.raycastAnimation;
     gameWeaponConfig.bulletSpeed = Number(weaponSettings.bulletSpeed);
     gameWeaponConfig.penetration = Number(weaponSettings.penetration);
     gameWeaponConfig.bulletsPerShot = Number(weaponSettings.bulletsPerShot);
@@ -438,6 +449,7 @@ const loadPreset = (presetName) => {
   const presets = {
     assault: {
       weaponType: 'projectile',
+      raycastAnimation: 'laser', // Не используется для пуль
       bulletSpeed: 12,
       penetration: 2,
       bulletsPerShot: 1,
@@ -460,6 +472,7 @@ const loadPreset = (presetName) => {
     },
     sniper: {
       weaponType: 'projectile',
+      raycastAnimation: 'laser', // Не используется для пуль
       bulletSpeed: 20,
       penetration: 5,
       bulletsPerShot: 1,
@@ -482,6 +495,7 @@ const loadPreset = (presetName) => {
     },
     shotgun: {
       weaponType: 'projectile',
+      raycastAnimation: 'laser', // Не используется для пуль
       bulletSpeed: 8,
       penetration: 1,
       bulletsPerShot: 5,      // Дробовик стреляет сразу 5 снарядами!
@@ -504,6 +518,7 @@ const loadPreset = (presetName) => {
     },
     laser: {
       weaponType: 'raycast',  // Векторное оружие!
+      raycastAnimation: 'laser', // Видимые лучи
       bulletSpeed: 0,        // Не используется для лучей
       penetration: 3,        // Пробивает 3 цели
       bulletsPerShot: 1,     // Один луч
@@ -523,6 +538,29 @@ const loadPreset = (presetName) => {
       bulletDamage: 4,       // Высокий урон луча
       explosionDamage: 6,    // Высокий урон взрыва
       autoFire: true
+    },
+    sniper_ray: {
+      weaponType: 'raycast',  // Векторное оружие!
+      raycastAnimation: 'impact', // Только точки попаданий!
+      bulletSpeed: 0,        // Не используется
+      penetration: 8,        // Пробивает много целей
+      bulletsPerShot: 1,     // Один точный выстрел
+      maxRange: 800,         // Максимальная дальность
+      bulletLifetime: 0,     // Не используется
+      fireRate: 1000,        // Медленная стрельба
+      spread: 0.02,          // Минимальный разброс
+      maxSpreadAngle: 1,     // Супер точное
+      fanSpread: false,      // Без веера
+      fanAngle: 0,
+      explosiveRounds: true, // Взрывчатые снаряды!
+      explosionRadius: 80,   // Большой взрыв
+      ricochetWalls: false,  // Без рикошетов от стен
+      ricochetEnemies: false, // Без рикошетов от врагов
+      maxRicochets: 0,       // Нет рикошетов
+      recoil: 6.0,           // Сильная отдача
+      bulletDamage: 15,      // Огромный урон!
+      explosionDamage: 20,   // Огромный взрыв!
+      autoFire: false        // Только одиночная стрельба
     }
   };
   
@@ -538,7 +576,7 @@ onMounted(async () => {
     await app.init({
       width: 800,
       height: 600,
-      background: 0x1099bb,
+      background: 0x222222,
     });
     pixiContainer.value.appendChild(app.canvas);
 
@@ -634,10 +672,12 @@ onMounted(async () => {
     const bullets = [];
     const explosions = []; // Массив для эффектов взрывов
     const rayEffects = []; // Массив для визуальных эффектов векторной стрельбы
+    const impactEffects = []; // Массив для эффектов точек попаданий
     
     // --- Настройки оружия ---
     const weaponConfig = {
       weaponType: weaponSettings.weaponType,
+      raycastAnimation: weaponSettings.raycastAnimation,
       bulletSpeed: weaponSettings.bulletSpeed,
       penetration: weaponSettings.penetration,
       bulletsPerShot: weaponSettings.bulletsPerShot,
@@ -750,6 +790,9 @@ onMounted(async () => {
         performRaycast(graphics.x, graphics.y, finalAngle, weaponConfig.maxRange, weaponConfig.penetration, weaponConfig.maxRicochets);
       }
       
+      // --- Эффект вспышки у игрока ---
+      createMuzzleFlash(graphics.x, graphics.y);
+      
       // --- Применяем отдачу оружия ---
       if (weaponConfig.recoil > 0) {
         const recoilAngle = baseAngle + Math.PI; // + 180 градусов
@@ -807,7 +850,11 @@ onMounted(async () => {
           
           if (hasRicocheted) {
             // Создаем визуальный эффект до точки рикошета
-            createRayVisual(startX, startY, currentX, currentY);
+            if (weaponConfig.raycastAnimation === 'laser') {
+              createRayVisual(startX, startY, currentX, currentY);
+            } else if (weaponConfig.raycastAnimation === 'impact') {
+              createImpactPoint(currentX, currentY, 'ricochet');
+            }
             
             // Продолжаем луч после рикошета
             ricochetsLeft--;
@@ -831,12 +878,22 @@ onMounted(async () => {
             if (distance <= obstacleRadius) {
               hitTargets.push(obstacle); // Помечаем цель как пораженную
               dealDamage(obstacle, weaponConfig.bulletDamage);
+              
+              // Создаем эффект попадания во врага
+              if (weaponConfig.raycastAnimation === 'impact') {
+                createImpactPoint(currentX, currentY, 'hit');
+              }
+              
               penetrationLeft--;
               
               // Если пробитие закончилось, проверяем рикошет от врагов
               if (penetrationLeft <= 0 && weaponConfig.ricochetEnemies && ricochetsLeft > 0) {
                 // Создаем визуальный эффект до точки рикошета
-                createRayVisual(startX, startY, currentX, currentY);
+                if (weaponConfig.raycastAnimation === 'laser') {
+                  createRayVisual(startX, startY, currentX, currentY);
+                } else if (weaponConfig.raycastAnimation === 'impact') {
+                  createImpactPoint(currentX, currentY, 'ricochet');
+                }
                 
                 // Рикошет от врага в случайном направлении
                 const randomAngle = Math.random() * Math.PI * 2;
@@ -851,8 +908,12 @@ onMounted(async () => {
         }
       }
       
-      // Создаем визуальный эффект для всего луча
-      createRayVisual(startX, startY, currentX, currentY);
+      // Создаем визуальный эффект для всего луча или точки окончания
+      if (weaponConfig.raycastAnimation === 'laser') {
+        createRayVisual(startX, startY, currentX, currentY);
+      } else if (weaponConfig.raycastAnimation === 'impact') {
+        createImpactPoint(currentX, currentY, 'end');
+      }
       
       // Если луч взрывчатый, создаем взрыв в конечной точке
       if (weaponConfig.explosiveRounds) {
@@ -887,6 +948,81 @@ onMounted(async () => {
       
       // Луч исчезает быстро (через несколько кадров)
       setTimeout(fadeOut, 50);
+    }
+
+    // --- Функция создания вспышки у игрока ---
+    function createMuzzleFlash(x, y) {
+      const flash = new PIXI.Graphics();
+      flash.circle(0, 0, 8).fill(0xffffff); // Белая вспышка
+      flash.alpha = 0.9;
+      flash.position.set(x, y);
+      
+      impactEffects.push(flash);
+      app.stage.addChild(flash);
+      
+      // Эффект исчезновения вспышки
+      const fadeOut = () => {
+        flash.alpha -= 0.2;
+        flash.scale.x += 0.1;
+        flash.scale.y += 0.1;
+        
+        if (flash.alpha <= 0) {
+          app.stage.removeChild(flash);
+          flash.destroy();
+          const index = impactEffects.indexOf(flash);
+          if (index > -1) {
+            impactEffects.splice(index, 1);
+          }
+        } else {
+          requestAnimationFrame(fadeOut);
+        }
+      };
+      
+      // Вспышка исчезает очень быстро
+      setTimeout(fadeOut, 30);
+    }
+
+    // --- Функция создания эффекта точки попадания ---
+    function createImpactPoint(x, y, type = 'hit') {
+      const impact = new PIXI.Graphics();
+      
+      if (type === 'hit') {
+        // Красная точка попадания во врага
+        impact.circle(0, 0, 6).fill(0xff0000);
+      } else if (type === 'ricochet') {
+        // Желтая точка рикошета
+        impact.circle(0, 0, 4).fill(0xffff00);
+      } else if (type === 'end') {
+        // Синяя точка окончания луча
+        impact.circle(0, 0, 3).fill(0x0088ff);
+      }
+      
+      impact.alpha = 0.8;
+      impact.position.set(x, y);
+      
+      impactEffects.push(impact);
+      app.stage.addChild(impact);
+      
+      // Эффект исчезновения точки
+      const fadeOut = () => {
+        impact.alpha -= 0.05;
+        impact.scale.x += 0.02;
+        impact.scale.y += 0.02;
+        
+        if (impact.alpha <= 0) {
+          app.stage.removeChild(impact);
+          impact.destroy();
+          const index = impactEffects.indexOf(impact);
+          if (index > -1) {
+            impactEffects.splice(index, 1);
+          }
+        } else {
+          requestAnimationFrame(fadeOut);
+        }
+      };
+      
+      // Точки исчезают медленнее чем вспышка
+      setTimeout(fadeOut, 100);
     }
 
     // Функция создания снаряда
