@@ -133,6 +133,32 @@
       </div>
 
       <div class="setting-group">
+        <label>Разброс дальности (0-1):</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="1" 
+          step="0.05" 
+          v-model="weaponSettings.rangeSpread"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ Number(weaponSettings.rangeSpread).toFixed(2) }}</span>
+      </div>
+
+      <div class="setting-group">
+        <label>Макс. потеря дальности (%):</label>
+        <input 
+          type="range" 
+          min="0" 
+          max="50" 
+          step="5" 
+          v-model="weaponSettings.maxRangeLoss"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.maxRangeLoss }}%</span>
+      </div>
+
+      <div class="setting-group">
         <label>
           <input 
             type="checkbox" 
@@ -401,6 +427,8 @@ const weaponSettings = reactive({
   fireRate: 200,
   spread: 0.1,              // Интенсивность разброса (0 = нет разброса, 1 = максимальный)
   maxSpreadAngle: 5,        // Максимальный угол разброса в градусах
+  rangeSpread: 0.1,         // Интенсивность разброса дальности (0 = нет, 1 = максимальный)
+  maxRangeLoss: 20,         // Максимальная потеря дальности в процентах
   fanSpread: false,         // Веерная стрельба вместо случайного разброса
   fanAngle: 30,             // Угол веера в градусах
   explosiveRounds: false,   // Взрывчатые снаряды
@@ -430,6 +458,8 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.fireRate = Number(weaponSettings.fireRate);
     gameWeaponConfig.spread = Number(weaponSettings.spread);
     gameWeaponConfig.maxSpreadAngle = Number(weaponSettings.maxSpreadAngle);
+    gameWeaponConfig.rangeSpread = Number(weaponSettings.rangeSpread);
+    gameWeaponConfig.maxRangeLoss = Number(weaponSettings.maxRangeLoss);
     gameWeaponConfig.fanSpread = weaponSettings.fanSpread;
     gameWeaponConfig.fanAngle = Number(weaponSettings.fanAngle);
     gameWeaponConfig.explosiveRounds = weaponSettings.explosiveRounds;
@@ -458,6 +488,8 @@ const loadPreset = (presetName) => {
       fireRate: 150,
       spread: 0.25,
       maxSpreadAngle: 8,
+      rangeSpread: 0.3,      // Средний разброс дальности у автомата
+      maxRangeLoss: 25,      // Может терять до 25% дальности
       fanSpread: false,      // Автомат использует случайный разброс
       fanAngle: 20,
       explosiveRounds: false, // Обычные снаряды
@@ -481,6 +513,8 @@ const loadPreset = (presetName) => {
       fireRate: 800,
       spread: 0.05,
       maxSpreadAngle: 2,
+      rangeSpread: 0.05,     // Минимальный разброс дальности у снайперки
+      maxRangeLoss: 5,       // Теряет максимум 5% дальности
       fanSpread: false,      // Снайперка без веера
       fanAngle: 0,
       explosiveRounds: true, // Взрывчатые снайперские снаряды!
@@ -504,6 +538,8 @@ const loadPreset = (presetName) => {
       fireRate: 600,
       spread: 0.3,
       maxSpreadAngle: 15,
+      rangeSpread: 0.5,      // Большой разброс дальности у дробовика
+      maxRangeLoss: 40,      // Может терять до 40% дальности
       fanSpread: true,       // Дробовик использует веер!
       fanAngle: 45,          // Широкий веер 45 градусов
       explosiveRounds: false, // Обычная дробь
@@ -527,6 +563,8 @@ const loadPreset = (presetName) => {
       fireRate: 300,         // Средняя скорострельность
       spread: 0.1,           // Небольшой разброс
       maxSpreadAngle: 3,     // Точное оружие
+      rangeSpread: 0.15,     // Небольшой разброс дальности лазера
+      maxRangeLoss: 15,      // Может терять до 15% дальности
       fanSpread: false,      // Без веера
       fanAngle: 0,
       explosiveRounds: false, // Обычные лучи
@@ -550,6 +588,8 @@ const loadPreset = (presetName) => {
       fireRate: 1000,        // Медленная стрельба
       spread: 0.02,          // Минимальный разброс
       maxSpreadAngle: 1,     // Супер точное
+      rangeSpread: 0.0,      // Нет разброса дальности у снайпера
+      maxRangeLoss: 0,       // Никогда не теряет дальность
       fanSpread: false,      // Без веера
       fanAngle: 0,
       explosiveRounds: true, // Взрывчатые снаряды!
@@ -686,6 +726,8 @@ onMounted(async () => {
       fireRate: weaponSettings.fireRate,
       spread: weaponSettings.spread,
       maxSpreadAngle: weaponSettings.maxSpreadAngle,
+      rangeSpread: weaponSettings.rangeSpread,
+      maxRangeLoss: weaponSettings.maxRangeLoss,
       fanSpread: weaponSettings.fanSpread,
       fanAngle: weaponSettings.fanAngle,
       explosiveRounds: weaponSettings.explosiveRounds,
@@ -786,8 +828,16 @@ onMounted(async () => {
           finalAngle = baseAngle + spreadAngleRad;
         }
         
+        // Вычисляем индивидуальную дальность с разбросом для луча
+        let rayMaxRange = weaponConfig.maxRange;
+        if (weaponConfig.rangeSpread > 0 && weaponConfig.maxRangeLoss > 0) {
+          const randomSpread = Math.random() * weaponConfig.rangeSpread;
+          const rangeLoss = randomSpread * (weaponConfig.maxRangeLoss / 100);
+          rayMaxRange = weaponConfig.maxRange * (1 - rangeLoss);
+        }
+        
         // Выполняем raycast по направлению
-        performRaycast(graphics.x, graphics.y, finalAngle, weaponConfig.maxRange, weaponConfig.penetration, weaponConfig.maxRicochets);
+        performRaycast(graphics.x, graphics.y, finalAngle, rayMaxRange, weaponConfig.penetration, weaponConfig.maxRicochets);
       }
       
       // --- Эффект вспышки у игрока ---
@@ -1059,6 +1109,14 @@ onMounted(async () => {
         bullet.vx = Math.cos(finalAngle) * weaponConfig.bulletSpeed;
         bullet.vy = Math.sin(finalAngle) * weaponConfig.bulletSpeed;
         
+        // Вычисляем индивидуальную дальность с разбросом
+        let bulletMaxRange = weaponConfig.maxRange;
+        if (weaponConfig.rangeSpread > 0 && weaponConfig.maxRangeLoss > 0) {
+          const randomSpread = Math.random() * weaponConfig.rangeSpread;
+          const rangeLoss = randomSpread * (weaponConfig.maxRangeLoss / 100);
+          bulletMaxRange = weaponConfig.maxRange * (1 - rangeLoss);
+        }
+
         // Свойства снаряда
         bullet.penetrationLeft = weaponConfig.penetration; // Сколько целей еще может пробить
         bullet.distanceTraveled = 0; // Пройденное расстояние
@@ -1066,6 +1124,7 @@ onMounted(async () => {
         bullet.maxLifetime = weaponConfig.bulletLifetime; // Максимальное время жизни
         bullet.ricochetsLeft = weaponConfig.maxRicochets; // Количество оставшихся рикошетов
         bullet.damage = weaponConfig.bulletDamage; // Урон пули
+        bullet.maxRange = bulletMaxRange; // Индивидуальная дальность пули
         bullet.startX = graphics.x; // Начальная позиция для расчета дальности
         bullet.startY = graphics.y;
         
@@ -1184,8 +1243,8 @@ onMounted(async () => {
           shouldRemove = true;
         }
         
-        // Проверяем дальность полета (что первое произойдет)
-        if (b.distanceTraveled > weaponConfig.maxRange) {
+        // Проверяем дальность полета (используем индивидуальную дальность пули)
+        if (b.distanceTraveled > b.maxRange) {
           shouldRemove = true;
         }
         
