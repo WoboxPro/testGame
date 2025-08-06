@@ -239,7 +239,7 @@
         </label>
       </div>
 
-      <div class="setting-group">
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
         <label>
           <input 
             type="checkbox" 
@@ -248,6 +248,41 @@
           />
           🎯 Самонаводящиеся пули
         </label>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.spawnAtCursor"
+            @change="updateWeaponConfig"
+          />
+          ✨ Появление у курсора
+        </label>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.largeBullets"
+            @change="updateWeaponConfig"
+          />
+          🟠 Большие снаряды
+        </label>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.largeBullets && weaponSettings.weaponType === 'projectile'">
+        <label>Размер снаряда:</label>
+        <input 
+          type="range" 
+          min="8" 
+          max="50" 
+          step="2" 
+          v-model="weaponSettings.bulletSize"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.bulletSize }}px</span>
       </div>
 
       <div class="setting-group" v-if="weaponSettings.homingEnabled && weaponSettings.weaponType === 'projectile'">
@@ -494,6 +529,9 @@ const weaponSettings = reactive({
   homingStrength: 0.1,      // Сила притяжения к курсору (0-1)
   maxTurnRate: 3.0,         // Максимальная скорость поворота в градусах за кадр
   homingDelay: 300,         // Задержка перед началом самонаведения в миллисекундах
+  spawnAtCursor: false,     // Появление снарядов у курсора вместо игрока
+  largeBullets: false,      // Большие снаряды с увеличенным радиусом
+  bulletSize: 8,            // Размер больших снарядов в пикселях
   autoFire: true
 });
 
@@ -529,6 +567,9 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.homingStrength = Number(weaponSettings.homingStrength);
     gameWeaponConfig.maxTurnRate = Number(weaponSettings.maxTurnRate);
     gameWeaponConfig.homingDelay = Number(weaponSettings.homingDelay);
+    gameWeaponConfig.spawnAtCursor = weaponSettings.spawnAtCursor;
+    gameWeaponConfig.largeBullets = weaponSettings.largeBullets;
+    gameWeaponConfig.bulletSize = Number(weaponSettings.bulletSize);
     gameWeaponConfig.autoFire = weaponSettings.autoFire;
   }
 };
@@ -563,6 +604,9 @@ const loadPreset = (presetName) => {
       homingStrength: 0.1,
       maxTurnRate: 3.0,
       homingDelay: 300,
+      spawnAtCursor: false,  // Стреляет от игрока
+      largeBullets: false,   // Обычные мелкие пули
+      bulletSize: 8,
       autoFire: true
     },
     sniper: {
@@ -592,6 +636,9 @@ const loadPreset = (presetName) => {
       homingStrength: 0.1,
       maxTurnRate: 3.0,
       homingDelay: 300,
+      spawnAtCursor: false,  // Стреляет от игрока
+      largeBullets: true,    // Большие снайперские снаряды!
+      bulletSize: 12,        // Крупные снаряды
       autoFire: false
     },
     shotgun: {
@@ -621,6 +668,9 @@ const loadPreset = (presetName) => {
       homingStrength: 0.1,
       maxTurnRate: 3.0,
       homingDelay: 300,
+      spawnAtCursor: false,  // Стреляет от игрока
+      largeBullets: false,   // Обычная дробь
+      bulletSize: 8,
       autoFire: false
     },
     laser: {
@@ -650,6 +700,9 @@ const loadPreset = (presetName) => {
       homingStrength: 0.1,
       maxTurnRate: 3.0,
       homingDelay: 300,
+      spawnAtCursor: false,  // Векторное оружие не поддерживает появление у курсора
+      largeBullets: false,   // Векторное оружие не использует пули
+      bulletSize: 8,
       autoFire: true
     },
     sniper_ray: {
@@ -679,6 +732,9 @@ const loadPreset = (presetName) => {
       homingStrength: 0.1,
       maxTurnRate: 3.0,
       homingDelay: 300,
+      spawnAtCursor: false,  // Векторное оружие не поддерживает появление у курсора
+      largeBullets: false,   // Векторное оружие не использует пули
+      bulletSize: 8,
       autoFire: false        // Только одиночная стрельба
     },
     homing_magic: {
@@ -708,6 +764,9 @@ const loadPreset = (presetName) => {
       homingStrength: 0.25,  // Сильное притяжение к курсору
       maxTurnRate: 5.0,      // Быстрый поворот магических снарядов
       homingDelay: 500,      // Задержка 0.5 сек перед началом наведения
+      spawnAtCursor: true,   // ✨ ПОЯВЛЯЮТСЯ У КУРСОРА!
+      largeBullets: true,    // 🟠 БОЛЬШИЕ МАГИЧЕСКИЕ СНАРЯДЫ!
+      bulletSize: 14,        // Крупные магические орбы
       autoFire: true
     }
   };
@@ -792,7 +851,7 @@ onMounted(async () => {
       const dx = bullet.x - obstacle.x;
       const dy = bullet.y - obstacle.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const bulletRadius = 4;
+      const bulletRadius = bullet.bulletRadius || 4; // Используем сохраненный радиус пули
       const obstacleRadius = 20; // Упрощенный "хитбокс" квадрата
       return distance < bulletRadius + obstacleRadius;
     }
@@ -850,6 +909,9 @@ onMounted(async () => {
       homingStrength: weaponSettings.homingStrength,
       maxTurnRate: weaponSettings.maxTurnRate,
       homingDelay: weaponSettings.homingDelay,
+      spawnAtCursor: weaponSettings.spawnAtCursor,
+      largeBullets: weaponSettings.largeBullets,
+      bulletSize: weaponSettings.bulletSize,
       autoFire: weaponSettings.autoFire
     };
     
@@ -1244,8 +1306,21 @@ onMounted(async () => {
         bullet.homingActive = false; // Активно ли самонаведение (включается после задержки)
         bullet.homingTimer = 0; // Таймер задержки самонаведения
         
-        bullet.circle(0, 0, 4).fill(0xffff00);
-        bullet.position.set(graphics.x, graphics.y);
+        // Определяем размер пули
+        const bulletRadius = weaponConfig.largeBullets ? weaponConfig.bulletSize / 2 : 4;
+        bullet.bulletRadius = bulletRadius; // Сохраняем для коллизий
+        
+        bullet.circle(0, 0, bulletRadius).fill(0xffff00);
+        
+        // Устанавливаем начальную позицию: у игрока или у курсора
+        if (weaponConfig.spawnAtCursor) {
+          bullet.position.set(mousePosition.x, mousePosition.y);
+          bullet.startX = mousePosition.x; // Обновляем стартовую позицию для расчета дальности
+          bullet.startY = mousePosition.y;
+        } else {
+          bullet.position.set(graphics.x, graphics.y);
+        }
+        
         bullets.push(bullet);
         app.stage.addChild(bullet);
       }
