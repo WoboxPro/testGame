@@ -285,6 +285,54 @@
         <span>{{ weaponSettings.bulletSize }}px</span>
       </div>
 
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.useAmmoSystem"
+            @change="updateWeaponConfig"
+          />
+          🔫 Система обоймы
+        </label>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.useAmmoSystem">
+        <label>Размер обоймы:</label>
+        <input 
+          type="range" 
+          min="5" 
+          max="100" 
+          step="5" 
+          v-model="weaponSettings.maxAmmo"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.maxAmmo }}</span>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.useAmmoSystem">
+        <label>Время перезарядки (сек):</label>
+        <input 
+          type="range" 
+          min="0.5" 
+          max="5" 
+          step="0.1" 
+          v-model="weaponSettings.reloadTime"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ Number(weaponSettings.reloadTime).toFixed(1) }}с</span>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.useAmmoSystem">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.ammoPerShot"
+            @change="updateWeaponConfig"
+          />
+          📊 Расход за выстрел (иначе за снаряд)
+        </label>
+      </div>
+
       <div class="setting-group" v-if="weaponSettings.homingEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Скорость наведения (0-1):</label>
         <input 
@@ -532,6 +580,10 @@ const weaponSettings = reactive({
   spawnAtCursor: false,     // Появление снарядов у курсора вместо игрока
   largeBullets: false,      // Большие снаряды с увеличенным радиусом
   bulletSize: 8,            // Размер больших снарядов в пикселях
+  useAmmoSystem: false,     // Использовать систему обоймы
+  maxAmmo: 30,              // Максимальное количество патронов в обойме
+  reloadTime: 2.0,          // Время перезарядки в секундах
+  ammoPerShot: true,        // Расход патронов за выстрел (иначе за каждый снаряд)
   autoFire: true
 });
 
@@ -570,6 +622,10 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.spawnAtCursor = weaponSettings.spawnAtCursor;
     gameWeaponConfig.largeBullets = weaponSettings.largeBullets;
     gameWeaponConfig.bulletSize = Number(weaponSettings.bulletSize);
+    gameWeaponConfig.useAmmoSystem = weaponSettings.useAmmoSystem;
+    gameWeaponConfig.maxAmmo = Number(weaponSettings.maxAmmo);
+    gameWeaponConfig.reloadTime = Number(weaponSettings.reloadTime);
+    gameWeaponConfig.ammoPerShot = weaponSettings.ammoPerShot;
     gameWeaponConfig.autoFire = weaponSettings.autoFire;
   }
 };
@@ -607,6 +663,10 @@ const loadPreset = (presetName) => {
       spawnAtCursor: false,  // Стреляет от игрока
       largeBullets: false,   // Обычные мелкие пули
       bulletSize: 8,
+      useAmmoSystem: true,   // Автомат с обоймой
+      maxAmmo: 30,           // 30 патронов
+      reloadTime: 2.0,       // 2 секунды перезарядки
+      ammoPerShot: true,     // Расход за выстрел
       autoFire: true
     },
     sniper: {
@@ -639,6 +699,10 @@ const loadPreset = (presetName) => {
       spawnAtCursor: false,  // Стреляет от игрока
       largeBullets: true,    // Большие снайперские снаряды!
       bulletSize: 12,        // Крупные снаряды
+      useAmmoSystem: true,   // Снайперка с патронами
+      maxAmmo: 5,            // Мало патронов
+      reloadTime: 3.0,       // Долгая перезарядка
+      ammoPerShot: true,     // Расход за выстрел
       autoFire: false
     },
     shotgun: {
@@ -671,6 +735,10 @@ const loadPreset = (presetName) => {
       spawnAtCursor: false,  // Стреляет от игрока
       largeBullets: false,   // Обычная дробь
       bulletSize: 8,
+      useAmmoSystem: true,   // Дробовик с патронами
+      maxAmmo: 8,            // 8 патронов
+      reloadTime: 2.5,       // Средняя перезарядка
+      ammoPerShot: true,     // Расход за выстрел (не за дробинку!)
       autoFire: false
     },
     laser: {
@@ -703,6 +771,10 @@ const loadPreset = (presetName) => {
       spawnAtCursor: false,  // Векторное оружие не поддерживает появление у курсора
       largeBullets: false,   // Векторное оружие не использует пули
       bulletSize: 8,
+      useAmmoSystem: false,  // Лазер без патронов
+      maxAmmo: 30,
+      reloadTime: 2.0,
+      ammoPerShot: true,
       autoFire: true
     },
     sniper_ray: {
@@ -735,6 +807,10 @@ const loadPreset = (presetName) => {
       spawnAtCursor: false,  // Векторное оружие не поддерживает появление у курсора
       largeBullets: false,   // Векторное оружие не использует пули
       bulletSize: 8,
+      useAmmoSystem: false,  // Векторная снайперка без патронов
+      maxAmmo: 30,
+      reloadTime: 2.0,
+      ammoPerShot: true,
       autoFire: false        // Только одиночная стрельба
     },
     homing_magic: {
@@ -767,6 +843,10 @@ const loadPreset = (presetName) => {
       spawnAtCursor: true,   // ✨ ПОЯВЛЯЮТСЯ У КУРСОРА!
       largeBullets: true,    // 🟠 БОЛЬШИЕ МАГИЧЕСКИЕ СНАРЯДЫ!
       bulletSize: 14,        // Крупные магические орбы
+      useAmmoSystem: false,  // Магия без ограничений
+      maxAmmo: 30,
+      reloadTime: 2.0,
+      ammoPerShot: false,    // Расход за каждый магический снаряд
       autoFire: true
     }
   };
@@ -912,6 +992,10 @@ onMounted(async () => {
       spawnAtCursor: weaponSettings.spawnAtCursor,
       largeBullets: weaponSettings.largeBullets,
       bulletSize: weaponSettings.bulletSize,
+      useAmmoSystem: weaponSettings.useAmmoSystem,
+      maxAmmo: weaponSettings.maxAmmo,
+      reloadTime: weaponSettings.reloadTime,
+      ammoPerShot: weaponSettings.ammoPerShot,
       autoFire: weaponSettings.autoFire
     };
     
@@ -921,9 +1005,50 @@ onMounted(async () => {
     // --- Состояние стрельбы ---
     let isMouseDown = false;
     let lastFireTime = 0;
+    
+    // --- Состояние обоймы ---
+    let currentAmmo = weaponConfig.maxAmmo; // Текущее количество патронов
+    let isReloading = false; // Флаг перезарядки
+    let reloadStartTime = 0; // Время начала перезарядки
+
+    // Функция перезарядки
+    function startReload() {
+      if (!weaponConfig.useAmmoSystem || isReloading || currentAmmo >= weaponConfig.maxAmmo) return;
+      
+      isReloading = true;
+      reloadStartTime = Date.now();
+    }
+    
+    // Функция проверки возможности стрельбы
+    function canFire() {
+      if (!weaponConfig.useAmmoSystem) return true; // Бесконечные патроны
+      if (isReloading) return false; // Во время перезарядки нельзя стрелять
+      return currentAmmo > 0; // Есть патроны
+    }
+    
+    // Функция расходования патронов
+    function consumeAmmo(bulletsCount) {
+      if (!weaponConfig.useAmmoSystem) return; // Бесконечные патроны
+      
+      if (weaponConfig.ammoPerShot) {
+        // Расход за выстрел (один патрон независимо от количества снарядов)
+        currentAmmo = Math.max(0, currentAmmo - 1);
+      } else {
+        // Расход за каждый снаряд
+        currentAmmo = Math.max(0, currentAmmo - bulletsCount);
+      }
+    }
 
     // Слушатели для клавиатуры
-    const onKeyDown = (e) => { keys[e.code] = true; };
+    const onKeyDown = (e) => { 
+      keys[e.code] = true;
+      
+      // Перезарядка на пробел
+      if (e.code === 'Space') {
+        e.preventDefault(); // Предотвращаем прокрутку страницы
+        startReload();
+      }
+    };
     const onKeyUp = (e) => { keys[e.code] = false; };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -979,6 +1104,7 @@ onMounted(async () => {
     function createRaycast() {
       const currentTime = Date.now();
       if (currentTime - lastFireTime < weaponConfig.fireRate) return; // Проверка скорострельности
+      if (!canFire()) return; // Проверка возможности стрельбы (обойма)
       
       // Базовый угол в сторону курсора
       const baseAngle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
@@ -1016,6 +1142,9 @@ onMounted(async () => {
       
       // --- Эффект вспышки у игрока ---
       createMuzzleFlash(graphics.x, graphics.y);
+      
+      // --- Расходуем патроны ---
+      consumeAmmo(weaponConfig.bulletsPerShot);
       
       // --- Применяем отдачу оружия ---
       if (weaponConfig.recoil > 0) {
@@ -1253,6 +1382,7 @@ onMounted(async () => {
     function createBullet() {
       const currentTime = Date.now();
       if (currentTime - lastFireTime < weaponConfig.fireRate) return; // Проверка скорострельности
+      if (!canFire()) return; // Проверка возможности стрельбы (обойма)
       
       // Базовый угол в сторону курсора
       const baseAngle = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
@@ -1325,6 +1455,9 @@ onMounted(async () => {
         app.stage.addChild(bullet);
       }
       
+      // --- Расходуем патроны ---
+      consumeAmmo(weaponConfig.bulletsPerShot);
+      
       // --- Применяем отдачу оружия ---
       if (weaponConfig.recoil > 0) {
         // Базовый угол выстрела (в сторону курсора)
@@ -1386,6 +1519,18 @@ onMounted(async () => {
     const rotationSpeed = 0.1;
 
     app.ticker.add((ticker) => {
+      // --- Логика перезарядки ---
+      if (isReloading) {
+        const currentTime = Date.now();
+        const reloadDuration = weaponConfig.reloadTime * 1000; // Конвертируем в миллисекунды
+        
+        if (currentTime - reloadStartTime >= reloadDuration) {
+          // Перезарядка завершена
+          isReloading = false;
+          currentAmmo = weaponConfig.maxAmmo;
+        }
+      }
+      
       // --- Логика игрока ---
       const targetRotation = Math.atan2(mousePosition.y - graphics.y, mousePosition.x - graphics.x);
       let delta = targetRotation - graphics.rotation;
