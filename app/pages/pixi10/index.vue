@@ -272,6 +272,41 @@
         </label>
       </div>
 
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.allowOffScreen"
+            @change="updateWeaponConfig"
+          />
+          🌌 Улетают за экран
+        </label>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.allowOffScreen">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponSettings.infiniteOffScreen"
+            @change="updateWeaponConfig"
+          />
+          ∞ Бесконечно за экраном
+        </label>
+      </div>
+
+      <div class="setting-group" v-if="weaponSettings.allowOffScreen && !weaponSettings.infiniteOffScreen">
+        <label>Лимит за экраном (px):</label>
+        <input 
+          type="range" 
+          min="100" 
+          max="2000" 
+          step="100" 
+          v-model="weaponSettings.offScreenLimit"
+          @input="updateWeaponConfig"
+        />
+        <span>{{ weaponSettings.offScreenLimit }}px</span>
+      </div>
+
       <div class="setting-group" v-if="weaponSettings.largeBullets && weaponSettings.weaponType === 'projectile'">
         <label>Размер снаряда:</label>
         <input 
@@ -644,6 +679,9 @@ const weaponSettings = reactive({
   spawnAtCursor: false,     // Появление снарядов у курсора вместо игрока
   largeBullets: false,      // Большие снаряды с увеличенным радиусом
   bulletSize: 8,            // Размер больших снарядов в пикселях
+  allowOffScreen: false,    // Снаряды могут улетать за пределы экрана
+  infiniteOffScreen: false, // Снаряды летят бесконечно за экраном
+  offScreenLimit: 500,      // Лимит расстояния за экраном в пикселях
   useAmmoSystem: false,     // Использовать систему обоймы
   maxAmmo: 30,              // Максимальное количество патронов в обойме
   reloadTime: 2.0,          // Время перезарядки в секундах
@@ -691,6 +729,9 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.spawnAtCursor = weaponSettings.spawnAtCursor;
     gameWeaponConfig.largeBullets = weaponSettings.largeBullets;
     gameWeaponConfig.bulletSize = Number(weaponSettings.bulletSize);
+    gameWeaponConfig.allowOffScreen = weaponSettings.allowOffScreen;
+    gameWeaponConfig.infiniteOffScreen = weaponSettings.infiniteOffScreen;
+    gameWeaponConfig.offScreenLimit = Number(weaponSettings.offScreenLimit);
     gameWeaponConfig.useAmmoSystem = weaponSettings.useAmmoSystem;
     gameWeaponConfig.maxAmmo = Number(weaponSettings.maxAmmo);
     gameWeaponConfig.reloadTime = Number(weaponSettings.reloadTime);
@@ -851,6 +892,9 @@ onMounted(async () => {
       spawnAtCursor: weaponSettings.spawnAtCursor,
       largeBullets: weaponSettings.largeBullets,
       bulletSize: weaponSettings.bulletSize,
+      allowOffScreen: weaponSettings.allowOffScreen,
+      infiniteOffScreen: weaponSettings.infiniteOffScreen,
+      offScreenLimit: weaponSettings.offScreenLimit,
       useAmmoSystem: weaponSettings.useAmmoSystem,
       maxAmmo: weaponSettings.maxAmmo,
       reloadTime: weaponSettings.reloadTime,
@@ -1080,9 +1124,21 @@ onMounted(async () => {
         }
         
         // Проверяем выход за границы экрана (если рикошеты кончились)
-        if (currentX < 0 || currentX > app.screen.width || currentY < 0 || currentY > app.screen.height) {
-          break;
+        if (!weaponConfig.allowOffScreen) {
+          // Если НЕ разрешено улетать за экран - останавливаем луч на границе
+          if (currentX < 0 || currentX > app.screen.width || currentY < 0 || currentY > app.screen.height) {
+            break;
+          }
+        } else if (!weaponConfig.infiniteOffScreen) {
+          // Если разрешено, но НЕ бесконечно - используем лимит
+          const limit = weaponConfig.offScreenLimit;
+          if (currentX < -limit || currentX > app.screen.width + limit || 
+              currentY < -limit || currentY > app.screen.height + limit) {
+            break;
+          }
         }
+        // Если infiniteOffScreen = true, то луч никогда не останавливается по границам
+        // Он останавливается только по maxRange или при попадании
         
         // Проверяем попадания в цели
         for (const obstacle of obstacles) {
@@ -1570,9 +1626,21 @@ onMounted(async () => {
         }
         
         // Проверяем выход за границы экрана (если рикошеты кончились или отключены)
-        if (b.x < -10 || b.x > app.screen.width + 10 || b.y < -10 || b.y > app.screen.height + 10) {
-          shouldRemove = true;
+        if (!weaponConfig.allowOffScreen) {
+          // Если снаряды НЕ могут улетать за экран - удаляем при выходе за границы
+          if (b.x < -10 || b.x > app.screen.width + 10 || b.y < -10 || b.y > app.screen.height + 10) {
+            shouldRemove = true;
+          }
+        } else if (!weaponConfig.infiniteOffScreen) {
+          // Если снаряды могут улетать за экран, но НЕ бесконечно - используем настраиваемый лимит
+          const limit = weaponConfig.offScreenLimit;
+          if (b.x < -limit || b.x > app.screen.width + limit || 
+              b.y < -limit || b.y > app.screen.height + limit) {
+            shouldRemove = true;
+          }
         }
+        // Если infiniteOffScreen = true, то снаряды никогда не удаляются по границам экрана
+        // Они удаляются только по времени жизни или дальности
         
         // Проверяем попадания в цели
         for (const obstacle of obstacles) {
