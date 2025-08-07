@@ -533,6 +533,85 @@
         <button @click="loadPreset('gravity_cannon')">🌪️ Гравипушка</button>
       </div> -->
     </div>
+    
+    <!-- Панель событий и эффектов -->
+    <div class="events-panel">
+      <h3>🎪 События и эффекты</h3>
+      
+      <!-- События снарядов -->
+      <div class="events-section">
+        <div class="event-category" v-for="(eventEffects, eventName) in weaponSettings.events" :key="eventName" v-show="!(eventName === 'onFlight' && weaponSettings.weaponType === 'raycast')">
+          <h4>{{ getEventDisplayName(eventName) }}</h4>
+          
+          <!-- Список эффектов для события -->
+          <div class="effects-list">
+            <div class="effect-item" v-for="(effect, index) in eventEffects" :key="index">
+              <div class="effect-info">
+                <span class="effect-name">{{ getEffectDisplayName(effect.name) }}</span>
+                <div class="effect-params">
+                  <!-- Частота (только для событий полета) -->
+                  <div v-if="eventName === 'onFlight'" class="param-editor">
+                    <label>⏱️ Частота:</label>
+                    <input 
+                      type="number" 
+                      :value="effect.frequency || 100"
+                      @input="updateEffectParam(eventName, index, 'frequency', $event.target.value)"
+                      min="50" 
+                      max="2000" 
+                      step="50"
+                      class="param-input"
+                    />
+                    <span class="param-unit">мс</span>
+                  </div>
+                  
+                  <!-- Шанс (для всех событий) -->
+                  <div class="param-editor">
+                    <label>🎲 Шанс:</label>
+                    <input 
+                      type="number" 
+                      :value="effect.chance || 100"
+                      @input="updateEffectParam(eventName, index, 'chance', $event.target.value)"
+                      min="1" 
+                      max="100" 
+                      step="1"
+                      class="param-input"
+                    />
+                    <span class="param-unit">%</span>
+                  </div>
+                </div>
+              </div>
+              <button class="remove-effect-btn" @click="removeEffect(eventName, index)">✖</button>
+            </div>
+            
+            <!-- Кнопка добавления эффекта -->
+            <button class="add-effect-btn" @click="openEffectModal(eventName)">
+              ➕ Добавить эффект
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно выбора эффекта -->
+    <div class="modal-overlay" v-if="showEffectModal" @click="closeEffectModal">
+      <div class="modal-content" @click.stop>
+        <h3>Выберите эффект</h3>
+        
+        <div class="available-effects">
+          <div class="effect-option" v-for="effect in availableEffects" :key="effect.id" @click="selectEffect(effect)">
+            <div class="effect-icon">{{ effect.icon }}</div>
+            <div class="effect-details">
+              <h4>{{ effect.name }}</h4>
+              <p>{{ effect.description }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button @click="closeEffectModal">Отмена</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -640,6 +719,231 @@
 .presets button:hover {
   background: #005a99;
 }
+
+/* События и эффекты */
+.events-panel {
+  width: 350px;
+  padding: 20px;
+  background: #f0f8ff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.events-panel h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+}
+
+.event-category {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #007acc;
+}
+
+.event-category h4 {
+  margin: 0 0 10px 0;
+  color: #007acc;
+  font-size: 16px;
+}
+
+.effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.effect-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  min-height: 80px;
+}
+
+.effect-info {
+  flex: 1;
+}
+
+.effect-name {
+  font-weight: bold;
+  color: #495057;
+}
+
+.effect-params {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.param-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.param-editor label {
+  font-size: 12px;
+  color: #495057;
+  font-weight: bold;
+  min-width: 50px;
+}
+
+.param-input {
+  width: 60px;
+  padding: 2px 4px;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.param-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.param-unit {
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: bold;
+}
+
+.remove-effect-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.remove-effect-btn:hover {
+  background: #c82333;
+}
+
+.add-effect-btn {
+  padding: 8px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.add-effect-btn:hover {
+  background: #218838;
+}
+
+/* Модальное окно */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+}
+
+.available-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.effect-option {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.effect-option:hover {
+  border-color: #007acc;
+  background: #f8f9fa;
+}
+
+.effect-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  width: 32px;
+  text-align: center;
+}
+
+.effect-details h4 {
+  margin: 0 0 4px 0;
+  color: #333;
+}
+
+.effect-details p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.modal-actions button:first-child {
+  background: #6c757d;
+  color: white;
+}
+
+.modal-actions button:first-child:hover {
+  background: #5a6268;
+}
 </style>
 
 <script setup>
@@ -691,11 +995,100 @@ const weaponSettings = reactive({
   gravityDelay: 200,        // Задержка активации гравитации (мс)
   maxFallSpeed: 15,         // Максимальная скорость падения
   gravityDirection: 90,     // Направление гравитации в градусах (90 = вниз)
-  autoFire: true
+  autoFire: true,
+  // Система событий и эффектов
+  events: {
+    onFlight: [],           // Эффекты во время полета
+    onHitEnemy: [],         // Эффекты при попадании во врага
+    onRicochet: [],         // Эффекты при рикошете
+    onExpire: [],           // Эффекты при исчезновении
+    onScreenEdge: []        // Эффекты при касании края экрана
+  }
 });
 
 // Переменная для хранения ссылки на weaponConfig из игрового цикла
 let gameWeaponConfig = null;
+
+// Состояние модального окна
+const showEffectModal = ref(false);
+const selectedEventName = ref('');
+
+// Доступные эффекты
+const availableEffects = ref([
+  {
+    id: 'explosion',
+    name: 'Взрыв',
+    icon: '💥',
+    description: 'Создает взрыв с настраиваемым радиусом и уроном'
+  }
+]);
+
+// Функции для отображения названий
+const getEventDisplayName = (eventName) => {
+  const names = {
+    onFlight: '🚀 При полете',
+    onHitEnemy: '💥 При попадании',
+    onRicochet: '🔄 При рикошете', 
+    onExpire: '⏰ При исчезновении',
+    onScreenEdge: '🌌 На краю экрана'
+  };
+  return names[eventName] || eventName;
+};
+
+const getEffectDisplayName = (effectName) => {
+  const names = {
+    explosion: '💥 Взрыв'
+  };
+  return names[effectName] || effectName;
+};
+
+// Функции управления эффектами
+const openEffectModal = (eventName) => {
+  selectedEventName.value = eventName;
+  showEffectModal.value = true;
+};
+
+const closeEffectModal = () => {
+  showEffectModal.value = false;
+  selectedEventName.value = '';
+};
+
+const selectEffect = (effect) => {
+  // Создаем новый эффект с параметрами по умолчанию
+  const newEffect = {
+    name: effect.id,
+    // Параметры по умолчанию в зависимости от эффекта
+    ...(effect.id === 'explosion' && { 
+      chance: 100,
+      ...(selectedEventName.value === 'onFlight' && { frequency: 500 })
+    })
+  };
+  
+  // Добавляем эффект к выбранному событию
+  weaponSettings.events[selectedEventName.value].push(newEffect);
+  updateWeaponConfig();
+  closeEffectModal();
+};
+
+const removeEffect = (eventName, effectIndex) => {
+  weaponSettings.events[eventName].splice(effectIndex, 1);
+  updateWeaponConfig();
+};
+
+const updateEffectParam = (eventName, effectIndex, paramName, value) => {
+  const numValue = Number(value);
+  
+  // Валидация значений
+  if (paramName === 'chance') {
+    if (numValue < 1 || numValue > 100) return;
+  } else if (paramName === 'frequency') {
+    if (numValue < 50 || numValue > 2000) return;
+  }
+  
+  // Обновляем параметр эффекта
+  weaponSettings.events[eventName][effectIndex][paramName] = numValue;
+  updateWeaponConfig();
+};
 
 // Функция для обновления конфигурации оружия в игре
 const updateWeaponConfig = () => {
@@ -742,6 +1135,7 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.maxFallSpeed = Number(weaponSettings.maxFallSpeed);
     gameWeaponConfig.gravityDirection = Number(weaponSettings.gravityDirection);
     gameWeaponConfig.autoFire = weaponSettings.autoFire;
+    gameWeaponConfig.events = weaponSettings.events;
   }
 };
 
@@ -904,7 +1298,8 @@ onMounted(async () => {
       gravityDelay: weaponSettings.gravityDelay,
       maxFallSpeed: weaponSettings.maxFallSpeed,
       gravityDirection: weaponSettings.gravityDirection,
-      autoFire: weaponSettings.autoFire
+      autoFire: weaponSettings.autoFire,
+      events: weaponSettings.events
     };
     
     // Сохраняем ссылку для обновления из UI
@@ -960,6 +1355,85 @@ onMounted(async () => {
     const onKeyUp = (e) => { keys[e.code] = false; };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+
+    // --- Система событий для снарядов ---
+    function triggerBulletEvent(bullet, eventName, ticker, extraData = {}) {
+      const eventEffects = weaponConfig.events[eventName] || [];
+      
+      eventEffects.forEach(effect => {
+        // Проверяем частоту (только для onFlight)
+        if (effect.frequency && eventName === 'onFlight') {
+          if (!bullet.eventTimers) bullet.eventTimers = {};
+          if (!bullet.eventTimers[effect.name]) bullet.eventTimers[effect.name] = 0;
+          
+          bullet.eventTimers[effect.name] += ticker.elapsedMS;
+          if (bullet.eventTimers[effect.name] < effect.frequency) return;
+          bullet.eventTimers[effect.name] = 0; // Сбрасываем таймер
+        }
+        
+        // Проверяем шанс срабатывания
+        const chance = effect.chance || 100;
+        if (Math.random() * 100 > chance) return;
+        
+        // Применяем эффект
+        applyEffect(bullet, effect.name, extraData);
+      });
+    }
+    
+    // --- Функция применения эффектов ---
+    function applyEffect(bullet, effectName, extraData = {}) {
+      switch (effectName) {
+        case 'explosion':
+          createEventExplosion(bullet.x, bullet.y, weaponConfig.explosionRadius, weaponConfig.explosionDamage);
+          break;
+        // Здесь будут другие эффекты: freeze, lightning, etc.
+      }
+    }
+    
+    // --- Функция создания взрыва от событий ---
+    function createEventExplosion(x, y, radius, damage) {
+      // Создаем визуальный эффект взрыва
+      const explosion = new PIXI.Graphics();
+      explosion.circle(0, 0, radius).fill(0xff4444); // Красноватый цвет для эффекта
+      explosion.alpha = 0.8;
+      explosion.position.set(x, y);
+      explosions.push(explosion);
+      app.stage.addChild(explosion);
+      
+      // Проверяем коллизии взрыва с препятствиями
+      for (const obstacle of obstacles) {
+        if (obstacle.isAlive) {
+          const dx = x - obstacle.x;
+          const dy = y - obstacle.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const obstacleRadius = 20;
+          
+          if (distance <= radius + obstacleRadius) {
+            dealDamage(obstacle, damage);
+          }
+        }
+      }
+      
+      // Эффект исчезновения взрыва
+      const fadeOut = () => {
+        explosion.alpha -= 0.08;
+        explosion.scale.x += 0.03;
+        explosion.scale.y += 0.03;
+        
+        if (explosion.alpha <= 0) {
+          app.stage.removeChild(explosion);
+          explosion.destroy();
+          const index = explosions.indexOf(explosion);
+          if (index > -1) {
+            explosions.splice(index, 1);
+          }
+        } else {
+          requestAnimationFrame(fadeOut);
+        }
+      };
+      
+      fadeOut();
+    }
 
     // --- Функция создания взрыва ---
     function createExplosion(x, y, radius, damage = weaponConfig.explosionDamage) {
@@ -1075,7 +1549,7 @@ onMounted(async () => {
     }
 
     // --- Функция выполнения raycast ---
-    function performRaycast(startX, startY, angle, maxRange, penetrationLeft, ricochetsLeft) {
+    function performRaycast(startX, startY, angle, maxRange, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge = false) {
       const stepSize = 5; // Размер шага для проверки коллизий
       let currentX = startX;
       let currentY = startY;
@@ -1089,6 +1563,16 @@ onMounted(async () => {
         currentX += dirX * stepSize;
         currentY += dirY * stepSize;
         travelDistance += stepSize;
+        
+        // Проверяем касание края экрана для событий (ДО рикошета!)
+        const isAtScreenEdge = currentX <= 0 || currentX >= app.screen.width || currentY <= 0 || currentY >= app.screen.height;
+        if (isAtScreenEdge && !hasTriggeredScreenEdge) {
+          // --- Событие: onScreenEdge (для raycast) ---
+          const fakeRayBullet = { x: currentX, y: currentY };
+          const fakeTicker = { elapsedMS: 0 };
+          triggerBulletEvent(fakeRayBullet, 'onScreenEdge', fakeTicker);
+          hasTriggeredScreenEdge = true; // Предотвращаем повторные срабатывания
+        }
         
         // Проверяем рикошет от стен
         if (weaponConfig.ricochetWalls && ricochetsLeft > 0) {
@@ -1110,6 +1594,11 @@ onMounted(async () => {
           }
           
           if (hasRicocheted) {
+            // --- Событие: onRicochet (для raycast от стен) ---
+            const fakeRayBullet = { x: currentX, y: currentY };
+            const fakeTicker = { elapsedMS: 0 };
+            triggerBulletEvent(fakeRayBullet, 'onRicochet', fakeTicker);
+            
             // Создаем визуальный эффект до точки рикошета
             if (weaponConfig.raycastAnimation === 'laser') {
               createRayVisual(startX, startY, currentX, currentY);
@@ -1119,7 +1608,7 @@ onMounted(async () => {
             
             // Продолжаем луч после рикошета
             ricochetsLeft--;
-            return performRaycast(currentX, currentY, newAngle, maxRange - travelDistance, penetrationLeft, ricochetsLeft);
+            return performRaycast(currentX, currentY, newAngle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge);
           }
         }
         
@@ -1152,6 +1641,12 @@ onMounted(async () => {
               hitTargets.push(obstacle); // Помечаем цель как пораженную
               dealDamage(obstacle, weaponConfig.bulletDamage);
               
+              // --- Событие: onHitEnemy (для raycast) ---
+              const fakeRayBullet = { x: currentX, y: currentY };
+              // Для raycast нет ticker, создаем фейковый
+              const fakeTicker = { elapsedMS: 0 };
+              triggerBulletEvent(fakeRayBullet, 'onHitEnemy', fakeTicker, { target: obstacle });
+              
               // Создаем эффект попадания во врага
               if (weaponConfig.raycastAnimation === 'impact') {
                 createImpactPoint(currentX, currentY, 'hit');
@@ -1161,6 +1656,11 @@ onMounted(async () => {
               
               // Если пробитие закончилось, проверяем рикошет от врагов
               if (penetrationLeft <= 0 && weaponConfig.ricochetEnemies && ricochetsLeft > 0) {
+                // --- Событие: onRicochet (для raycast от врагов) ---
+                const fakeRayBullet = { x: currentX, y: currentY };
+                const fakeTicker = { elapsedMS: 0 };
+                triggerBulletEvent(fakeRayBullet, 'onRicochet', fakeTicker, { target: obstacle });
+                
                 // Создаем визуальный эффект до точки рикошета
                 if (weaponConfig.raycastAnimation === 'laser') {
                   createRayVisual(startX, startY, currentX, currentY);
@@ -1172,7 +1672,7 @@ onMounted(async () => {
                 const randomAngle = Math.random() * Math.PI * 2;
                 ricochetsLeft--;
                 penetrationLeft = 1; // Восстанавливаем минимальное пробитие
-                return performRaycast(currentX, currentY, randomAngle, maxRange - travelDistance, penetrationLeft, ricochetsLeft);
+                return performRaycast(currentX, currentY, randomAngle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge);
               }
               
               break; // Обрабатываем только одно попадание за шаг
@@ -1180,6 +1680,11 @@ onMounted(async () => {
           }
         }
       }
+      
+      // --- Событие: onExpire (для raycast при окончании) ---
+      const fakeRayBullet = { x: currentX, y: currentY };
+      const fakeTicker = { elapsedMS: 0 };
+      triggerBulletEvent(fakeRayBullet, 'onExpire', fakeTicker);
       
       // Создаем визуальный эффект для всего луча или точки окончания
       if (weaponConfig.raycastAnimation === 'laser') {
@@ -1366,6 +1871,10 @@ onMounted(async () => {
         const bulletRadius = weaponConfig.largeBullets ? weaponConfig.bulletSize / 2 : 4;
         bullet.bulletRadius = bulletRadius; // Сохраняем для коллизий
         
+        // Флаг для событий
+        bullet.hasTriggeredScreenEdge = false; // Для предотвращения повторных событий onScreenEdge
+        bullet.eventTimers = {}; // Для частоты событий onFlight
+        
         bullet.circle(0, 0, bulletRadius).fill(0xffff00);
         
         // Устанавливаем начальную позицию: у игрока или у курсора
@@ -1481,11 +1990,14 @@ onMounted(async () => {
         }
       }
 
-      // --- Логика снарядов и их коллизий ---
+              // --- Логика снарядов и их коллизий ---
       for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         const oldX = b.x;
         const oldY = b.y;
+        
+        // --- Событие: onFlight (каждый кадр во время полета) ---
+        triggerBulletEvent(b, 'onFlight', ticker);
         
         // --- Логика самонаведения ---
         if (weaponConfig.homingEnabled) {
@@ -1602,6 +2114,13 @@ onMounted(async () => {
           shouldRemove = true;
         }
         
+        // Проверяем касание края экрана для событий (ДО рикошета!)
+        const isAtScreenEdge = b.x <= 4 || b.x >= app.screen.width - 4 || b.y <= 4 || b.y >= app.screen.height - 4;
+        if (isAtScreenEdge && !b.hasTriggeredScreenEdge) {
+          triggerBulletEvent(b, 'onScreenEdge', ticker);
+          b.hasTriggeredScreenEdge = true; // Предотвращаем повторные срабатывания
+        }
+        
         // Проверяем рикошет от стен (границы экрана)
         if (weaponConfig.ricochetWalls && b.ricochetsLeft > 0) {
           let hasRicocheted = false;
@@ -1621,6 +2140,9 @@ onMounted(async () => {
           }
           
           if (hasRicocheted) {
+            // --- Событие: onRicochet (при рикошете от стен) ---
+            triggerBulletEvent(b, 'onRicochet', ticker);
+            
             b.ricochetsLeft--; // Уменьшаем количество рикошетов
           }
         }
@@ -1649,11 +2171,18 @@ onMounted(async () => {
             if (b.penetrationLeft > 0) {
               // Есть пробитие - наносим урон цели
               dealDamage(obstacle, b.damage);
+              
+              // --- Событие: onHitEnemy (при попадании во врага) ---
+              triggerBulletEvent(b, 'onHitEnemy', ticker, { target: obstacle });
+              
               b.penetrationLeft--; // Уменьшаем пробитие
               
               // Если пробитие закончилось, проверяем рикошет от врагов
               if (b.penetrationLeft <= 0) {
                 if (weaponConfig.ricochetEnemies && b.ricochetsLeft > 0) {
+                  // --- Событие: onRicochet (при рикошете от врагов) ---
+                  triggerBulletEvent(b, 'onRicochet', ticker, { target: obstacle });
+                  
                   // Рикошет от врага: отражаем снаряд в случайном направлении
                   const randomAngle = Math.random() * Math.PI * 2;
                   const currentSpeed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
@@ -1692,6 +2221,9 @@ onMounted(async () => {
 
         // Удаляем снаряд если нужно
         if (shouldRemove) {
+          // --- Событие: onExpire (при исчезновении снаряда) ---
+          triggerBulletEvent(b, 'onExpire', ticker);
+          
           // Если снаряд взрывчатый, создаем взрыв
           if (weaponConfig.explosiveRounds) {
             createExplosion(b.x, b.y, weaponConfig.explosionRadius);
