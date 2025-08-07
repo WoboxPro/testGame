@@ -193,29 +193,7 @@
         <span>{{ weaponSettings.fanAngle }}°</span>
       </div>
 
-      <div class="setting-group">
-        <label>
-          <input 
-            type="checkbox" 
-            v-model="weaponSettings.explosiveRounds"
-            @change="updateWeaponConfig"
-          />
-          Взрывчатые снаряды
-        </label>
-      </div>
 
-      <div class="setting-group">
-        <label>Радиус взрыва:</label>
-        <input 
-          type="range" 
-          min="20" 
-          max="100" 
-          step="10" 
-          v-model="weaponSettings.explosionRadius"
-          @input="updateWeaponConfig"
-        />
-        <span>{{ weaponSettings.explosionRadius }}px</span>
-      </div>
 
       <div class="setting-group">
         <label>
@@ -509,18 +487,7 @@
         <span>{{ weaponSettings.bulletDamage }}</span>
       </div>
 
-      <div class="setting-group">
-        <label>Урон взрыва:</label>
-        <input 
-          type="range" 
-          min="1" 
-          max="20" 
-          step="1" 
-          v-model="weaponSettings.explosionDamage"
-          @input="updateWeaponConfig"
-        />
-        <span>{{ weaponSettings.explosionDamage }}</span>
-      </div>
+
 
       <!-- <div class="presets">
         <h4>Пресеты:</h4>
@@ -549,19 +516,50 @@
               <div class="effect-info">
                 <span class="effect-name">{{ getEffectDisplayName(effect.name) }}</span>
                 <div class="effect-params">
-                  <!-- Частота (только для событий полета) -->
-                  <div v-if="eventName === 'onFlight'" class="param-editor">
-                    <label>⏱️ Частота:</label>
-                    <input 
-                      type="number" 
-                      :value="effect.frequency || 100"
-                      @input="updateEffectParam(eventName, index, 'frequency', $event.target.value)"
-                      min="50" 
-                      max="2000" 
-                      step="50"
-                      class="param-input"
-                    />
-                    <span class="param-unit">мс</span>
+                  <!-- Параметры для события полета -->
+                  <div v-if="eventName === 'onFlight'">
+                    <!-- Выбор типа срабатывания -->
+                    <div class="param-editor">
+                      <label>🎛️ Тип:</label>
+                      <select 
+                        :value="effect.triggerType || 'time'"
+                        @change="updateEffectParam(eventName, index, 'triggerType', $event.target.value)"
+                        class="param-select"
+                      >
+                        <option value="time">⏱️ Время</option>
+                        <option value="distance">📏 Расстояние</option>
+                      </select>
+                    </div>
+                    
+                    <!-- Параметр времени -->
+                    <div v-if="(effect.triggerType || 'time') === 'time'" class="param-editor">
+                      <label>⏱️ Частота:</label>
+                      <input 
+                        type="number" 
+                        :value="effect.frequency || 500"
+                        @input="updateEffectParam(eventName, index, 'frequency', $event.target.value)"
+                        min="50" 
+                        max="2000" 
+                        step="50"
+                        class="param-input"
+                      />
+                      <span class="param-unit">мс</span>
+                    </div>
+                    
+                    <!-- Параметр расстояния -->
+                    <div v-if="(effect.triggerType || 'time') === 'distance'" class="param-editor">
+                      <label>📏 Дистанция:</label>
+                      <input 
+                        type="number" 
+                        :value="effect.distance || 50"
+                        @input="updateEffectParam(eventName, index, 'distance', $event.target.value)"
+                        min="10" 
+                        max="200" 
+                        step="10"
+                        class="param-input"
+                      />
+                      <span class="param-unit">px</span>
+                    </div>
                   </div>
                   
                   <!-- Шанс (для всех событий) -->
@@ -815,6 +813,21 @@
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
 }
 
+.param-select {
+  width: 90px;
+  padding: 2px 4px;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  font-size: 12px;
+  background: white;
+}
+
+.param-select:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
 .param-unit {
   font-size: 12px;
   color: #6c757d;
@@ -968,14 +981,11 @@ const weaponSettings = reactive({
   maxRangeLoss: 20,         // Максимальная потеря дальности в процентах
   fanSpread: false,         // Веерная стрельба вместо случайного разброса
   fanAngle: 30,             // Угол веера в градусах
-  explosiveRounds: false,   // Взрывчатые снаряды
-  explosionRadius: 50,      // Радиус взрыва в пикселях
   ricochetWalls: false,     // Рикошет от стен (границ экрана)
   ricochetEnemies: false,   // Рикошет от врагов (когда пробитие кончилось)
   maxRicochets: 3,          // Максимальное количество рикошетов
   recoil: 2.0,              // Сила отдачи оружия (0 = нет отдачи, 10 = максимальная)
   bulletDamage: 1,          // Урон от прямого попадания пули
-  explosionDamage: 3,       // Урон от взрыва
   homingEnabled: false,     // Включить самонаведение пуль
   homingStrength: 0.1,      // Сила притяжения к курсору (0-1)
   maxTurnRate: 3.0,         // Максимальная скорость поворота в градусах за кадр
@@ -1057,12 +1067,15 @@ const selectEffect = (effect) => {
   // Создаем новый эффект с параметрами по умолчанию
   const newEffect = {
     name: effect.id,
-    // Параметры по умолчанию в зависимости от эффекта
-    ...(effect.id === 'explosion' && { 
-      chance: 100,
-      ...(selectedEventName.value === 'onFlight' && { frequency: 500 })
-    })
+    chance: 100
   };
+  
+  // Добавляем специфичные параметры для события полета
+  if (selectedEventName.value === 'onFlight') {
+    newEffect.triggerType = 'time'; // По умолчанию время
+    newEffect.frequency = 500; // Частота по времени
+    newEffect.distance = 50; // Дистанция (если переключат на расстояние)
+  }
   
   // Добавляем эффект к выбранному событию
   weaponSettings.events[selectedEventName.value].push(newEffect);
@@ -1076,6 +1089,13 @@ const removeEffect = (eventName, effectIndex) => {
 };
 
 const updateEffectParam = (eventName, effectIndex, paramName, value) => {
+  // Для строковых параметров (triggerType)
+  if (paramName === 'triggerType') {
+    weaponSettings.events[eventName][effectIndex][paramName] = value;
+    updateWeaponConfig();
+    return;
+  }
+  
   const numValue = Number(value);
   
   // Валидация значений
@@ -1083,6 +1103,8 @@ const updateEffectParam = (eventName, effectIndex, paramName, value) => {
     if (numValue < 1 || numValue > 100) return;
   } else if (paramName === 'frequency') {
     if (numValue < 50 || numValue > 2000) return;
+  } else if (paramName === 'distance') {
+    if (numValue < 10 || numValue > 200) return;
   }
   
   // Обновляем параметр эффекта
@@ -1107,14 +1129,11 @@ const updateWeaponConfig = () => {
     gameWeaponConfig.maxRangeLoss = Number(weaponSettings.maxRangeLoss);
     gameWeaponConfig.fanSpread = weaponSettings.fanSpread;
     gameWeaponConfig.fanAngle = Number(weaponSettings.fanAngle);
-    gameWeaponConfig.explosiveRounds = weaponSettings.explosiveRounds;
-    gameWeaponConfig.explosionRadius = Number(weaponSettings.explosionRadius);
     gameWeaponConfig.ricochetWalls = weaponSettings.ricochetWalls;
     gameWeaponConfig.ricochetEnemies = weaponSettings.ricochetEnemies;
     gameWeaponConfig.maxRicochets = Number(weaponSettings.maxRicochets);
     gameWeaponConfig.recoil = Number(weaponSettings.recoil);
     gameWeaponConfig.bulletDamage = Number(weaponSettings.bulletDamage);
-    gameWeaponConfig.explosionDamage = Number(weaponSettings.explosionDamage);
     gameWeaponConfig.homingEnabled = weaponSettings.homingEnabled;
     gameWeaponConfig.homingStrength = Number(weaponSettings.homingStrength);
     gameWeaponConfig.maxTurnRate = Number(weaponSettings.maxTurnRate);
@@ -1271,14 +1290,11 @@ onMounted(async () => {
       maxRangeLoss: weaponSettings.maxRangeLoss,
       fanSpread: weaponSettings.fanSpread,
       fanAngle: weaponSettings.fanAngle,
-      explosiveRounds: weaponSettings.explosiveRounds,
-      explosionRadius: weaponSettings.explosionRadius,
       ricochetWalls: weaponSettings.ricochetWalls,
       ricochetEnemies: weaponSettings.ricochetEnemies,
       maxRicochets: weaponSettings.maxRicochets,
       recoil: weaponSettings.recoil,
       bulletDamage: weaponSettings.bulletDamage,
-      explosionDamage: weaponSettings.explosionDamage,
       homingEnabled: weaponSettings.homingEnabled,
       homingStrength: weaponSettings.homingStrength,
       maxTurnRate: weaponSettings.maxTurnRate,
@@ -1361,14 +1377,30 @@ onMounted(async () => {
       const eventEffects = weaponConfig.events[eventName] || [];
       
       eventEffects.forEach(effect => {
-        // Проверяем частоту (только для onFlight)
-        if (effect.frequency && eventName === 'onFlight') {
-          if (!bullet.eventTimers) bullet.eventTimers = {};
-          if (!bullet.eventTimers[effect.name]) bullet.eventTimers[effect.name] = 0;
+        // Проверяем частоту/дистанцию (только для onFlight)
+        if (eventName === 'onFlight') {
+          const triggerType = effect.triggerType || 'time';
           
-          bullet.eventTimers[effect.name] += ticker.elapsedMS;
-          if (bullet.eventTimers[effect.name] < effect.frequency) return;
-          bullet.eventTimers[effect.name] = 0; // Сбрасываем таймер
+          if (triggerType === 'time' && effect.frequency) {
+            // Проверка по времени
+            if (!bullet.eventTimers) bullet.eventTimers = {};
+            if (!bullet.eventTimers[effect.name]) bullet.eventTimers[effect.name] = 0;
+            
+            bullet.eventTimers[effect.name] += ticker.elapsedMS;
+            if (bullet.eventTimers[effect.name] < effect.frequency) return;
+            bullet.eventTimers[effect.name] = 0; // Сбрасываем таймер
+            
+          } else if (triggerType === 'distance' && effect.distance) {
+            // Проверка по расстоянию
+            if (!bullet.eventDistances) bullet.eventDistances = {};
+            if (!bullet.eventDistances[effect.name]) bullet.eventDistances[effect.name] = 0;
+            
+            const currentDistance = bullet.distanceTraveled;
+            const nextTriggerDistance = bullet.eventDistances[effect.name] + effect.distance;
+            
+            if (currentDistance < nextTriggerDistance) return;
+            bullet.eventDistances[effect.name] = nextTriggerDistance; // Обновляем следующую цель
+          }
         }
         
         // Проверяем шанс срабатывания
@@ -1384,7 +1416,8 @@ onMounted(async () => {
     function applyEffect(bullet, effectName, extraData = {}) {
       switch (effectName) {
         case 'explosion':
-          createEventExplosion(bullet.x, bullet.y, weaponConfig.explosionRadius, weaponConfig.explosionDamage);
+          // Используем стандартные параметры взрыва для событий
+          createEventExplosion(bullet.x, bullet.y, 50, 3); // radius: 50px, damage: 3
           break;
         // Здесь будут другие эффекты: freeze, lightning, etc.
       }
@@ -1692,11 +1725,6 @@ onMounted(async () => {
       } else if (weaponConfig.raycastAnimation === 'impact') {
         createImpactPoint(currentX, currentY, 'end');
       }
-      
-      // Если луч взрывчатый, создаем взрыв в конечной точке
-      if (weaponConfig.explosiveRounds) {
-        createExplosion(currentX, currentY, weaponConfig.explosionRadius);
-      }
     }
 
     // --- Функция создания визуального эффекта луча ---
@@ -1874,6 +1902,7 @@ onMounted(async () => {
         // Флаг для событий
         bullet.hasTriggeredScreenEdge = false; // Для предотвращения повторных событий onScreenEdge
         bullet.eventTimers = {}; // Для частоты событий onFlight
+        bullet.eventDistances = {}; // Для отслеживания пройденного расстояния для эффектов
         
         bullet.circle(0, 0, bulletRadius).fill(0xffff00);
         
@@ -2223,11 +2252,6 @@ onMounted(async () => {
         if (shouldRemove) {
           // --- Событие: onExpire (при исчезновении снаряда) ---
           triggerBulletEvent(b, 'onExpire', ticker);
-          
-          // Если снаряд взрывчатый, создаем взрыв
-          if (weaponConfig.explosiveRounds) {
-            createExplosion(b.x, b.y, weaponConfig.explosionRadius);
-          }
           
           app.stage.removeChild(b);
           b.destroy();
