@@ -1468,53 +1468,6 @@ onMounted(async () => {
       fadeOut();
     }
 
-    // --- Функция создания взрыва ---
-    function createExplosion(x, y, radius, damage = weaponConfig.explosionDamage) {
-      // Создаем визуальный эффект взрыва
-      const explosion = new PIXI.Graphics();
-      explosion.circle(0, 0, radius).fill(0xff6600); // Оранжевый цвет взрыва
-      explosion.alpha = 0.7;
-      explosion.position.set(x, y);
-      explosions.push(explosion);
-      app.stage.addChild(explosion);
-      
-      // Проверяем коллизии взрыва с препятствиями
-      for (const obstacle of obstacles) {
-        if (obstacle.isAlive) {
-          const dx = x - obstacle.x;
-          const dy = y - obstacle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const obstacleRadius = 20; // Размер препятствия (половина ширины квадрата 40px)
-          
-          // Взрыв попадает, если расстояние от центра взрыва до центра препятствия 
-          // меньше суммы радиуса взрыва и размера препятствия
-          if (distance <= radius + obstacleRadius) {
-            dealDamage(obstacle, damage); // Наносим урон взрывом
-          }
-        }
-      }
-      
-      // Эффект исчезновения взрыва
-      const fadeOut = () => {
-        explosion.alpha -= 0.05;
-        explosion.scale.x += 0.02;
-        explosion.scale.y += 0.02;
-        
-        if (explosion.alpha <= 0) {
-          app.stage.removeChild(explosion);
-          explosion.destroy();
-          const index = explosions.indexOf(explosion);
-          if (index > -1) {
-            explosions.splice(index, 1);
-          }
-        } else {
-          requestAnimationFrame(fadeOut);
-        }
-      };
-      
-      fadeOut();
-    }
-
     // --- Функция векторной стрельбы (raycast) ---
     function createRaycast() {
       const currentTime = Date.now();
