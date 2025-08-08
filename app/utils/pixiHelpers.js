@@ -164,31 +164,44 @@ export function createFadeOutEffect(effect, app, effectsArray, options = {}) {
     scaleStep = 0.03,
     delay = 0
   } = options;
-  
-  const fadeOut = () => {
-    effect.alpha -= alphaStep;
-    if (scaleStep > 0) {
-      effect.scale.x += scaleStep;
-      effect.scale.y += scaleStep;
+
+  // Переходим на обновление через PIXI.Ticker, чтобы синхронизироваться с рендер-циклом
+  let remainingDelayMs = delay;
+  let started = remainingDelayMs <= 0;
+
+  const tickUpdate = (ticker) => {
+    const deltaMs = ticker.elapsedMS || 16.67;
+
+    // Отрабатываем задержку перед стартом анимации
+    if (!started) {
+      remainingDelayMs -= deltaMs;
+      if (remainingDelayMs > 0) return;
+      started = true;
     }
-    
+
+    // Нормализация под длительность кадра (шаги задавались на ~60 FPS)
+    const frameFactor = deltaMs / 16.67;
+
+    effect.alpha -= alphaStep * frameFactor;
+    if (scaleStep > 0) {
+      const deltaScale = scaleStep * frameFactor;
+      effect.scale.x += deltaScale;
+      effect.scale.y += deltaScale;
+    }
+
     if (effect.alpha <= 0) {
-      app.stage.removeChild(effect);
-      effect.destroy();
-      const index = effectsArray.indexOf(effect);
-      if (index > -1) {
-        effectsArray.splice(index, 1);
+      // Очистка
+      if (app.stage.children && app.stage.children.includes(effect)) {
+        app.stage.removeChild(effect);
       }
-    } else {
-      requestAnimationFrame(fadeOut);
+      try { effect.destroy(); } catch (_) {}
+      const index = effectsArray.indexOf(effect);
+      if (index > -1) effectsArray.splice(index, 1);
+      app.ticker.remove(tickUpdate);
     }
   };
-  
-  if (delay > 0) {
-    setTimeout(fadeOut, delay);
-  } else {
-    fadeOut();
-  }
+
+  app.ticker.add(tickUpdate);
 }
 
 /**
