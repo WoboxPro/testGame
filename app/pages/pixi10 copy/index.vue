@@ -6,15 +6,15 @@
       
       <div class="setting-group">
         <label>Тип стрельбы:</label>
-        <select v-model="weaponConfig.weaponType">
+        <select v-model="weaponSettings.weaponType" @change="updateWeaponConfig">
           <option value="projectile">Пули (снаряды)</option>
           <option value="raycast">Векторная (лучевая)</option>
         </select>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.weaponType === 'raycast'">
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'raycast'">
         <label>Анимация векторной стрельбы:</label>
-        <select v-model="weaponConfig.raycastAnimation">
+        <select v-model="weaponSettings.raycastAnimation" @change="updateWeaponConfig">
           <option value="laser">🔴 Лазер (видимый луч)</option>
           <option value="impact">💥 Попадания (только точки)</option>
         </select>
@@ -27,13 +27,13 @@
           min="5" 
           max="20" 
           step="1" 
-          v-model="weaponConfig.bulletSpeed"
-          
-          :disabled="weaponConfig.weaponType === 'raycast'"
+          v-model="weaponSettings.bulletSpeed"
+          @input="updateWeaponConfig"
+          :disabled="weaponSettings.weaponType === 'raycast'"
         />
-        <span :class="{ disabled: weaponConfig.weaponType === 'raycast' }">
-          {{ weaponConfig.bulletSpeed }}
-          <small v-if="weaponConfig.weaponType === 'raycast'">(не используется)</small>
+        <span :class="{ disabled: weaponSettings.weaponType === 'raycast' }">
+          {{ weaponSettings.bulletSpeed }}
+          <small v-if="weaponSettings.weaponType === 'raycast'">(не используется)</small>
         </span>
       </div>
 
@@ -44,10 +44,10 @@
           min="1" 
           max="10" 
           step="1" 
-          v-model="weaponConfig.penetration"
-          
+          v-model="weaponSettings.penetration"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.penetration }}</span>
+        <span>{{ weaponSettings.penetration }}</span>
       </div>
 
       <div class="setting-group">
@@ -57,10 +57,10 @@
           min="1" 
           max="20" 
           step="1" 
-          v-model="weaponConfig.bulletsPerShot"
-          
+          v-model="weaponSettings.bulletsPerShot"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.bulletsPerShot }}</span>
+        <span>{{ weaponSettings.bulletsPerShot }}</span>
       </div>
 
       <div class="setting-group">
@@ -70,10 +70,10 @@
           min="100" 
           max="800" 
           step="50" 
-          v-model="weaponConfig.maxRange"
-          
+          v-model="weaponSettings.maxRange"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.maxRange }}</span>
+        <span>{{ weaponSettings.maxRange }}</span>
       </div>
 
       <div class="setting-group">
@@ -83,13 +83,13 @@
           min="0.5" 
           max="5" 
           step="0.1" 
-          v-model="weaponConfig.bulletLifetime"
-          
-          :disabled="weaponConfig.weaponType === 'raycast'"
+          v-model="weaponSettings.bulletLifetime"
+          @input="updateWeaponConfig"
+          :disabled="weaponSettings.weaponType === 'raycast'"
         />
-        <span :class="{ disabled: weaponConfig.weaponType === 'raycast' }">
-          {{ Number(weaponConfig.bulletLifetime).toFixed(1) }}с
-          <small v-if="weaponConfig.weaponType === 'raycast'">(не используется)</small>
+        <span :class="{ disabled: weaponSettings.weaponType === 'raycast' }">
+          {{ Number(weaponSettings.bulletLifetime).toFixed(1) }}с
+          <small v-if="weaponSettings.weaponType === 'raycast'">(не используется)</small>
         </span>
       </div>
 
@@ -100,10 +100,10 @@
           min="10" 
           max="1000" 
           step="5" 
-          v-model="weaponConfig.fireRate"
-          
+          v-model="weaponSettings.fireRate"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.fireRate }}</span>
+        <span>{{ weaponSettings.fireRate }}</span>
       </div>
 
       <div class="setting-group">
@@ -113,10 +113,10 @@
           min="0" 
           max="1" 
           step="0.05" 
-          v-model="weaponConfig.spread"
-          
+          v-model="weaponSettings.spread"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.spread).toFixed(2) }}</span>
+        <span>{{ Number(weaponSettings.spread).toFixed(2) }}</span>
       </div>
 
       <div class="setting-group">
@@ -126,10 +126,10 @@
           min="0" 
           max="45" 
           step="1" 
-          v-model="weaponConfig.maxSpreadAngle"
-          
+          v-model="weaponSettings.maxSpreadAngle"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.maxSpreadAngle }}°</span>
+        <span>{{ weaponSettings.maxSpreadAngle }}°</span>
       </div>
 
       <div class="setting-group">
@@ -139,10 +139,10 @@
           min="0" 
           max="1" 
           step="0.05" 
-          v-model="weaponConfig.rangeSpread"
-          
+          v-model="weaponSettings.rangeSpread"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.rangeSpread).toFixed(2) }}</span>
+        <span>{{ Number(weaponSettings.rangeSpread).toFixed(2) }}</span>
       </div>
 
       <div class="setting-group">
@@ -152,18 +152,18 @@
           min="0" 
           max="50" 
           step="5" 
-          v-model="weaponConfig.maxRangeLoss"
-          
+          v-model="weaponSettings.maxRangeLoss"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.maxRangeLoss }}%</span>
+        <span>{{ weaponSettings.maxRangeLoss }}%</span>
       </div>
 
       <div class="setting-group">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.autoFire"
-            
+            v-model="weaponSettings.autoFire"
+            @change="updateWeaponConfig"
           />
           Автоматическая стрельба
         </label>
@@ -173,8 +173,8 @@
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.fanSpread"
-            
+            v-model="weaponSettings.fanSpread"
+            @change="updateWeaponConfig"
           />
           Веерная стрельба
         </label>
@@ -187,10 +187,10 @@
           min="0" 
           max="359" 
           step="1" 
-          v-model="weaponConfig.fanAngle"
-          
+          v-model="weaponSettings.fanAngle"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.fanAngle }}°</span>
+        <span>{{ weaponSettings.fanAngle }}°</span>
       </div>
 
 
@@ -199,8 +199,8 @@
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.ricochetWalls"
-            
+            v-model="weaponSettings.ricochetWalls"
+            @change="updateWeaponConfig"
           />
           Рикошет от стен
         </label>
@@ -210,41 +210,41 @@
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.ricochetEnemies"
-            
+            v-model="weaponSettings.ricochetEnemies"
+            @change="updateWeaponConfig"
           />
           Рикошет от врагов
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.homingEnabled"
-            
+            v-model="weaponSettings.homingEnabled"
+            @change="updateWeaponConfig"
           />
           🎯 Самонаводящиеся пули
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.spawnAtCursor"
-            
+            v-model="weaponSettings.spawnAtCursor"
+            @change="updateWeaponConfig"
           />
           ✨ Появление у курсора
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.largeBullets"
-            
+            v-model="weaponSettings.largeBullets"
+            @change="updateWeaponConfig"
           />
           🟠 Большие снаряды
         </label>
@@ -254,198 +254,198 @@
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.allowOffScreen"
-            
+            v-model="weaponSettings.allowOffScreen"
+            @change="updateWeaponConfig"
           />
           🌌 Улетают за экран
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.allowOffScreen">
+      <div class="setting-group" v-if="weaponSettings.allowOffScreen">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.infiniteOffScreen"
-            
+            v-model="weaponSettings.infiniteOffScreen"
+            @change="updateWeaponConfig"
           />
           ∞ Бесконечно за экраном
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.allowOffScreen && !weaponConfig.infiniteOffScreen">
+      <div class="setting-group" v-if="weaponSettings.allowOffScreen && !weaponSettings.infiniteOffScreen">
         <label>Лимит за экраном (px):</label>
         <input 
           type="range" 
           min="100" 
           max="2000" 
           step="100" 
-          v-model="weaponConfig.offScreenLimit"
-          
+          v-model="weaponSettings.offScreenLimit"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.offScreenLimit }}px</span>
+        <span>{{ weaponSettings.offScreenLimit }}px</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.largeBullets && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.largeBullets && weaponSettings.weaponType === 'projectile'">
         <label>Размер снаряда:</label>
         <input 
           type="range" 
           min="1" 
           max="50" 
           step="2" 
-          v-model="weaponConfig.bulletSize"
-          
+          v-model="weaponSettings.bulletSize"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.bulletSize }}px</span>
+        <span>{{ weaponSettings.bulletSize }}px</span>
       </div>
 
       <div class="setting-group">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.useAmmoSystem"
-            
+            v-model="weaponSettings.useAmmoSystem"
+            @change="updateWeaponConfig"
           />
           🔫 Система обоймы
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.useAmmoSystem">
+      <div class="setting-group" v-if="weaponSettings.useAmmoSystem">
         <label>Размер обоймы:</label>
         <input 
           type="range" 
           min="5" 
           max="100" 
           step="5" 
-          v-model="weaponConfig.maxAmmo"
-          
+          v-model="weaponSettings.maxAmmo"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.maxAmmo }}</span>
+        <span>{{ weaponSettings.maxAmmo }}</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.useAmmoSystem">
+      <div class="setting-group" v-if="weaponSettings.useAmmoSystem">
         <label>Время перезарядки (сек):</label>
         <input 
           type="range" 
           min="0.5" 
           max="5" 
           step="0.1" 
-          v-model="weaponConfig.reloadTime"
-          
+          v-model="weaponSettings.reloadTime"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.reloadTime).toFixed(1) }}с</span>
+        <span>{{ Number(weaponSettings.reloadTime).toFixed(1) }}с</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.useAmmoSystem">
+      <div class="setting-group" v-if="weaponSettings.useAmmoSystem">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.ammoPerShot"
-            
+            v-model="weaponSettings.ammoPerShot"
+            @change="updateWeaponConfig"
           />
           📊 Расход за выстрел (иначе за снаряд)
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.weaponType === 'projectile'">
         <label>
           <input 
             type="checkbox" 
-            v-model="weaponConfig.gravityEnabled"
-            
+            v-model="weaponSettings.gravityEnabled"
+            @change="updateWeaponConfig"
           />
           🌍 Гравитация
         </label>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.gravityEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.gravityEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Сила гравитации:</label>
         <input 
           type="range" 
           min="0.01" 
           max="0.3" 
           step="0.01" 
-          v-model="weaponConfig.gravityStrength"
-          
+          v-model="weaponSettings.gravityStrength"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.gravityStrength).toFixed(2) }}</span>
+        <span>{{ Number(weaponSettings.gravityStrength).toFixed(2) }}</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.gravityEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.gravityEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Задержка гравитации (мс):</label>
         <input 
           type="range" 
           min="0" 
           max="1000" 
           step="50" 
-          v-model="weaponConfig.gravityDelay"
-          
+          v-model="weaponSettings.gravityDelay"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.gravityDelay }}мс</span>
+        <span>{{ weaponSettings.gravityDelay }}мс</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.gravityEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.gravityEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Макс. скорость падения:</label>
         <input 
           type="range" 
           min="5" 
           max="50" 
           step="1" 
-          v-model="weaponConfig.maxFallSpeed"
-          
+          v-model="weaponSettings.maxFallSpeed"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.maxFallSpeed }}</span>
+        <span>{{ weaponSettings.maxFallSpeed }}</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.gravityEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.gravityEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Направление гравитации (градусы):</label>
         <input 
           type="range" 
           min="0" 
           max="359" 
           step="1" 
-          v-model="weaponConfig.gravityDirection"
-          
+          v-model="weaponSettings.gravityDirection"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.gravityDirection }}°</span>
+        <span>{{ weaponSettings.gravityDirection }}°</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.homingEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.homingEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Скорость наведения (0-1):</label>
         <input 
           type="range" 
           min="0.01" 
           max="0.5" 
           step="0.01" 
-          v-model="weaponConfig.homingStrength"
-          
+          v-model="weaponSettings.homingStrength"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.homingStrength).toFixed(2) }}</span>
+        <span>{{ Number(weaponSettings.homingStrength).toFixed(2) }}</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.homingEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.homingEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Макс. угол поворота (град/кадр):</label>
         <input 
           type="range" 
           min="0.5" 
           max="10" 
           step="0.5" 
-          v-model="weaponConfig.maxTurnRate"
-          
+          v-model="weaponSettings.maxTurnRate"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.maxTurnRate).toFixed(1) }}°</span>
+        <span>{{ Number(weaponSettings.maxTurnRate).toFixed(1) }}°</span>
       </div>
 
-      <div class="setting-group" v-if="weaponConfig.homingEnabled && weaponConfig.weaponType === 'projectile'">
+      <div class="setting-group" v-if="weaponSettings.homingEnabled && weaponSettings.weaponType === 'projectile'">
         <label>Задержка наведения (мс):</label>
         <input 
           type="range" 
           min="0" 
           max="2000" 
           step="100" 
-          v-model="weaponConfig.homingDelay"
-          
+          v-model="weaponSettings.homingDelay"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.homingDelay }}мс</span>
+        <span>{{ weaponSettings.homingDelay }}мс</span>
       </div>
 
       <div class="setting-group">
@@ -455,10 +455,10 @@
           min="1" 
           max="10" 
           step="1" 
-          v-model="weaponConfig.maxRicochets"
-          
+          v-model="weaponSettings.maxRicochets"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.maxRicochets }}</span>
+        <span>{{ weaponSettings.maxRicochets }}</span>
       </div>
 
       <div class="setting-group">
@@ -468,10 +468,10 @@
           min="0" 
           max="10" 
           step="0.5" 
-          v-model="weaponConfig.recoil"
-          
+          v-model="weaponSettings.recoil"
+          @input="updateWeaponConfig"
         />
-        <span>{{ Number(weaponConfig.recoil).toFixed(1) }}</span>
+        <span>{{ Number(weaponSettings.recoil).toFixed(1) }}</span>
       </div>
 
       <div class="setting-group">
@@ -481,10 +481,10 @@
           min="1" 
           max="10" 
           step="1" 
-          v-model="weaponConfig.bulletDamage"
-          
+          v-model="weaponSettings.bulletDamage"
+          @input="updateWeaponConfig"
         />
-        <span>{{ weaponConfig.bulletDamage }}</span>
+        <span>{{ weaponSettings.bulletDamage }}</span>
       </div>
 
 
@@ -507,7 +507,7 @@
       
       <!-- События снарядов -->
       <div class="events-section">
-        <div class="event-category" v-for="(eventEffects, eventName) in weaponConfig.events" :key="eventName" v-show="!(eventName === 'onFlight' && weaponConfig.weaponType === 'raycast')">
+        <div class="event-category" v-for="(eventEffects, eventName) in weaponSettings.events" :key="eventName" v-show="!(eventName === 'onFlight' && weaponSettings.weaponType === 'raycast')">
           <h4>{{ getEventDisplayName(eventName) }}</h4>
           
           <!-- Список эффектов для события -->
@@ -1005,8 +1005,8 @@ import {
 
 const pixiContainer = ref(null);
 
-// Единая реактивная конфигурация оружия для UI и игры
-const weaponConfig = reactive({
+// Реактивные настройки оружия для UI
+const weaponSettings = reactive({
   weaponType: 'projectile', // Тип оружия: 'projectile' - пули, 'raycast' - векторная стрельба
   raycastAnimation: 'laser', // Анимация векторной стрельбы: 'laser' - видимый луч, 'impact' - только точки попаданий
   bulletSpeed: 10,
@@ -1056,7 +1056,8 @@ const weaponConfig = reactive({
   }
 });
 
-
+// Переменная для хранения ссылки на weaponConfig из игрового цикла
+let gameWeaponConfig = null;
 
 // Состояние модального окна
 const showEffectModal = ref(false);
@@ -1117,21 +1118,21 @@ const selectEffect = (effect) => {
   }
   
   // Добавляем эффект к выбранному событию
-  weaponConfig.events[selectedEventName.value].push(newEffect);
-  
+  weaponSettings.events[selectedEventName.value].push(newEffect);
+  updateWeaponConfig();
   closeEffectModal();
 };
 
 const removeEffect = (eventName, effectIndex) => {
-  weaponConfig.events[eventName].splice(effectIndex, 1);
-  
+  weaponSettings.events[eventName].splice(effectIndex, 1);
+  updateWeaponConfig();
 };
 
 const updateEffectParam = (eventName, effectIndex, paramName, value) => {
   // Для строковых параметров (triggerType)
   if (paramName === 'triggerType') {
-    weaponConfig.events[eventName][effectIndex][paramName] = value;
-    
+    weaponSettings.events[eventName][effectIndex][paramName] = value;
+    updateWeaponConfig();
     return;
   }
   
@@ -1147,11 +1148,55 @@ const updateEffectParam = (eventName, effectIndex, paramName, value) => {
   }
   
   // Обновляем параметр эффекта
-  weaponConfig.events[eventName][effectIndex][paramName] = numValue;
-  
+  weaponSettings.events[eventName][effectIndex][paramName] = numValue;
+  updateWeaponConfig();
 };
 
-
+// Функция для обновления конфигурации оружия в игре
+const updateWeaponConfig = () => {
+  if (gameWeaponConfig) {
+    gameWeaponConfig.weaponType = weaponSettings.weaponType;
+    gameWeaponConfig.raycastAnimation = weaponSettings.raycastAnimation;
+    gameWeaponConfig.bulletSpeed = Number(weaponSettings.bulletSpeed);
+    gameWeaponConfig.penetration = Number(weaponSettings.penetration);
+    gameWeaponConfig.bulletsPerShot = Number(weaponSettings.bulletsPerShot);
+    gameWeaponConfig.maxRange = Number(weaponSettings.maxRange);
+    gameWeaponConfig.bulletLifetime = Number(weaponSettings.bulletLifetime);
+    gameWeaponConfig.fireRate = Number(weaponSettings.fireRate);
+    gameWeaponConfig.spread = Number(weaponSettings.spread);
+    gameWeaponConfig.maxSpreadAngle = Number(weaponSettings.maxSpreadAngle);
+    gameWeaponConfig.rangeSpread = Number(weaponSettings.rangeSpread);
+    gameWeaponConfig.maxRangeLoss = Number(weaponSettings.maxRangeLoss);
+    gameWeaponConfig.fanSpread = weaponSettings.fanSpread;
+    gameWeaponConfig.fanAngle = Number(weaponSettings.fanAngle);
+    gameWeaponConfig.ricochetWalls = weaponSettings.ricochetWalls;
+    gameWeaponConfig.ricochetEnemies = weaponSettings.ricochetEnemies;
+    gameWeaponConfig.maxRicochets = Number(weaponSettings.maxRicochets);
+    gameWeaponConfig.recoil = Number(weaponSettings.recoil);
+    gameWeaponConfig.bulletDamage = Number(weaponSettings.bulletDamage);
+    gameWeaponConfig.homingEnabled = weaponSettings.homingEnabled;
+    gameWeaponConfig.homingStrength = Number(weaponSettings.homingStrength);
+    gameWeaponConfig.maxTurnRate = Number(weaponSettings.maxTurnRate);
+    gameWeaponConfig.homingDelay = Number(weaponSettings.homingDelay);
+    gameWeaponConfig.spawnAtCursor = weaponSettings.spawnAtCursor;
+    gameWeaponConfig.largeBullets = weaponSettings.largeBullets;
+    gameWeaponConfig.bulletSize = Number(weaponSettings.bulletSize);
+    gameWeaponConfig.allowOffScreen = weaponSettings.allowOffScreen;
+    gameWeaponConfig.infiniteOffScreen = weaponSettings.infiniteOffScreen;
+    gameWeaponConfig.offScreenLimit = Number(weaponSettings.offScreenLimit);
+    gameWeaponConfig.useAmmoSystem = weaponSettings.useAmmoSystem;
+    gameWeaponConfig.maxAmmo = Number(weaponSettings.maxAmmo);
+    gameWeaponConfig.reloadTime = Number(weaponSettings.reloadTime);
+    gameWeaponConfig.ammoPerShot = weaponSettings.ammoPerShot;
+    gameWeaponConfig.gravityEnabled = weaponSettings.gravityEnabled;
+    gameWeaponConfig.gravityStrength = Number(weaponSettings.gravityStrength);
+    gameWeaponConfig.gravityDelay = Number(weaponSettings.gravityDelay);
+    gameWeaponConfig.maxFallSpeed = Number(weaponSettings.maxFallSpeed);
+    gameWeaponConfig.gravityDirection = Number(weaponSettings.gravityDirection);
+    gameWeaponConfig.autoFire = weaponSettings.autoFire;
+    gameWeaponConfig.events = weaponSettings.events;
+  }
+};
 
 // Функция для загрузки пресетов
 const loadPreset = (presetName) => {
@@ -1160,7 +1205,8 @@ const loadPreset = (presetName) => {
   };
   
   if (presets[presetName]) {
-    Object.assign(weaponConfig, presets[presetName]);
+    Object.assign(weaponSettings, presets[presetName]);
+    updateWeaponConfig();
   }
 };
 
@@ -1197,7 +1243,52 @@ onMounted(async () => {
     const rayEffects = []; // Массив для визуальных эффектов векторной стрельбы
     const impactEffects = []; // Массив для эффектов точек попаданий
     
-
+    // --- Настройки оружия ---
+    const weaponConfig = {
+      weaponType: weaponSettings.weaponType,
+      raycastAnimation: weaponSettings.raycastAnimation,
+      bulletSpeed: weaponSettings.bulletSpeed,
+      penetration: weaponSettings.penetration,
+      bulletsPerShot: weaponSettings.bulletsPerShot,
+      maxRange: weaponSettings.maxRange,
+      bulletLifetime: weaponSettings.bulletLifetime,
+      fireRate: weaponSettings.fireRate,
+      spread: weaponSettings.spread,
+      maxSpreadAngle: weaponSettings.maxSpreadAngle,
+      rangeSpread: weaponSettings.rangeSpread,
+      maxRangeLoss: weaponSettings.maxRangeLoss,
+      fanSpread: weaponSettings.fanSpread,
+      fanAngle: weaponSettings.fanAngle,
+      ricochetWalls: weaponSettings.ricochetWalls,
+      ricochetEnemies: weaponSettings.ricochetEnemies,
+      maxRicochets: weaponSettings.maxRicochets,
+      recoil: weaponSettings.recoil,
+      bulletDamage: weaponSettings.bulletDamage,
+      homingEnabled: weaponSettings.homingEnabled,
+      homingStrength: weaponSettings.homingStrength,
+      maxTurnRate: weaponSettings.maxTurnRate,
+      homingDelay: weaponSettings.homingDelay,
+      spawnAtCursor: weaponSettings.spawnAtCursor,
+      largeBullets: weaponSettings.largeBullets,
+      bulletSize: weaponSettings.bulletSize,
+      allowOffScreen: weaponSettings.allowOffScreen,
+      infiniteOffScreen: weaponSettings.infiniteOffScreen,
+      offScreenLimit: weaponSettings.offScreenLimit,
+      useAmmoSystem: weaponSettings.useAmmoSystem,
+      maxAmmo: weaponSettings.maxAmmo,
+      reloadTime: weaponSettings.reloadTime,
+      ammoPerShot: weaponSettings.ammoPerShot,
+      gravityEnabled: weaponSettings.gravityEnabled,
+      gravityStrength: weaponSettings.gravityStrength,
+      gravityDelay: weaponSettings.gravityDelay,
+      maxFallSpeed: weaponSettings.maxFallSpeed,
+      gravityDirection: weaponSettings.gravityDirection,
+      autoFire: weaponSettings.autoFire,
+      events: weaponSettings.events
+    };
+    
+    // Сохраняем ссылку для обновления из UI
+    gameWeaponConfig = weaponConfig;
     
     // --- Состояние стрельбы ---
     let isMouseDown = false;
@@ -1632,23 +1723,11 @@ onMounted(async () => {
       }
     });
 
-    // Cleanup функция для правильной очистки
-    const cleanup = () => {
+    onUnmounted(() => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       app.destroy(true, true);
-    };
-    
-    // Сохраняем cleanup для вызова из внешнего onUnmounted
-    window.pixiCleanup = cleanup;
-  }
-});
-
-// Правильная очистка ресурсов
-onUnmounted(() => {
-  if (window.pixiCleanup) {
-    window.pixiCleanup();
-    delete window.pixiCleanup;
+    });
   }
 });
 </script>
