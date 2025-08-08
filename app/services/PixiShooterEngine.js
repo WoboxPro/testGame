@@ -36,13 +36,13 @@ import {
 import {
   createRayVisual,
   createImpactPoint,
-  createExplosion,
   triggerBulletEvent,
   applyStandardEffect,
   updatePlayerRotation,
   updatePlayerMovement,
   updateReloadSystem,
 } from '~/utils/effectHelpers.js';
+import { getEffectById } from '~/effects/registry.js';
 
 export default class PixiShooterEngine {
   /**
@@ -199,19 +199,33 @@ export default class PixiShooterEngine {
   // ---------- СОБЫТИЯ ЭФФЕКТОВ ----------
   _triggerBulletEvent(bullet, eventName, ticker, extraData = {}) {
     if (!this.app) return;
-    const effectContext = {
-      app: this.app,
-      explosions: this.explosions,
-      obstacles: this.obstacles,
-      respawnCallback: this.respawnCallback,
-    };
-
     triggerBulletEvent(
       bullet,
       eventName,
       ticker,
       this.weaponConfig,
-      (b, effectName, data) => applyStandardEffect(b, effectName, effectContext, data),
+      (b, effectId, params, data) => {
+        const def = getEffectById(effectId);
+        if (def?.handler) {
+          def.handler({
+            app: this.app,
+            engine: this,
+            bullet: b,
+            obstacles: this.obstacles,
+            respawnCallback: this.respawnCallback,
+            params,
+            extraData: data,
+          });
+          return;
+        }
+        const effectContext = {
+          app: this.app,
+          explosions: this.explosions,
+          obstacles: this.obstacles,
+          respawnCallback: this.respawnCallback,
+        };
+        applyStandardEffect(b, effectId, effectContext, data);
+      },
       extraData,
     );
   }

@@ -134,22 +134,24 @@ export function triggerBulletEvent(bullet, eventName, ticker, weaponConfig, appl
       if (triggerType === 'time' && effect.frequency) {
         // Проверка по времени
         if (!bullet.eventTimers) bullet.eventTimers = {};
-        if (!bullet.eventTimers[effect.name]) bullet.eventTimers[effect.name] = 0;
+        const effectKey = effect.effectId || effect.name;
+        if (!bullet.eventTimers[effectKey]) bullet.eventTimers[effectKey] = 0;
         
-        bullet.eventTimers[effect.name] += ticker.elapsedMS;
-        if (bullet.eventTimers[effect.name] < effect.frequency) return;
-        bullet.eventTimers[effect.name] = 0; // Сбрасываем таймер
+        bullet.eventTimers[effectKey] += ticker.elapsedMS;
+        if (bullet.eventTimers[effectKey] < effect.frequency) return;
+        bullet.eventTimers[effectKey] = 0; // Сбрасываем таймер
         
       } else if (triggerType === 'distance' && effect.distance) {
         // Проверка по расстоянию
         if (!bullet.eventDistances) bullet.eventDistances = {};
-        if (!bullet.eventDistances[effect.name]) bullet.eventDistances[effect.name] = 0;
+        const effectKey = effect.effectId || effect.name;
+        if (!bullet.eventDistances[effectKey]) bullet.eventDistances[effectKey] = 0;
         
         const currentDistance = bullet.distanceTraveled;
-        const nextTriggerDistance = bullet.eventDistances[effect.name] + effect.distance;
+        const nextTriggerDistance = bullet.eventDistances[effectKey] + effect.distance;
         
         if (currentDistance < nextTriggerDistance) return;
-        bullet.eventDistances[effect.name] = nextTriggerDistance; // Обновляем следующую цель
+        bullet.eventDistances[effectKey] = nextTriggerDistance; // Обновляем следующую цель
       }
     }
     
@@ -159,7 +161,8 @@ export function triggerBulletEvent(bullet, eventName, ticker, weaponConfig, appl
     
     // Применяем эффект
     if (applyEffectCallback) {
-      applyEffectCallback(bullet, effect.name, extraData);
+      const effectId = effect.effectId || effect.name;
+      applyEffectCallback(bullet, effectId, effect.params || {}, extraData);
     }
   });
 }
