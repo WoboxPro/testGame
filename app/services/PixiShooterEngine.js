@@ -85,6 +85,7 @@ export function getDefaultWeaponConfig() {
     maxFallSpeed: 15,
     gravityDirection: 90,
     autoFire: true,
+    autoReload: false,
     // Источник стрельбы: 'player' — в сторону курсора; 'object' — автонаведение
     fireSource: 'player',
     objectFire: {
@@ -320,6 +321,14 @@ export default class PixiShooterEngine {
     const ammoStateForConsume = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
     consumeAmmo(ammoStateForConsume, this.weaponConfig, this.weaponConfig.bulletsPerShot);
     this.currentAmmo = ammoStateForConsume.currentAmmo;
+    if (
+      this.weaponConfig.useAmmoSystem &&
+      this.currentAmmo <= 0 &&
+      !this.isReloading &&
+      this._shouldAutoReload()
+    ) {
+      this._startReload();
+    }
 
     applyRecoil(this.player, baseAngle, this.weaponConfig, this.app.screen);
     this.lastFireTime = currentTime;
@@ -447,6 +456,14 @@ export default class PixiShooterEngine {
     const ammoStateForConsume = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
     consumeAmmo(ammoStateForConsume, this.weaponConfig, this.weaponConfig.bulletsPerShot);
     this.currentAmmo = ammoStateForConsume.currentAmmo;
+    if (
+      this.weaponConfig.useAmmoSystem &&
+      this.currentAmmo <= 0 &&
+      !this.isReloading &&
+      this._shouldAutoReload()
+    ) {
+      this._startReload();
+    }
 
     applyRecoil(this.player, baseAngle, this.weaponConfig, this.app.screen);
     this.lastFireTime = currentTime;
@@ -461,6 +478,14 @@ export default class PixiShooterEngine {
     if (updateReloadSystem(ammoState, this.weaponConfig, Date.now(), this.reloadStartTime)) {
       this.currentAmmo = ammoState.currentAmmo;
       this.isReloading = ammoState.isReloading;
+    }
+    if (
+      this.weaponConfig.useAmmoSystem &&
+      this.currentAmmo <= 0 &&
+      !this.isReloading &&
+      this._shouldAutoReload()
+    ) {
+      this._startReload();
     }
 
     // Поворот "стрелка"
@@ -604,6 +629,12 @@ export default class PixiShooterEngine {
     }
     // Если целей нет — оставляем текущий поворот
     return this.player.rotation;
+  }
+
+  _shouldAutoReload() {
+    // Для источника 'object' автоперезарядка всегда включена
+    if (this.weaponConfig.fireSource === 'object') return true;
+    return !!this.weaponConfig.autoReload;
   }
 }
 

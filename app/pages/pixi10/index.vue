@@ -34,6 +34,16 @@
         </select>
       </div>
 
+      <div class="setting-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="weaponConfig.autoReload"
+          />
+          Автоперезарядка при окончании патронов
+        </label>
+      </div>
+
       <div class="setting-group" v-if="weaponConfig.weaponType === 'raycast'">
         <label>Анимация векторной стрельбы:</label>
         <select v-model="weaponConfig.raycastAnimation">
@@ -1029,6 +1039,7 @@ const weaponConfig = reactive({
   maxFallSpeed: 15,         // Максимальная скорость падения
   gravityDirection: 90,     // Направление гравитации в градусах (90 = вниз)
   autoFire: true,
+  autoReload: false,
   // Источник стрельбы и параметры автонаведения объекта
   fireSource: 'player',
   objectFire: {
