@@ -36,6 +36,12 @@ onMounted(async () => {
     // });
     await engine.start();
     engineRef.value = engine;
+
+    // Пример: создаём вторую сущность-шутера на координатах (600, 350)
+    // с контроллером 'object' (автонаведение)
+    const otherId = engine.addShooter({ x: 600, y: 350, controller: 'object' });
+    // При необходимости можно сделать его основным
+    // engine.setMainShooter(otherId);
   }
 });
 

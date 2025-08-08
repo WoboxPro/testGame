@@ -118,8 +118,12 @@ export default class PixiShooterEngine {
     this.app = null;
 
     // Сущности/состояния
-    /** @type {PIXI.Graphics | null} */
-    this.player = null;
+    // Стрелки (шутеры)
+    /** @type {Array<{ id:number, sprite: PIXI.Graphics, controller: 'player'|'object', weaponConfig: any }>} */
+    this.shooters = [];
+    this._shooterSeq = 1;
+    /** @type {number|null} */
+    this.mainShooterId = null;
     this.obstacles = [];
     this.bullets = [];
     this.explosions = [];
@@ -131,12 +135,6 @@ export default class PixiShooterEngine {
     this.playerMoveSpeed = 5;
     this.mousePosition = { x: 400, y: 300 };
     this.isMouseDown = false;
-    this.lastFireTime = 0;
-
-    // Обойма
-    this.currentAmmo = this.weaponConfig.maxAmmo;
-    this.isReloading = false;
-    this.reloadStartTime = 0;
 
     // Respawn
     this.respawnCallback = null;
@@ -169,9 +167,9 @@ export default class PixiShooterEngine {
     await this.app.init({ width: 800, height: 600, background: 0x222222 });
     mountElement.appendChild(this.app.canvas);
 
-    // Игрок
-    this.player = createPlayer(400, 300);
-    this.app.stage.addChild(this.player);
+    // Основной шутер (визуал остаётся треугольником)
+    const mainShooter = this._createShooter({ x: 400, y: 300, controller: 'player', weaponConfig: this.weaponConfig });
+    this.mainShooterId = mainShooter.id;
 
     // Препятствия
     const obstacle = createObstacle(200, 250, 1);
@@ -217,7 +215,13 @@ export default class PixiShooterEngine {
     } catch (_) {}
 
     this.app = null;
-    this.player = null;
+    // Удаляем шутеров
+    for (const shooter of this.shooters) {
+      try { this.app.stage.removeChild(shooter.sprite); } catch (_) {}
+      try { shooter.sprite.destroy(); } catch (_) {}
+    }
+    this.shooters = [];
+    this.mainShooterId = null;
     this.obstacles = [];
     this.bullets = [];
     this.explosions = [];
@@ -302,36 +306,30 @@ export default class PixiShooterEngine {
   }
 
   // ---------- СТРЕЛЬБА (RAYCAST) ----------
-  _createRaycast() {
-    if (!this.app || !this.player) return;
+  _createRaycastFor(shooter) {
+    if (!this.app || !shooter) return;
+    const cfg = shooter.weaponConfig;
     const currentTime = Date.now();
-    const ammoState = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
-    if (!canFireWeapon(currentTime, this.lastFireTime, this.weaponConfig, ammoState)) return;
+    if (!canFireWeapon(currentTime, shooter.lastFireTime || 0, cfg, shooter.ammoState)) return;
 
-    const baseAngle = this._getFireAngle();
+    const baseAngle = this._getFireAngleFor(shooter);
 
-    for (let i = 0; i < this.weaponConfig.bulletsPerShot; i++) {
-      const finalAngle = calculateFinalAngle(baseAngle, i, this.weaponConfig);
-      const rayMaxRange = calculateRangeWithSpread(this.weaponConfig);
-      this._performRaycast(this.player.x, this.player.y, finalAngle, rayMaxRange, this.weaponConfig.penetration, this.weaponConfig.maxRicochets);
+    for (let i = 0; i < cfg.bulletsPerShot; i++) {
+      const finalAngle = calculateFinalAngle(baseAngle, i, cfg);
+      const rayMaxRange = calculateRangeWithSpread(cfg);
+      this._performRaycast(shooter.sprite.x, shooter.sprite.y, finalAngle, rayMaxRange, cfg.penetration, cfg.maxRicochets);
     }
 
-    createMuzzleFlash(this.player.x, this.player.y, this.app, this.impactEffects);
+    createMuzzleFlash(shooter.sprite.x, shooter.sprite.y, this.app, this.impactEffects);
 
-    const ammoStateForConsume = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
-    consumeAmmo(ammoStateForConsume, this.weaponConfig, this.weaponConfig.bulletsPerShot);
-    this.currentAmmo = ammoStateForConsume.currentAmmo;
-    if (
-      this.weaponConfig.useAmmoSystem &&
-      this.currentAmmo <= 0 &&
-      !this.isReloading &&
-      this._shouldAutoReload()
-    ) {
-      this._startReload();
+    consumeAmmo(shooter.ammoState, cfg, cfg.bulletsPerShot);
+    if (cfg.useAmmoSystem && shooter.ammoState.currentAmmo <= 0 && !shooter.ammoState.isReloading && this._shouldAutoReloadCfg(cfg)) {
+      shooter.ammoState.isReloading = true;
+      shooter.reloadStartTime = Date.now();
     }
 
-    applyRecoil(this.player, baseAngle, this.weaponConfig, this.app.screen);
-    this.lastFireTime = currentTime;
+    applyRecoil(shooter.sprite, baseAngle, cfg, this.app.screen);
+    shooter.lastFireTime = currentTime;
   }
 
   _performRaycast(startX, startY, angle, maxRange, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge = false) {
@@ -431,83 +429,85 @@ export default class PixiShooterEngine {
   }
 
   // ---------- СТРЕЛЬБА (ПУЛИ) ----------
-  _createBullet() {
-    if (!this.app || !this.player) return;
+  _createBulletFor(shooter) {
+    if (!this.app || !shooter) return;
+    const cfg = shooter.weaponConfig;
     const currentTime = Date.now();
-    const ammoState = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
-    if (!canFireWeapon(currentTime, this.lastFireTime, this.weaponConfig, ammoState)) return;
+    if (!canFireWeapon(currentTime, shooter.lastFireTime || 0, cfg, shooter.ammoState)) return;
 
-    const baseAngle = this._getFireAngle();
+    const baseAngle = this._getFireAngleFor(shooter);
 
-    for (let i = 0; i < this.weaponConfig.bulletsPerShot; i++) {
-      const finalAngle = calculateFinalAngle(baseAngle, i, this.weaponConfig);
-      const vx = Math.cos(finalAngle) * this.weaponConfig.bulletSpeed;
-      const vy = Math.sin(finalAngle) * this.weaponConfig.bulletSpeed;
-      const bulletMaxRange = calculateRangeWithSpread(this.weaponConfig);
+    for (let i = 0; i < cfg.bulletsPerShot; i++) {
+      const finalAngle = calculateFinalAngle(baseAngle, i, cfg);
+      const vx = Math.cos(finalAngle) * cfg.bulletSpeed;
+      const vy = Math.sin(finalAngle) * cfg.bulletSpeed;
+      const bulletMaxRange = calculateRangeWithSpread(cfg);
 
-      const spawnX = this.weaponConfig.spawnAtCursor ? this.mousePosition.x : this.player.x;
-      const spawnY = this.weaponConfig.spawnAtCursor ? this.mousePosition.y : this.player.y;
+      const spawnX = cfg.spawnAtCursor ? this.mousePosition.x : shooter.sprite.x;
+      const spawnY = cfg.spawnAtCursor ? this.mousePosition.y : shooter.sprite.y;
 
-      const bullet = createBulletHelper(spawnX, spawnY, vx, vy, this.weaponConfig, bulletMaxRange);
+      const bullet = createBulletHelper(spawnX, spawnY, vx, vy, cfg, bulletMaxRange);
       this.bullets.push(bullet);
       this.app.stage.addChild(bullet);
     }
 
-    const ammoStateForConsume = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
-    consumeAmmo(ammoStateForConsume, this.weaponConfig, this.weaponConfig.bulletsPerShot);
-    this.currentAmmo = ammoStateForConsume.currentAmmo;
-    if (
-      this.weaponConfig.useAmmoSystem &&
-      this.currentAmmo <= 0 &&
-      !this.isReloading &&
-      this._shouldAutoReload()
-    ) {
-      this._startReload();
+    consumeAmmo(shooter.ammoState, cfg, cfg.bulletsPerShot);
+    if (cfg.useAmmoSystem && shooter.ammoState.currentAmmo <= 0 && !shooter.ammoState.isReloading && this._shouldAutoReloadCfg(cfg)) {
+      shooter.ammoState.isReloading = true;
+      shooter.reloadStartTime = Date.now();
     }
 
-    applyRecoil(this.player, baseAngle, this.weaponConfig, this.app.screen);
-    this.lastFireTime = currentTime;
+    applyRecoil(shooter.sprite, baseAngle, cfg, this.app.screen);
+    shooter.lastFireTime = currentTime;
   }
 
   // ---------- ТИК ----------
   _tick(ticker) {
-    if (!this.app || !this.player) return;
+    const sp = this._getMainShooterSprite();
+    if (!this.app || !sp) return;
 
     // Перезарядка
-    const ammoState = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
-    if (updateReloadSystem(ammoState, this.weaponConfig, Date.now(), this.reloadStartTime)) {
-      this.currentAmmo = ammoState.currentAmmo;
-      this.isReloading = ammoState.isReloading;
-    }
-    if (
-      this.weaponConfig.useAmmoSystem &&
-      this.currentAmmo <= 0 &&
-      !this.isReloading &&
-      this._shouldAutoReload()
-    ) {
-      this._startReload();
+    // Перезарядка у всех шутеров
+    for (const s of this.shooters) {
+      if (!s.ammoState) continue;
+      if (updateReloadSystem(s.ammoState, s.weaponConfig, Date.now(), s.reloadStartTime || 0)) {
+        // завершили перезарядку
+      }
+      if (
+        s.weaponConfig.useAmmoSystem &&
+        s.ammoState.currentAmmo <= 0 &&
+        !s.ammoState.isReloading &&
+        this._shouldAutoReloadCfg(s.weaponConfig)
+      ) {
+        s.ammoState.isReloading = true;
+        s.reloadStartTime = Date.now();
+      }
     }
 
-    // Поворот "стрелка"
-    if (this.weaponConfig.fireSource === 'player') {
-      updatePlayerRotation(this.player, this.mousePosition, 0.1);
-    } else {
-      // Для object-режима поворачиваем к целевому углу
-      const angle = this._getFireAngle();
-      // Имитация плавного поворота
-      const targetPos = {
-        x: this.player.x + Math.cos(angle) * 100,
-        y: this.player.y + Math.sin(angle) * 100,
-      };
-      updatePlayerRotation(this.player, targetPos, 0.1);
+    // Поворот/движение всех шутеров
+    for (const s of this.shooters) {
+      if (s.controller === 'player') {
+        updatePlayerRotation(s.sprite, this.mousePosition, 0.1);
+        updatePlayerMovement(s.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
+      } else {
+        const angle = this._getFireAngleFor(s);
+        const targetPos = {
+          x: s.sprite.x + Math.cos(angle) * 100,
+          y: s.sprite.y + Math.sin(angle) * 100,
+        };
+        updatePlayerRotation(s.sprite, targetPos, 0.1);
+      }
     }
-    updatePlayerMovement(this.player, this.keys, this.playerMoveSpeed, ticker.deltaTime);
 
     // Автоогонь (для object-режима считаем, что "кнопка" зажата всегда)
-    const triggerHeld = this.isMouseDown || this.weaponConfig.fireSource === 'object';
-    if (this.weaponConfig.autoFire && triggerHeld) {
-      if (this.weaponConfig.weaponType === 'raycast') this._createRaycast();
-      else this._createBullet();
+    // Стрельба у всех шутеров
+    for (const s of this.shooters) {
+      const cfg = s.weaponConfig;
+      const triggerHeld = (s.controller === 'player' ? this.isMouseDown : true);
+      if (cfg.autoFire && triggerHeld) {
+        if (cfg.weaponType === 'raycast') this._createRaycastFor(s);
+        else this._createBulletFor(s);
+      }
     }
 
     // Пули
@@ -583,14 +583,18 @@ export default class PixiShooterEngine {
     }
 
     // Коллизии игрока и коробок
-    for (const obstacle of this.obstacles) {
-      if (obstacle.isAlive && obstacle.entityType === 'box' && checkPlayerObstacleCollision(this.player, obstacle)) {
-        if (this.respawnCallback) this.respawnCallback(obstacle);
+    for (const s of this.shooters) {
+      for (const obstacle of this.obstacles) {
+        if (obstacle.isAlive && obstacle.entityType === 'box' && checkPlayerObstacleCollision(s.sprite, obstacle)) {
+          if (this.respawnCallback) this.respawnCallback(obstacle);
+        }
       }
     }
 
     // Границы для игрока
-    constrainPlayerToBounds(this.player, this.app.screen);
+    for (const s of this.shooters) {
+      constrainPlayerToBounds(s.sprite, this.app.screen);
+    }
 
     // Примитивное поведение препятствий (пример)
     for (const obstacle of this.obstacles) {
@@ -599,15 +603,17 @@ export default class PixiShooterEngine {
   }
 
   // ---------- ВЫБОР УГЛА СТРЕЛЬБЫ ----------
-  _getFireAngle() {
-    if (!this.player) return 0;
-    if (this.weaponConfig.fireSource === 'player') {
-      return Math.atan2(this.mousePosition.y - this.player.y, this.mousePosition.x - this.player.x);
+  _getFireAngleFor(shooter) {
+    const sp = shooter.sprite;
+    const cfg = shooter.weaponConfig;
+    if (!sp) return 0;
+    if (shooter.controller === 'player') {
+      return Math.atan2(this.mousePosition.y - sp.y, this.mousePosition.x - sp.x);
     }
 
-    const mode = this.weaponConfig.objectFire?.mode || 'nearest';
+    const mode = cfg.objectFire?.mode || 'nearest';
     if (mode === 'angle') {
-      const deg = this.weaponConfig.objectFire?.angleDeg ?? 0;
+      const deg = cfg.objectFire?.angleDeg ?? 0;
       return (deg * Math.PI) / 180;
     }
 
@@ -616,8 +622,8 @@ export default class PixiShooterEngine {
     let nearestDist = Infinity;
     for (const obstacle of this.obstacles) {
       if (!obstacle.isAlive) continue;
-      const dx = obstacle.x - this.player.x;
-      const dy = obstacle.y - this.player.y;
+      const dx = obstacle.x - sp.x;
+      const dy = obstacle.y - sp.y;
       const d2 = dx * dx + dy * dy;
       if (d2 < nearestDist) {
         nearestDist = d2;
@@ -625,16 +631,69 @@ export default class PixiShooterEngine {
       }
     }
     if (nearest) {
-      return Math.atan2(nearest.y - this.player.y, nearest.x - this.player.x);
+      return Math.atan2(nearest.y - sp.y, nearest.x - sp.x);
     }
     // Если целей нет — оставляем текущий поворот
-    return this.player.rotation;
+    return sp.rotation;
   }
 
-  _shouldAutoReload() {
-    // Для источника 'object' автоперезарядка всегда включена
-    if (this.weaponConfig.fireSource === 'object') return true;
-    return !!this.weaponConfig.autoReload;
+  _shouldAutoReloadCfg(cfg) {
+    // Для object-контроллера автоперезарядка всегда включена
+    if (cfg.fireSource === 'object') return true;
+    return !!cfg.autoReload;
+  }
+
+  // ---------- ШУТЕРЫ ----------
+  _createShooter({ x, y, controller = 'player', weaponConfig } = {}) {
+    const sprite = createPlayer(x ?? 0, y ?? 0);
+    this.app.stage.addChild(sprite);
+    const shooter = {
+      id: this._shooterSeq++,
+      sprite,
+      controller: controller === 'object' ? 'object' : 'player',
+      weaponConfig: weaponConfig || JSON.parse(JSON.stringify(this.weaponConfig)),
+      ammoState: {
+        currentAmmo: (weaponConfig || this.weaponConfig).maxAmmo,
+        isReloading: false,
+      },
+      reloadStartTime: 0,
+      lastFireTime: 0,
+    };
+    this.shooters.push(shooter);
+    return shooter;
+  }
+
+  _getMainShooterSprite() {
+    if (!this.shooters.length) return null;
+    const main = this.mainShooterId
+      ? this.shooters.find(s => s.id === this.mainShooterId)
+      : this.shooters[0];
+    return main ? main.sprite : null;
+  }
+
+  // Public API
+  addShooter({ x = 0, y = 0, controller = 'player', weaponConfig } = {}) {
+    if (!this.app) return null;
+    const shooter = this._createShooter({ x, y, controller, weaponConfig });
+    return shooter.id;
+  }
+
+  setMainShooter(id) {
+    if (!this.shooters.find(s => s.id === id)) return false;
+    this.mainShooterId = id;
+    return true;
+  }
+
+  setShooterPosition(id, x, y) {
+    const s = this.shooters.find(s => s.id === id);
+    if (!s) return false;
+    s.sprite.x = x;
+    s.sprite.y = y;
+    return true;
+  }
+
+  getShooters() {
+    return this.shooters.map(s => ({ id: s.id, x: s.sprite.x, y: s.sprite.y, controller: s.controller }));
   }
 }
 
