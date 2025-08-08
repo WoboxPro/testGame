@@ -44,14 +44,73 @@ import {
 } from '~/utils/effectHelpers.js';
 import { getEffectById } from '~/effects/registry.js';
 
+export function getDefaultWeaponConfig() {
+  return {
+    weaponType: 'projectile',
+    raycastAnimation: 'laser',
+    bulletSpeed: 10,
+    penetration: 2,
+    bulletsPerShot: 1,
+    maxRange: 400,
+    bulletLifetime: 2.0,
+    fireRate: 200,
+    spread: 0.1,
+    maxSpreadAngle: 5,
+    rangeSpread: 0.1,
+    maxRangeLoss: 20,
+    fanSpread: false,
+    fanAngle: 30,
+    ricochetWalls: false,
+    ricochetEnemies: false,
+    maxRicochets: 3,
+    recoil: 2.0,
+    bulletDamage: 1,
+    homingEnabled: false,
+    homingStrength: 0.1,
+    maxTurnRate: 3.0,
+    homingDelay: 300,
+    spawnAtCursor: false,
+    largeBullets: false,
+    bulletSize: 8,
+    allowOffScreen: false,
+    infiniteOffScreen: false,
+    offScreenLimit: 500,
+    useAmmoSystem: false,
+    maxAmmo: 30,
+    reloadTime: 2.0,
+    ammoPerShot: true,
+    gravityEnabled: false,
+    gravityStrength: 0.05,
+    gravityDelay: 200,
+    maxFallSpeed: 15,
+    gravityDirection: 90,
+    autoFire: true,
+    // Источник стрельбы: 'player' — в сторону курсора; 'object' — автонаведение
+    fireSource: 'player',
+    objectFire: {
+      // Режим наведения: 'nearest' — на ближайшую цель; 'angle' — фиксированный угол
+      mode: 'nearest',
+      angleDeg: 0,
+    },
+    events: {
+      onFlight: [],
+      onHitEnemy: [],
+      onRicochet: [],
+      onExpire: [],
+      onScreenEdge: [],
+    },
+  };
+}
+
 export default class PixiShooterEngine {
   /**
    * @param {HTMLElement} mountEl - DOM-элемент для канваса PIXI
    * @param {object} weaponConfig - реактивная конфигурация оружия (Vue reactive)
    */
-  constructor(mountEl, weaponConfig) {
+  constructor(mountEl, weaponConfig, options = {}) {
     this.mountEl = mountEl;
-    this.weaponConfig = weaponConfig;
+    this.weaponConfig = weaponConfig || getDefaultWeaponConfig();
+    this.options = options || {};
 
     // PIXI/Application & сцена
     /** @type {PIXI.Application | null} */
@@ -74,7 +133,7 @@ export default class PixiShooterEngine {
     this.lastFireTime = 0;
 
     // Обойма
-    this.currentAmmo = weaponConfig.maxAmmo;
+    this.currentAmmo = this.weaponConfig.maxAmmo;
     this.isReloading = false;
     this.reloadStartTime = 0;
 
@@ -93,12 +152,21 @@ export default class PixiShooterEngine {
   }
 
   async start() {
-    if (!this.mountEl) throw new Error('PixiShooterEngine: mount element is required');
+    // Определяем целевой контейнер монтирования
+    let mountElement = this.mountEl;
+    if (!mountElement && this.options.mountTarget) {
+      if (typeof this.options.mountTarget === 'string') {
+        mountElement = document.querySelector(this.options.mountTarget);
+      } else if (this.options.mountTarget && typeof this.options.mountTarget.appendChild === 'function') {
+        mountElement = this.options.mountTarget;
+      }
+    }
+    if (!mountElement) throw new Error('PixiShooterEngine: mount element is required');
 
     // Создаём приложение PIXI
     this.app = new PIXI.Application();
     await this.app.init({ width: 800, height: 600, background: 0x222222 });
-    this.mountEl.appendChild(this.app.canvas);
+    mountElement.appendChild(this.app.canvas);
 
     // Игрок
     this.player = createPlayer(400, 300);
@@ -179,8 +247,10 @@ export default class PixiShooterEngine {
   _onPointerDown() {
     this.isMouseDown = true;
     if (!this.weaponConfig.autoFire) {
-      if (this.weaponConfig.weaponType === 'raycast') this._createRaycast();
-      else this._createBullet();
+      if (this.weaponConfig.fireSource === 'player') {
+        if (this.weaponConfig.weaponType === 'raycast') this._createRaycast();
+        else this._createBullet();
+      }
     }
   }
 
@@ -237,7 +307,7 @@ export default class PixiShooterEngine {
     const ammoState = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
     if (!canFireWeapon(currentTime, this.lastFireTime, this.weaponConfig, ammoState)) return;
 
-    const baseAngle = Math.atan2(this.mousePosition.y - this.player.y, this.mousePosition.x - this.player.x);
+    const baseAngle = this._getFireAngle();
 
     for (let i = 0; i < this.weaponConfig.bulletsPerShot; i++) {
       const finalAngle = calculateFinalAngle(baseAngle, i, this.weaponConfig);
@@ -358,7 +428,7 @@ export default class PixiShooterEngine {
     const ammoState = { currentAmmo: this.currentAmmo, isReloading: this.isReloading };
     if (!canFireWeapon(currentTime, this.lastFireTime, this.weaponConfig, ammoState)) return;
 
-    const baseAngle = Math.atan2(this.mousePosition.y - this.player.y, this.mousePosition.x - this.player.x);
+    const baseAngle = this._getFireAngle();
 
     for (let i = 0; i < this.weaponConfig.bulletsPerShot; i++) {
       const finalAngle = calculateFinalAngle(baseAngle, i, this.weaponConfig);
@@ -393,12 +463,24 @@ export default class PixiShooterEngine {
       this.isReloading = ammoState.isReloading;
     }
 
-    // Игрок
-    updatePlayerRotation(this.player, this.mousePosition, 0.1);
+    // Поворот "стрелка"
+    if (this.weaponConfig.fireSource === 'player') {
+      updatePlayerRotation(this.player, this.mousePosition, 0.1);
+    } else {
+      // Для object-режима поворачиваем к целевому углу
+      const angle = this._getFireAngle();
+      // Имитация плавного поворота
+      const targetPos = {
+        x: this.player.x + Math.cos(angle) * 100,
+        y: this.player.y + Math.sin(angle) * 100,
+      };
+      updatePlayerRotation(this.player, targetPos, 0.1);
+    }
     updatePlayerMovement(this.player, this.keys, this.playerMoveSpeed, ticker.deltaTime);
 
-    // Автоогонь
-    if (this.weaponConfig.autoFire && this.isMouseDown) {
+    // Автоогонь (для object-режима считаем, что "кнопка" зажата всегда)
+    const triggerHeld = this.isMouseDown || this.weaponConfig.fireSource === 'object';
+    if (this.weaponConfig.autoFire && triggerHeld) {
       if (this.weaponConfig.weaponType === 'raycast') this._createRaycast();
       else this._createBullet();
     }
@@ -489,6 +571,39 @@ export default class PixiShooterEngine {
     for (const obstacle of this.obstacles) {
       if (obstacle.isAlive) obstacle.rotation -= 0.015 * ticker.deltaTime;
     }
+  }
+
+  // ---------- ВЫБОР УГЛА СТРЕЛЬБЫ ----------
+  _getFireAngle() {
+    if (!this.player) return 0;
+    if (this.weaponConfig.fireSource === 'player') {
+      return Math.atan2(this.mousePosition.y - this.player.y, this.mousePosition.x - this.player.x);
+    }
+
+    const mode = this.weaponConfig.objectFire?.mode || 'nearest';
+    if (mode === 'angle') {
+      const deg = this.weaponConfig.objectFire?.angleDeg ?? 0;
+      return (deg * Math.PI) / 180;
+    }
+
+    // nearest: ищем ближайшую живую цель из препятствий
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const obstacle of this.obstacles) {
+      if (!obstacle.isAlive) continue;
+      const dx = obstacle.x - this.player.x;
+      const dy = obstacle.y - this.player.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < nearestDist) {
+        nearestDist = d2;
+        nearest = obstacle;
+      }
+    }
+    if (nearest) {
+      return Math.atan2(nearest.y - this.player.y, nearest.x - this.player.x);
+    }
+    // Если целей нет — оставляем текущий поворот
+    return this.player.rotation;
   }
 }
 

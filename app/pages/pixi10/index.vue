@@ -3,6 +3,28 @@
     <div ref="pixiContainer" class="game-canvas"></div>
     <div class="settings-panel">
       <h3>Настройки оружия</h3>
+
+      <div class="setting-group">
+        <label>Источник стрельбы:</label>
+        <select v-model="weaponConfig.fireSource">
+          <option value="player">Игрок (курсор)</option>
+          <option value="object">Объект (автонаведение)</option>
+        </select>
+      </div>
+
+      <div class="setting-group" v-if="weaponConfig.fireSource === 'object'">
+        <label>Режим наведения объекта:</label>
+        <select v-model="weaponConfig.objectFire.mode">
+          <option value="nearest">Ближайшая цель</option>
+          <option value="angle">Фиксированный угол</option>
+        </select>
+      </div>
+
+      <div class="setting-group" v-if="weaponConfig.fireSource === 'object' && weaponConfig.objectFire.mode === 'angle'">
+        <label>Угол (градусы):</label>
+        <input type="range" min="0" max="359" step="1" v-model="weaponConfig.objectFire.angleDeg" />
+        <span>{{ weaponConfig.objectFire.angleDeg }}°</span>
+      </div>
       
       <div class="setting-group">
         <label>Тип стрельбы:</label>
@@ -1007,6 +1029,12 @@ const weaponConfig = reactive({
   maxFallSpeed: 15,         // Максимальная скорость падения
   gravityDirection: 90,     // Направление гравитации в градусах (90 = вниз)
   autoFire: true,
+  // Источник стрельбы и параметры автонаведения объекта
+  fireSource: 'player',
+  objectFire: {
+    mode: 'nearest',
+    angleDeg: 0
+  },
   // Система событий и эффектов
   events: {
     onFlight: [],           // Эффекты во время полета
