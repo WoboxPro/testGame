@@ -695,6 +695,88 @@
           </div>
         </div>
       </div>
+        </div>
+    
+    <!-- Панель настроек World (мира) -->
+    <div class="world-panel">
+      <h3>🌍 World настройки</h3>
+      
+      <div class="world-settings">
+        <div class="setting-group">
+          <label>Тип мира:</label>
+          <select v-model="worldSettings.type" class="world-select">
+            <option value="default">🏠 Default (размер canvas)</option>
+            <option value="solid">🧱 Solid (фиксированный размер)</option>
+            <option value="infinite">♾️ Infinite (бесконечный)</option>
+          </select>
+        </div>
+
+        <div class="setting-group" v-if="worldSettings.type === 'solid'">
+          <label>Ширина мира:</label>
+          <input 
+            type="number" 
+            v-model="worldSettings.width"
+            min="800" 
+            max="3000" 
+            step="100"
+            class="world-input"
+          />
+          <span>px</span>
+        </div>
+
+        <div class="setting-group" v-if="worldSettings.type === 'solid'">
+          <label>Высота мира:</label>
+          <input 
+            type="number" 
+            v-model="worldSettings.height"
+            min="600" 
+            max="2000" 
+            step="100"
+            class="world-input"
+          />
+          <span>px</span>
+        </div>
+
+        <div class="setting-group">
+          <label>
+            <input 
+              type="checkbox" 
+              v-model="worldSettings.gravity.enabled"
+            />
+            🌍 Гравитация мира
+          </label>
+        </div>
+
+        <div class="setting-group" v-if="worldSettings.gravity.enabled">
+          <label>Сила гравитации:</label>
+          <input 
+            type="range" 
+            min="0.01" 
+            max="0.3" 
+            step="0.01" 
+            v-model="worldSettings.gravity.strength"
+            class="world-range"
+          />
+          <span>{{ Number(worldSettings.gravity.strength).toFixed(2) }}</span>
+        </div>
+
+        <div class="world-actions">
+          <button class="save-world-btn" @click="applyWorldSettings">
+            🌍 Применить настройки
+          </button>
+          <div class="world-info">
+            <small v-if="worldSettings.type === 'default'">
+              Мир = размер canvas ({{ canvasSettings.width }}×{{ canvasSettings.height }})
+            </small>
+            <small v-else-if="worldSettings.type === 'solid'">
+              Мир: {{ worldSettings.width }}×{{ worldSettings.height }}
+            </small>
+            <small v-else-if="worldSettings.type === 'infinite'">
+              Бесконечный мир ♾️
+            </small>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Модальное окно выбора эффекта -->
@@ -1221,6 +1303,104 @@
   color: #666;
   font-size: 12px;
 }
+
+/* World настройки панель */
+.world-panel {
+  width: 280px;
+  padding: 20px;
+  background: #f0f8ff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.world-panel h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+}
+
+.world-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.world-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+}
+
+.world-select:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.world-input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.world-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.world-range {
+  width: 150px;
+  margin-right: 10px;
+}
+
+.world-actions {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.save-world-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: #007acc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.save-world-btn:hover {
+  background: #005a99;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.save-world-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.world-info {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.world-info small {
+  color: #666;
+  font-size: 12px;
+}
 </style>
 
 <script setup>
@@ -1294,6 +1474,17 @@ const canvasSettings = reactive({
   height: 600,
   background: '#222222',
   showFPS: false
+});
+
+// World настройки
+const worldSettings = reactive({
+  type: 'default',
+  width: 1200,
+  height: 900,
+  gravity: {
+    enabled: false,
+    strength: 0.1
+  }
 });
 
 // Текущий размер canvas для отображения
@@ -1484,6 +1675,16 @@ const initializeAddShooterButton = (engine) => {
 
 // Функция применения canvas настроек
 const applyCanvasSettings = async () => {
+  await applyAllSettings();
+};
+
+// Функция применения world настроек
+const applyWorldSettings = async () => {
+  await applyAllSettings();
+};
+
+// Общая функция применения всех настроек (canvas + world)
+const applyAllSettings = async () => {
   if (!engineRef.value) {
     console.warn('Engine не инициализирован');
     return;
@@ -1493,6 +1694,20 @@ const applyCanvasSettings = async () => {
     // Сохраняем старый движок для правильной очистки
     const oldEngine = engineRef.value;
     
+    // Формируем настройки мира
+    const worldConfig = {};
+    if (worldSettings.type !== 'default') {
+      worldConfig.type = worldSettings.type;
+      if (worldSettings.type === 'solid') {
+        worldConfig.width = worldSettings.width;
+        worldConfig.height = worldSettings.height;
+      }
+    }
+    worldConfig.gravity = {
+      enabled: worldSettings.gravity.enabled,
+      strength: worldSettings.gravity.strength
+    };
+    
     // Создаем новый движок с новыми настройками
     const newEngine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
       canvas: {
@@ -1500,7 +1715,8 @@ const applyCanvasSettings = async () => {
         height: canvasSettings.height,
         background: canvasSettings.background,
         showFPS: canvasSettings.showFPS
-      }
+      },
+      world: worldConfig
     });
     
     // Останавливаем старый движок
@@ -1517,18 +1733,18 @@ const applyCanvasSettings = async () => {
     currentCanvasSize.width = canvasSettings.width;
     currentCanvasSize.height = canvasSettings.height;
     
-    console.log('✅ Canvas настройки применены:', {
-      width: canvasSettings.width,
-      height: canvasSettings.height,
-      background: canvasSettings.background,
-      showFPS: canvasSettings.showFPS
+    console.log('✅ Настройки применены:', {
+      canvas: {
+        width: canvasSettings.width,
+        height: canvasSettings.height,
+        background: canvasSettings.background,
+        showFPS: canvasSettings.showFPS
+      },
+      world: worldConfig
     });
     
-    // Добавляем уведомление пользователю
-    // Можно добавить toast notification здесь
-    
   } catch (error) {
-    console.error('❌ Ошибка применения canvas настроек:', error);
+    console.error('❌ Ошибка применения настроек:', error);
   }
 };
 
