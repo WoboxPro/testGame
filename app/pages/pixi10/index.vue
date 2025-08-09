@@ -64,9 +64,9 @@
         <label>Скорость снаряда:</label>
         <input 
           type="range" 
-          min="5" 
+          min="0.5" 
           max="20" 
-          step="1" 
+          step="0.5" 
           v-model="weaponConfig.bulletSpeed"
           
           :disabled="weaponConfig.weaponType === 'raycast'"
@@ -108,7 +108,7 @@
         <input 
           type="range" 
           min="100" 
-          max="800" 
+          max="1200" 
           step="50" 
           v-model="weaponConfig.maxRange"
           
@@ -121,7 +121,7 @@
         <input 
           type="range" 
           min="0.5" 
-          max="5" 
+          max="20" 
           step="0.1" 
           v-model="weaponConfig.bulletLifetime"
           
