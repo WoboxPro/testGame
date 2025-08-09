@@ -1,6 +1,14 @@
 <template>
   <div class="game-container">
-    <div ref="pixiContainer" class="game-canvas"></div>
+    <div class="canvas-section">
+      <div ref="pixiContainer" class="game-canvas"></div>
+      <button class="add-shooter-btn">
+        🎯 Add Shooter
+      </button>
+      <div class="instructions" style="display: none;">
+        Нажмите кнопку, затем кликните на канвас где должен появиться шутер
+      </div>
+    </div>
     <div class="settings-panel">
       <h3>Настройки оружия</h3>
 
@@ -655,8 +663,63 @@
   overflow: hidden;
 }
 
+.canvas-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 .game-canvas {
   flex-shrink: 0;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+}
+
+.add-shooter-btn {
+  padding: 12px 24px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.add-shooter-btn:hover {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.add-shooter-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.add-shooter-btn.waiting {
+  background: #ffc107;
+  color: #212529;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.instructions {
+  padding: 8px 16px;
+  background: #e7f3ff;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  color: #0c5460;
+  font-size: 14px;
+  text-align: center;
+  max-width: 300px;
 }
 
 .settings-panel {
@@ -1176,6 +1239,62 @@ onMounted(async () => {
     const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig);
     await engine.start();
     engineRef.value = engine;
+
+    // 🎯 ADD SHOOTER BUTTON: Правильная интеграция ВНУТРИ onMounted!
+    let isWaitingForClick = false;
+    
+    const addShooterBtn = document.querySelector('.add-shooter-btn');
+    const instructions = document.querySelector('.instructions');
+    
+    if (addShooterBtn && instructions) {
+      // Обработчик кнопки
+      addShooterBtn.addEventListener('click', () => {
+        if (isWaitingForClick) {
+          // Отменяем режим добавления
+          isWaitingForClick = false;
+          addShooterBtn.classList.remove('waiting');
+          addShooterBtn.textContent = '🎯 Add Shooter';
+          instructions.style.display = 'none';
+          console.log('🎯 Add Shooter: режим отменен');
+        } else {
+          // Включаем режим добавления
+          isWaitingForClick = true;
+          addShooterBtn.classList.add('waiting');
+          addShooterBtn.textContent = '❌ Cancel';
+          instructions.style.display = 'block';
+          console.log('🎯 Add Shooter: ожидание клика на канвас...');
+        }
+      });
+
+      // Обработчик клика на канвас (PIXI события в правильном контексте!)
+      engine.app.stage.on('pointerdown', (event) => {
+        if (isWaitingForClick) {
+          const pos = event.global;
+          
+          console.log('🎯 Add Shooter: создаю шутера в позиции', { x: pos.x, y: pos.y });
+          
+          // Создаем шутера В ТОМ ЖЕ КОНТЕКСТЕ что и onMounted!
+          const shooterId = engine.addShooter({ 
+            x: pos.x, 
+            y: pos.y, 
+            controller: 'object' // AI шутер
+          });
+          
+          console.log('🎯 Add Shooter: успешно создан ID:', shooterId);
+          
+          // Выходим из режима добавления
+          isWaitingForClick = false;
+          addShooterBtn.classList.remove('waiting');
+          addShooterBtn.textContent = '🎯 Add Shooter';
+          instructions.style.display = 'none';
+          
+          // Показываем уведомление
+          console.log(`✅ Шутер создан! ID: ${shooterId} в (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
+        }
+      });
+      
+      console.log('🎯 Add Shooter: кнопка инициализирована в onMounted контексте');
+    }
   }
 });
 
