@@ -34,9 +34,18 @@ onMounted(async () => {
     // const engine = new PixiShooterEngine(null, weaponConfig, {
     //   mountTarget: '.game-canvas'
     // });
-    // вариант 3
+    // вариант 3 - тестируем новый World класс с типом 'solid'
     const engine = new PixiShooterEngine(null, weaponConfig, {
-      canvas: { width: 800, height: 600, background: '#111111', showFPS: true }
+      canvas: { width: 800, height: 600, background: '#111111', showFPS: true },
+      world: { 
+        type: 'solid',     // solid мир с фиксированными размерами больше canvas
+        width: 1600,       // в 2 раза больше canvas (800 * 2)
+        height: 1200,      // в 2 раза больше canvas (600 * 2)
+        gravity: {
+          enabled: false,
+          strength: 0.1
+        }
+      }
     });
 
     

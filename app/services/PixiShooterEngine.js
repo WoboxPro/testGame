@@ -43,6 +43,8 @@ import {
   updateReloadSystem,
 } from '~/utils/effectHelpers.js';
 import { getEffectById } from '~/effects/registry.js';
+import World from './World.js';
+import Camera from './Camera.js';
 
 export function getDefaultWeaponConfig() {
   return {
@@ -110,6 +112,7 @@ export default class PixiShooterEngine {
    * @param {object} options - дополнительные настройки
    * @param {string} options.mountTarget - CSS селектор для поиска mount элемента
    * @param {object} options.canvas - настройки canvas (width, height, background, showFPS)
+   * @param {object} options.world - настройки мира (type, width, height, gravity, boundaries)
    */
   constructor(mountEl, weaponConfig, options = {}) {
     this.mountEl = mountEl;
@@ -195,6 +198,12 @@ export default class PixiShooterEngine {
       }
     }
 
+    // Создаём World (мир игры) с учетом canvas размеров
+    this.world = new World(this.options.world || {}, pixiOptions.width, pixiOptions.height);
+    
+    // Создаём Camera (камеру) для навигации по миру
+    this.camera = new Camera(pixiOptions.width, pixiOptions.height, this.world);
+
     // Если mountElement не найден, но есть canvas настройки - создаём контейнер автоматически
     if (!mountElement && this.options.canvas) {
       mountElement = document.body; // Fallback на body
@@ -206,6 +215,11 @@ export default class PixiShooterEngine {
     this.app = new PIXI.Application();
     await this.app.init(pixiOptions);
     mountElement.appendChild(this.app.canvas);
+
+    // Создаём UI контейнер (не двигается с камерой)
+    this.uiContainer = new PIXI.Container();
+    this.uiContainer.zIndex = 1000; // Поверх всего остального
+    this.app.stage.addChild(this.uiContainer);
 
     // Создаём FPS счетчик если включен
     if (this.showFPS) {
@@ -220,9 +234,29 @@ export default class PixiShooterEngine {
       });
       this.fpsText.x = 10;
       this.fpsText.y = 10;
-      this.fpsText.zIndex = 1000; // Поверх всех остальных элементов
-      this.app.stage.addChild(this.fpsText);
+      this.uiContainer.addChild(this.fpsText); // Добавляем в UI контейнер
     }
+
+    // Добавляем инструкции управления камерой (только если камера может двигаться)
+    if (this.camera.canMove()) {
+      const cameraInstructions = new PIXI.Text({
+        text: 'Camera: 1←2↓3→5↑ (Numpad or digits)',
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 14,
+          fill: 0xffff00,
+          fontWeight: 'bold'
+        }
+      });
+      cameraInstructions.x = 10;
+      cameraInstructions.y = this.showFPS ? 35 : 10;
+      this.uiContainer.addChild(cameraInstructions);
+    }
+
+    // Создание визуальных границ мира
+    this.worldBorders = new PIXI.Graphics();
+    this.world.createVisualBorders(this.worldBorders);
+    this.app.stage.addChild(this.worldBorders);
 
     // Основной шутер (визуал остаётся треугольником)
     const mainShooter = this._createShooter({ x: 400, y: 300, controller: 'player', weaponConfig: this.weaponConfig });
@@ -555,6 +589,12 @@ export default class PixiShooterEngine {
       }
     }
 
+    // Обновление камеры
+    if (this.camera) {
+      this.camera.update(this.keys);
+      this.camera.applyToStage(this.app.stage, this.uiContainer);
+    }
+
     // Перезарядка
     // Перезарядка у всех шутеров
     for (const s of this.shooters) {
@@ -685,9 +725,13 @@ export default class PixiShooterEngine {
       }
     }
 
-    // Границы для игрока
+    // Границы для игрока (используем размеры мира, а не canvas)
+    const worldBounds = {
+      width: this.world.width,
+      height: this.world.height
+    };
     for (const s of this.shooters) {
-      constrainPlayerToBounds(s.sprite, this.app.screen);
+      constrainPlayerToBounds(s.sprite, worldBounds);
     }
 
     // Примитивное поведение препятствий (пример)
