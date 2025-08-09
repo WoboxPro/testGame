@@ -29,11 +29,15 @@ console.log(getDefaultWeaponConfig());
 onMounted(async () => {
   if (process.client) {
     // вариант 1
-    const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {});
+    //const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {});
     // вариант 2
     // const engine = new PixiShooterEngine(null, weaponConfig, {
     //   mountTarget: '.game-canvas'
     // });
+    // вариант 3
+    const engine = new PixiShooterEngine(null, weaponConfig, {
+      canvas: { width: 800, height: 600, background: '#111111', showFPS: true }
+    });
 
     
     await engine.start();

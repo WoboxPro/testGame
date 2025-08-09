@@ -107,6 +107,9 @@ export default class PixiShooterEngine {
   /**
    * @param {HTMLElement} mountEl - DOM-элемент для канваса PIXI
    * @param {object} weaponConfig - реактивная конфигурация оружия (Vue reactive)
+   * @param {object} options - дополнительные настройки
+   * @param {string} options.mountTarget - CSS селектор для поиска mount элемента
+   * @param {object} options.canvas - настройки canvas (width, height, background, showFPS)
    */
   constructor(mountEl, weaponConfig, options = {}) {
     this.mountEl = mountEl;
@@ -139,6 +142,12 @@ export default class PixiShooterEngine {
     // Respawn
     this.respawnCallback = null;
 
+    // FPS счетчик
+    this.fpsText = null;
+    this.showFPS = false;
+    this.fpsFrames = 0;
+    this.fpsLastTime = performance.now();
+
     // Привязки обработчиков
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
@@ -160,12 +169,60 @@ export default class PixiShooterEngine {
         mountElement = this.options.mountTarget;
       }
     }
+
+    // Подготавливаем настройки PIXI приложения
+    const pixiOptions = {
+      width: 800,
+      height: 600,
+      background: 0x222222
+    };
+
+    // Если переданы настройки canvas, используем их
+    if (this.options.canvas) {
+      if (this.options.canvas.width) pixiOptions.width = this.options.canvas.width;
+      if (this.options.canvas.height) pixiOptions.height = this.options.canvas.height;
+      if (this.options.canvas.background) {
+        // Поддерживаем как hex строки (#dddddd), так и числа (0xdddddd)
+        if (typeof this.options.canvas.background === 'string') {
+          pixiOptions.background = parseInt(this.options.canvas.background.replace('#', ''), 16);
+        } else {
+          pixiOptions.background = this.options.canvas.background;
+        }
+      }
+      // Настройка отображения FPS
+      if (this.options.canvas.showFPS !== undefined) {
+        this.showFPS = this.options.canvas.showFPS;
+      }
+    }
+
+    // Если mountElement не найден, но есть canvas настройки - создаём контейнер автоматически
+    if (!mountElement && this.options.canvas) {
+      mountElement = document.body; // Fallback на body
+    }
+    
     if (!mountElement) throw new Error('PixiShooterEngine: mount element is required');
 
     // Создаём приложение PIXI
     this.app = new PIXI.Application();
-    await this.app.init({ width: 800, height: 600, background: 0x222222 });
+    await this.app.init(pixiOptions);
     mountElement.appendChild(this.app.canvas);
+
+    // Создаём FPS счетчик если включен
+    if (this.showFPS) {
+      this.fpsText = new PIXI.Text({
+        text: 'FPS: 60',
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 16,
+          fill: 0xffffff,
+          fontWeight: 'bold'
+        }
+      });
+      this.fpsText.x = 10;
+      this.fpsText.y = 10;
+      this.fpsText.zIndex = 1000; // Поверх всех остальных элементов
+      this.app.stage.addChild(this.fpsText);
+    }
 
     // Основной шутер (визуал остаётся треугольником)
     const mainShooter = this._createShooter({ x: 400, y: 300, controller: 'player', weaponConfig: this.weaponConfig });
@@ -482,6 +539,21 @@ export default class PixiShooterEngine {
   _tick(ticker) {
     const sp = this._getMainShooterSprite();
     if (!this.app || !sp) return;
+
+    // Обновление FPS счетчика
+    if (this.showFPS && this.fpsText) {
+      this.fpsFrames++;
+      const currentTime = performance.now();
+      const deltaTime = currentTime - this.fpsLastTime;
+      
+      // Обновляем FPS каждые 250ms
+      if (deltaTime >= 250) {
+        const fps = Math.round((this.fpsFrames * 1000) / deltaTime);
+        this.fpsText.text = `FPS: ${fps}`;
+        this.fpsFrames = 0;
+        this.fpsLastTime = currentTime;
+      }
+    }
 
     // Перезарядка
     // Перезарядка у всех шутеров

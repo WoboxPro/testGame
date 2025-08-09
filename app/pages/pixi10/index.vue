@@ -629,6 +629,73 @@
         </div>
       </div>
     </div>
+    
+    <!-- Панель настроек Canvas -->
+    <div class="canvas-panel">
+      <h3>🎨 Canvas настройки</h3>
+      
+      <div class="canvas-settings">
+        <div class="setting-group">
+          <label>Ширина:</label>
+          <input 
+            type="number" 
+            v-model="canvasSettings.width"
+            min="400" 
+            max="1920" 
+            step="50"
+            class="canvas-input"
+          />
+          <span>px</span>
+        </div>
+
+        <div class="setting-group">
+          <label>Высота:</label>
+          <input 
+            type="number" 
+            v-model="canvasSettings.height"
+            min="300" 
+            max="1080" 
+            step="50"
+            class="canvas-input"
+          />
+          <span>px</span>
+        </div>
+
+        <div class="setting-group">
+          <label>Фон:</label>
+          <input 
+            type="color" 
+            v-model="canvasSettings.background"
+            class="canvas-color-input"
+          />
+          <input 
+            type="text" 
+            v-model="canvasSettings.background"
+            placeholder="#111111"
+            class="canvas-text-input"
+          />
+        </div>
+
+        <div class="setting-group">
+          <label>
+            <input 
+              type="checkbox" 
+              v-model="canvasSettings.showFPS"
+            />
+            📊 Показать FPS
+          </label>
+        </div>
+
+        <div class="canvas-actions">
+          <button class="save-canvas-btn" @click="applyCanvasSettings">
+            💾 Применить настройки
+          </button>
+          <div class="canvas-info">
+            <small>Текущий размер: {{ currentCanvasSize.width }}×{{ currentCanvasSize.height }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Модальное окно выбора эффекта -->
     <div class="modal-overlay" v-if="showEffectModal" @click="closeEffectModal">
@@ -1052,6 +1119,108 @@
 .modal-actions button:first-child:hover {
   background: #5a6268;
 }
+
+/* Canvas настройки панель */
+.canvas-panel {
+  width: 280px;
+  padding: 20px;
+  background: #f0f8ff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.canvas-panel h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+}
+
+.canvas-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.canvas-input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.canvas-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.canvas-color-input {
+  width: 50px;
+  height: 35px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.canvas-text-input {
+  width: 100px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.canvas-text-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.canvas-actions {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.save-canvas-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.save-canvas-btn:hover {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.save-canvas-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.canvas-info {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.canvas-info small {
+  color: #666;
+  font-size: 12px;
+}
 </style>
 
 <script setup>
@@ -1119,7 +1288,19 @@ const weaponConfig = reactive({
   }
 });
 
+// Canvas настройки
+const canvasSettings = reactive({
+  width: 800,
+  height: 600,
+  background: '#222222',
+  showFPS: false
+});
 
+// Текущий размер canvas для отображения
+const currentCanvasSize = reactive({
+  width: 800,
+  height: 600
+});
 
 // Состояние модального окна
 const showEffectModal = ref(false);
@@ -1233,12 +1414,70 @@ const loadPreset = (presetName) => {
   }
 };
 
+// Функция применения canvas настроек
+const applyCanvasSettings = async () => {
+  if (!engineRef.value) {
+    console.warn('Engine не инициализирован');
+    return;
+  }
+  
+  try {
+    // Сохраняем старый движок для правильной очистки
+    const oldEngine = engineRef.value;
+    
+    // Создаем новый движок с новыми настройками
+    const newEngine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
+      canvas: {
+        width: canvasSettings.width,
+        height: canvasSettings.height,
+        background: canvasSettings.background,
+        showFPS: canvasSettings.showFPS
+      }
+    });
+    
+    // Останавливаем старый движок
+    oldEngine.destroy();
+    
+    // Запускаем новый
+    await newEngine.start();
+    engineRef.value = newEngine;
+    
+    // Обновляем отображаемый размер
+    currentCanvasSize.width = canvasSettings.width;
+    currentCanvasSize.height = canvasSettings.height;
+    
+    console.log('✅ Canvas настройки применены:', {
+      width: canvasSettings.width,
+      height: canvasSettings.height,
+      background: canvasSettings.background,
+      showFPS: canvasSettings.showFPS
+    });
+    
+    // Добавляем уведомление пользователю
+    // Можно добавить toast notification здесь
+    
+  } catch (error) {
+    console.error('❌ Ошибка применения canvas настроек:', error);
+  }
+};
+
 onMounted(async () => {
   if (process.client && pixiContainer.value) {
-    // Prefer engine service; early-return to skip legacy inline setup
-    const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig);
+    // Создаем движок с начальными canvas настройками
+    const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
+      canvas: {
+        width: canvasSettings.width,
+        height: canvasSettings.height,
+        background: canvasSettings.background,
+        showFPS: canvasSettings.showFPS
+      }
+    });
     await engine.start();
     engineRef.value = engine;
+    
+    // Инициализируем текущий размер
+    currentCanvasSize.width = canvasSettings.width;
+    currentCanvasSize.height = canvasSettings.height;
 
     // 🎯 ADD SHOOTER BUTTON: Правильная интеграция ВНУТРИ onMounted!
     let isWaitingForClick = false;
