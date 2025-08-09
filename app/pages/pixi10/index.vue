@@ -1414,6 +1414,74 @@ const loadPreset = (presetName) => {
   }
 };
 
+// Функция инициализации Add Shooter кнопки
+const initializeAddShooterButton = (engine) => {
+  // Переменная состояния для каждой инициализации
+  let isWaitingForClick = false;
+  
+  const addShooterBtn = document.querySelector('.add-shooter-btn');
+  const instructions = document.querySelector('.instructions');
+  
+  if (!addShooterBtn || !instructions) return;
+  
+  // Очищаем старые обработчики
+  const newAddShooterBtn = addShooterBtn.cloneNode(true);
+  addShooterBtn.parentNode.replaceChild(newAddShooterBtn, addShooterBtn);
+  
+  // Устанавливаем исходное состояние
+  newAddShooterBtn.classList.remove('waiting');
+  newAddShooterBtn.textContent = '🎯 Add Shooter';
+  instructions.style.display = 'none';
+  
+  // Новый обработчик кнопки
+  newAddShooterBtn.addEventListener('click', () => {
+    if (isWaitingForClick) {
+      // Отменяем режим добавления
+      isWaitingForClick = false;
+      newAddShooterBtn.classList.remove('waiting');
+      newAddShooterBtn.textContent = '🎯 Add Shooter';
+      instructions.style.display = 'none';
+      console.log('🎯 Add Shooter: режим отменен');
+    } else {
+      // Включаем режим добавления
+      isWaitingForClick = true;
+      newAddShooterBtn.classList.add('waiting');
+      newAddShooterBtn.textContent = '❌ Cancel';
+      instructions.style.display = 'block';
+      console.log('🎯 Add Shooter: ожидание клика на канвас...');
+    }
+  });
+
+  // Обработчик клика на канвас (привязываем к НОВОМУ движку!)
+  engine.app.stage.on('pointerdown', (event) => {
+    if (isWaitingForClick) {
+      const pos = event.global;
+      
+      console.log('🎯 Add Shooter: создаю шутера в позиции', { x: pos.x, y: pos.y });
+      
+      // Создаем шутера в НОВОМ движке
+      const shooterId = engine.addShooter({ 
+        x: pos.x, 
+        y: pos.y, 
+        controller: 'object' // AI шутер
+      });
+      
+      console.log('🎯 Add Shooter: успешно создан ID:', shooterId);
+      
+      // Выходим из режима добавления
+      isWaitingForClick = false;
+      newAddShooterBtn.classList.remove('waiting');
+      newAddShooterBtn.textContent = '🎯 Add Shooter';
+      instructions.style.display = 'none';
+      
+      // Показываем уведомление
+      console.log(`✅ Шутер создан! ID: ${shooterId} в (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
+    }
+  });
+  
+  console.log('🎯 Add Shooter: кнопка переинициализирована для нового движка');
+};
+
 // Функция применения canvas настроек
 const applyCanvasSettings = async () => {
   if (!engineRef.value) {
@@ -1441,6 +1509,9 @@ const applyCanvasSettings = async () => {
     // Запускаем новый
     await newEngine.start();
     engineRef.value = newEngine;
+    
+    // Переинициализируем Add Shooter кнопку для нового движка
+    initializeAddShooterButton(newEngine);
     
     // Обновляем отображаемый размер
     currentCanvasSize.width = canvasSettings.width;
@@ -1479,61 +1550,8 @@ onMounted(async () => {
     currentCanvasSize.width = canvasSettings.width;
     currentCanvasSize.height = canvasSettings.height;
 
-    // 🎯 ADD SHOOTER BUTTON: Правильная интеграция ВНУТРИ onMounted!
-    let isWaitingForClick = false;
-    
-    const addShooterBtn = document.querySelector('.add-shooter-btn');
-    const instructions = document.querySelector('.instructions');
-    
-    if (addShooterBtn && instructions) {
-      // Обработчик кнопки
-      addShooterBtn.addEventListener('click', () => {
-        if (isWaitingForClick) {
-          // Отменяем режим добавления
-          isWaitingForClick = false;
-          addShooterBtn.classList.remove('waiting');
-          addShooterBtn.textContent = '🎯 Add Shooter';
-          instructions.style.display = 'none';
-          console.log('🎯 Add Shooter: режим отменен');
-        } else {
-          // Включаем режим добавления
-          isWaitingForClick = true;
-          addShooterBtn.classList.add('waiting');
-          addShooterBtn.textContent = '❌ Cancel';
-          instructions.style.display = 'block';
-          console.log('🎯 Add Shooter: ожидание клика на канвас...');
-        }
-      });
-
-      // Обработчик клика на канвас (PIXI события в правильном контексте!)
-      engine.app.stage.on('pointerdown', (event) => {
-        if (isWaitingForClick) {
-          const pos = event.global;
-          
-          console.log('🎯 Add Shooter: создаю шутера в позиции', { x: pos.x, y: pos.y });
-          
-          // Создаем шутера В ТОМ ЖЕ КОНТЕКСТЕ что и onMounted!
-          const shooterId = engine.addShooter({ 
-            x: pos.x, 
-            y: pos.y, 
-            controller: 'object' // AI шутер
-          });
-          
-          console.log('🎯 Add Shooter: успешно создан ID:', shooterId);
-          
-          // Выходим из режима добавления
-          isWaitingForClick = false;
-          addShooterBtn.classList.remove('waiting');
-          addShooterBtn.textContent = '🎯 Add Shooter';
-          instructions.style.display = 'none';
-          
-          // Показываем уведомление
-          console.log(`✅ Шутер создан! ID: ${shooterId} в (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
-        }
-      });
-      
-      console.log('🎯 Add Shooter: кнопка инициализирована в onMounted контексте');
-    }
+    // 🎯 ADD SHOOTER BUTTON: Инициализируем через общую функцию
+    initializeAddShooterButton(engine);
   }
 });
 
