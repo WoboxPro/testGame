@@ -486,16 +486,20 @@ export default class PixiShooterEngine {
 
     // Поворот/движение всех шутеров
     for (const s of this.shooters) {
-      if (s.controller === 'player') {
-        updatePlayerRotation(s.sprite, this.mousePosition, 0.1);
-        updatePlayerMovement(s.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
-      } else {
+      const cfg = s.weaponConfig;
+      const isObjectMode = (s.controller === 'object') || (cfg && cfg.fireSource === 'object');
+      if (isObjectMode) {
         const angle = this._getFireAngleFor(s);
         const targetPos = {
           x: s.sprite.x + Math.cos(angle) * 100,
           y: s.sprite.y + Math.sin(angle) * 100,
         };
         updatePlayerRotation(s.sprite, targetPos, 0.1);
+      } else {
+        updatePlayerRotation(s.sprite, this.mousePosition, 0.1);
+        if (s.controller === 'player') {
+          updatePlayerMovement(s.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
+        }
       }
     }
 
@@ -503,7 +507,8 @@ export default class PixiShooterEngine {
     // Стрельба у всех шутеров
     for (const s of this.shooters) {
       const cfg = s.weaponConfig;
-      const triggerHeld = (s.controller === 'player' ? this.isMouseDown : true);
+      const isObjectMode = (s.controller === 'object') || (cfg && cfg.fireSource === 'object');
+      const triggerHeld = isObjectMode ? true : this.isMouseDown;
       if (cfg.autoFire && triggerHeld) {
         if (cfg.weaponType === 'raycast') this._createRaycastFor(s);
         else this._createBulletFor(s);
@@ -607,7 +612,8 @@ export default class PixiShooterEngine {
     const sp = shooter.sprite;
     const cfg = shooter.weaponConfig;
     if (!sp) return 0;
-    if (shooter.controller === 'player') {
+    const isObjectMode = (shooter.controller === 'object') || (cfg && cfg.fireSource === 'object');
+    if (!isObjectMode) {
       return Math.atan2(this.mousePosition.y - sp.y, this.mousePosition.x - sp.x);
     }
 
