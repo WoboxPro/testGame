@@ -461,6 +461,23 @@ export default class PixiShooterEngine {
     shooter.lastFireTime = currentTime;
   }
 
+  // --- Обертки для одиночных выстрелов от главного шутера (используются в pointerdown) ---
+  _getMainShooter() {
+    if (!this.shooters.length) return null;
+    if (this.mainShooterId) return this.shooters.find(s => s.id === this.mainShooterId) || this.shooters[0];
+    return this.shooters[0];
+  }
+
+  _createBullet() {
+    const shooter = this._getMainShooter();
+    if (shooter) this._createBulletFor(shooter);
+  }
+
+  _createRaycast() {
+    const shooter = this._getMainShooter();
+    if (shooter) this._createRaycastFor(shooter);
+  }
+
   // ---------- ТИК ----------
   _tick(ticker) {
     const sp = this._getMainShooterSprite();
