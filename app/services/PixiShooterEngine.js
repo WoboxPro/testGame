@@ -46,6 +46,68 @@ import { getEffectById } from '~/effects/registry.js';
 import World from './World.js';
 import Camera from './Camera.js';
 
+/**
+ * 🚀 ОПТИМИЗАЦИЯ 3: Spatial Grid для эффективных коллизий
+ * Разделяет мир на секторы 50×50 для быстрого поиска близких объектов
+ */
+class SpatialGrid {
+  constructor(worldWidth, worldHeight, sectorSize = 50) {
+    this.sectorSize = sectorSize;
+    this.cols = Math.ceil(worldWidth / sectorSize);
+    this.rows = Math.ceil(worldHeight / sectorSize);
+    this.clear();
+    
+    console.log(`🗂️ SpatialGrid создан: ${this.cols}×${this.rows} секторов (${this.cols * this.rows} всего)`);
+  }
+  
+  clear() {
+    this.sectors = new Map(); // "x,y" -> {bullets: [], obstacles: []}
+  }
+  
+  getSectorKey(x, y) {
+    const sectorX = Math.floor(x / this.sectorSize);
+    const sectorY = Math.floor(y / this.sectorSize);
+    return `${sectorX},${sectorY}`;
+  }
+  
+  getSector(x, y) {
+    const key = this.getSectorKey(x, y);
+    if (!this.sectors.has(key)) {
+      this.sectors.set(key, { bullets: [], obstacles: [] });
+    }
+    return this.sectors.get(key);
+  }
+  
+  addBullet(bullet) {
+    const sector = this.getSector(bullet.x, bullet.y);
+    sector.bullets.push(bullet);
+  }
+  
+  addObstacle(obstacle) {
+    const sector = this.getSector(obstacle.x, obstacle.y);
+    sector.obstacles.push(obstacle);
+  }
+  
+  // Возвращает массив ключей соседних секторов (включая текущий)
+  getNearbyKeys(x, y) {
+    const centerX = Math.floor(x / this.sectorSize);
+    const centerY = Math.floor(y / this.sectorSize);
+    const keys = [];
+    
+    // Проверяем 3×3 область (текущий + 8 соседних секторов)
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const sectorX = centerX + dx;
+        const sectorY = centerY + dy;
+        if (sectorX >= 0 && sectorX < this.cols && sectorY >= 0 && sectorY < this.rows) {
+          keys.push(`${sectorX},${sectorY}`);
+        }
+      }
+    }
+    return keys;
+  }
+}
+
 export function getDefaultWeaponConfig() {
   return {
     weaponType: 'projectile',
@@ -136,6 +198,9 @@ export default class PixiShooterEngine {
     this.rayEffects = [];
     this.impactEffects = [];
 
+    // 🚀 ОПТИМИЗАЦИЯ 3: Spatial Grid для коллизий (инициализируется в start())
+    this.spatialGrid = null;
+
     // Ввод/стрельба
     this.keys = {};
     this.playerMoveSpeed = 5;
@@ -208,6 +273,17 @@ export default class PixiShooterEngine {
       x: 0,
       y: 0
     };
+
+    // 🚀 ОПТИМИЗАЦИЯ 3: Инициализируем Spatial Grid (условно)
+    const spatialConfig = this.options.world?.spatialGrid || {};
+    if (spatialConfig.enabled) {
+      const sectorSize = spatialConfig.sectorSize || 50;
+      this.spatialGrid = new SpatialGrid(this.world.width, this.world.height, sectorSize);
+      console.log(`🚀 Spatial Grid включен с размером сектора: ${sectorSize}px`);
+    } else {
+      this.spatialGrid = null;
+      console.log(`🚀 Spatial Grid отключен, используем стандартные коллизии`);
+    }
     
     // Создаём Camera (камеру) для навигации по миру
     this.camera = new Camera(pixiOptions.width, pixiOptions.height, this.world);
@@ -620,6 +696,23 @@ export default class PixiShooterEngine {
       }
     }
 
+    // 🚀 ОПТИМИЗАЦИЯ 3: Заполняем Spatial Grid каждый тик (если включен)
+    if (this.spatialGrid) {
+      this.spatialGrid.clear();
+      
+      // Добавляем все пули в соответствующие секторы
+      for (const bullet of this.bullets) {
+        this.spatialGrid.addBullet(bullet);
+      }
+      
+      // Добавляем все препятствия в соответствующие секторы
+      for (const obstacle of this.obstacles) {
+        if (obstacle.isAlive) {
+          this.spatialGrid.addObstacle(obstacle);
+        }
+      }
+    }
+
     // Обновление камеры
     if (this.camera) {
       this.camera.update(this.keys);
@@ -712,16 +805,80 @@ export default class PixiShooterEngine {
         remove = true;
       }
 
-      for (const obstacle of this.obstacles) {
-        if (obstacle.isAlive && checkBulletObstacleCollision(b, obstacle)) {
-          if (b.penetrationLeft > 0) {
-            dealDamage(obstacle, b.damage, this.respawnCallback);
-            this._triggerBulletEvent(b, 'onHitEnemy', ticker, { target: obstacle });
-            b.penetrationLeft -= 1;
+      // 🚀 ОПТИМИЗАЦИЯ 3: Проверка коллизий (Spatial Grid или стандартный способ)
+      if (this.spatialGrid) {
+        // Новый способ: Spatial Grid коллизии (проверяем только близкие секторы)
+        const nearbyKeys = this.spatialGrid.getNearbyKeys(b.x, b.y);
+        let hitObstacle = false;
+        
+        for (const key of nearbyKeys) {
+          if (!this.spatialGrid.sectors.has(key)) continue;
+          const sector = this.spatialGrid.sectors.get(key);
+          
+          for (const obstacle of sector.obstacles) {
+            if (obstacle.isAlive && checkBulletObstacleCollision(b, obstacle)) {
+              hitObstacle = true;
+              if (b.penetrationLeft > 0) {
+                dealDamage(obstacle, b.damage, this.respawnCallback);
+                this._triggerBulletEvent(b, 'onHitEnemy', ticker, { target: obstacle });
+                b.penetrationLeft -= 1;
 
-            if (b.penetrationLeft <= 0) {
+                if (b.penetrationLeft <= 0) {
+                  if (ricochetEnemies && b.ricochetsLeft > 0) {
+                    this._triggerBulletEvent(b, 'onRicochet', ticker, { target: obstacle });
+                    const randomAngle = Math.random() * Math.PI * 2;
+                    const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+                    b.vx = Math.cos(randomAngle) * speed;
+                    b.vy = Math.sin(randomAngle) * speed;
+                    b.ricochetsLeft -= 1;
+                    b.penetrationLeft = 1;
+                  } else {
+                    remove = true;
+                  }
+                }
+              } else {
+                if (ricochetEnemies && b.ricochetsLeft > 0) {
+                  dealDamage(obstacle, b.damage, this.respawnCallback);
+                  const randomAngle = Math.random() * Math.PI * 2;
+                  const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+                  b.vx = Math.cos(randomAngle) * speed;
+                  b.vy = Math.sin(randomAngle) * speed;
+                  b.ricochetsLeft -= 1;
+                  b.penetrationLeft = 1;
+                } else {
+                  remove = true;
+                }
+              }
+              break;
+            }
+          }
+          if (hitObstacle) break; // Выходим из проверки секторов
+        }
+      } else {
+        // Старый способ: проверяем все препятствия подряд
+        for (const obstacle of this.obstacles) {
+          if (obstacle.isAlive && checkBulletObstacleCollision(b, obstacle)) {
+            if (b.penetrationLeft > 0) {
+              dealDamage(obstacle, b.damage, this.respawnCallback);
+              this._triggerBulletEvent(b, 'onHitEnemy', ticker, { target: obstacle });
+              b.penetrationLeft -= 1;
+
+              if (b.penetrationLeft <= 0) {
+                if (ricochetEnemies && b.ricochetsLeft > 0) {
+                  this._triggerBulletEvent(b, 'onRicochet', ticker, { target: obstacle });
+                  const randomAngle = Math.random() * Math.PI * 2;
+                  const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+                  b.vx = Math.cos(randomAngle) * speed;
+                  b.vy = Math.sin(randomAngle) * speed;
+                  b.ricochetsLeft -= 1;
+                  b.penetrationLeft = 1;
+                } else {
+                  remove = true;
+                }
+              }
+            } else {
               if (ricochetEnemies && b.ricochetsLeft > 0) {
-                this._triggerBulletEvent(b, 'onRicochet', ticker, { target: obstacle });
+                dealDamage(obstacle, b.damage, this.respawnCallback);
                 const randomAngle = Math.random() * Math.PI * 2;
                 const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
                 b.vx = Math.cos(randomAngle) * speed;
@@ -732,20 +889,8 @@ export default class PixiShooterEngine {
                 remove = true;
               }
             }
-          } else {
-            if (ricochetEnemies && b.ricochetsLeft > 0) {
-              dealDamage(obstacle, b.damage, this.respawnCallback);
-              const randomAngle = Math.random() * Math.PI * 2;
-              const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-              b.vx = Math.cos(randomAngle) * speed;
-              b.vy = Math.sin(randomAngle) * speed;
-              b.ricochetsLeft -= 1;
-              b.penetrationLeft = 1;
-            } else {
-              remove = true;
-            }
+            break;
           }
-          break;
         }
       }
 

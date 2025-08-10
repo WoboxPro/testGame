@@ -631,11 +631,13 @@
       </div>
     </div>
     
-    <!-- Панель настроек Canvas -->
+    <!-- Панель настроек Canvas и Движка -->
     <div class="canvas-panel">
-      <h3>🎨 Canvas настройки</h3>
-      
-      <div class="canvas-settings">
+      <!-- Верхняя часть: Canvas настройки -->
+      <div class="canvas-section">
+        <h3>🎨 Canvas настройки</h3>
+        
+        <div class="canvas-settings">
         <div class="setting-group">
           <label>Ширина:</label>
           <input 
@@ -696,7 +698,41 @@
           </div>
         </div>
       </div>
+      </div> <!-- Закрываем canvas-section -->
+      
+      <!-- Нижняя часть: Engine настройки -->
+      <div class="engine-section">
+        <h3>⚙️ Настройки движка</h3>
+        
+        <div class="engine-settings">
+          <div class="setting-group">
+            <label>
+              <input 
+                type="checkbox" 
+                v-model="engineSettings.spatialGrid.enabled"
+              />
+              🚀 Spatial Grid оптимизация
+            </label>
+            <div class="setting-description">
+              <small>Ускоряет коллизии при большом количестве объектов</small>
+            </div>
+          </div>
+
+          <div class="setting-group" v-if="engineSettings.spatialGrid.enabled">
+            <label>Размер сектора:</label>
+            <select v-model="engineSettings.spatialGrid.sectorSize" class="engine-select">
+              <option :value="25">25px (очень точно)</option>
+              <option :value="50">50px (балансировано)</option>
+              <option :value="100">100px (быстро)</option>
+              <option :value="200">200px (очень быстро)</option>
+            </select>
+            <div class="setting-description">
+              <small>Меньше = точнее, больше = быстрее</small>
+            </div>
+          </div>
         </div>
+      </div>
+    </div> <!-- Закрываем canvas-panel -->
     
     <!-- Панель настроек World (мира) -->
     <div class="world-panel">
@@ -1305,6 +1341,55 @@
   font-size: 12px;
 }
 
+/* Canvas и Engine секции */
+.canvas-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.engine-section {
+  margin-top: 20px;
+}
+
+.engine-section h3 {
+  color: #333;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.engine-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.engine-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.engine-select:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.setting-description {
+  margin-top: 5px;
+}
+
+.setting-description small {
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}
+
 /* World настройки панель */
 .world-panel {
   width: 280px;
@@ -1475,6 +1560,14 @@ const canvasSettings = reactive({
   height: 600,
   background: '#222222',
   showFPS: false
+});
+
+// Engine настройки
+const engineSettings = reactive({
+  spatialGrid: {
+    enabled: false,
+    sectorSize: 50
+  }
 });
 
 // World настройки
@@ -1717,6 +1810,12 @@ const applyAllSettings = async () => {
       strength: worldSettings.gravity.strength
     };
     
+    // Добавляем настройки Spatial Grid
+    worldConfig.spatialGrid = {
+      enabled: engineSettings.spatialGrid.enabled,
+      sectorSize: engineSettings.spatialGrid.sectorSize
+    };
+    
     // Создаем новый движок с новыми настройками
     const newEngine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
       canvas: {
@@ -1759,13 +1858,19 @@ const applyAllSettings = async () => {
 
 onMounted(async () => {
   if (process.client && pixiContainer.value) {
-    // Создаем движок с начальными canvas настройками
+    // Создаем движок с начальными canvas и engine настройками
     const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
       canvas: {
         width: canvasSettings.width,
         height: canvasSettings.height,
         background: canvasSettings.background,
         showFPS: canvasSettings.showFPS
+      },
+      world: {
+        spatialGrid: {
+          enabled: engineSettings.spatialGrid.enabled,
+          sectorSize: engineSettings.spatialGrid.sectorSize
+        }
       }
     });
     await engine.start();

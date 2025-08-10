@@ -44,6 +44,10 @@ onMounted(async () => {
         gravity: {
           enabled: false,
           strength: 0.1
+        },
+        spatialGrid: {
+          enabled: false,    // 🚀 включить/выключить Spatial Grid оптимизацию
+          sectorSize: 50     // размер сектора в пикселях (50x50, 100x100, и т.д.)
         }
       }
     });
