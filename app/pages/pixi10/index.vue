@@ -95,7 +95,7 @@
         <input 
           type="range" 
           min="1" 
-          max="20" 
+          max="50" 
           step="1" 
           v-model="weaponConfig.bulletsPerShot"
           
@@ -108,7 +108,7 @@
         <input 
           type="range" 
           min="100" 
-          max="1200" 
+          max="5000" 
           step="50" 
           v-model="weaponConfig.maxRange"
           
