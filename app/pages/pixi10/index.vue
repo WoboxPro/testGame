@@ -2129,7 +2129,7 @@ const applyAllSettings = async () => {
         weaponConfig: weaponConfig,
         controller: 'player'
       }],
-      movementController: 'wasd'
+      movementController: 'arrows'
     });
     
     console.log(`🎮 Игрок пересоздан! ID: ${playerId} в центре канваса`);
@@ -2198,7 +2198,7 @@ onMounted(async () => {
         weaponConfig: weaponConfig,
         controller: 'player'
       }],
-      movementController: 'wasd'
+      movementController: 'arrows'
     });
     
     console.log(`🎮 Игрок создан! ID: ${playerId} в центре канваса`);

@@ -77,7 +77,7 @@ onMounted(async () => {
         weaponConfig: weaponConfig,  // Используем реактивные настройки из UI
         controller: 'player'
       }],
-      movementController: 'wasd'  // Управление на WASD
+      movementController: 'arrows'  // Управление на стрелки
     });
 
     // 2️⃣ Создаем врага (квадрат, красный, без оружия)  

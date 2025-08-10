@@ -215,10 +215,31 @@ export function updatePlayerRotation(player, mousePosition, rotationSpeed = 0.1)
 export function updatePlayerMovement(player, keys, speed, deltaTime) {
   const movement = { x: 0, y: 0 };
   
+  // Управление стрелками
   if (keys['ArrowUp']) movement.y = -1;
   if (keys['ArrowDown']) movement.y = 1;
   if (keys['ArrowLeft']) movement.x = -1;
   if (keys['ArrowRight']) movement.x = 1;
+  
+  player.x += movement.x * speed * deltaTime;
+  player.y += movement.y * speed * deltaTime;
+}
+
+/**
+ * Обновляет движение игрока (WASD клавиши)
+ * @param {Object} player - объект игрока с позицией x,y
+ * @param {Object} keys - объект с состоянием клавиш
+ * @param {number} speed - скорость движения
+ * @param {number} deltaTime - время между кадрами
+ */
+export function updatePlayerMovementWASD(player, keys, speed, deltaTime) {
+  const movement = { x: 0, y: 0 };
+  
+  // Управление WASD
+  if (keys['KeyW']) movement.y = -1;  // W - вверх
+  if (keys['KeyS']) movement.y = 1;   // S - вниз
+  if (keys['KeyA']) movement.x = -1;  // A - влево
+  if (keys['KeyD']) movement.x = 1;   // D - вправо
   
   player.x += movement.x * speed * deltaTime;
   player.y += movement.y * speed * deltaTime;

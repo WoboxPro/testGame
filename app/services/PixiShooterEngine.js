@@ -40,6 +40,7 @@ import {
   applyStandardEffect,
   updatePlayerRotation,
   updatePlayerMovement,
+  updatePlayerMovementWASD,
   updateReloadSystem,
 } from '~/utils/effectHelpers.js';
 import { getEffectById } from '~/effects/registry.js';
@@ -1050,8 +1051,11 @@ export default class PixiShooterEngine {
           } else if (weapon.controller === 'player') {
             // Игроковое управление - мгновенный поворот к мыши
             updatePlayerRotation(entity.sprite, this.mousePosition, 1.0);
-            if (entity.movementController === 'wasd' || entity.faction === 'player') {
+            // 🎮 ДВИЖЕНИЕ: Проверяем movementController сущности
+            if (entity.movementController === 'arrows') {
               updatePlayerMovement(entity.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
+            } else if (entity.movementController === 'wasd') {
+              updatePlayerMovementWASD(entity.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
             }
           }
         }
