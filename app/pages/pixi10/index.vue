@@ -3,10 +3,10 @@
     <div class="canvas-section">
       <div ref="pixiContainer" class="game-canvas"></div>
       <button class="add-shooter-btn">
-        🎯 Add Enemy
+        🎯 Add Entity
       </button>
       <div class="instructions" style="display: none;">
-        Нажмите кнопку, затем кликните на канвас где должен появиться враг
+        Нажмите кнопку, затем кликните на канвас где должна появиться сущность
       </div>
     </div>
     <div class="settings-panel">
@@ -836,6 +836,99 @@
         </div>
       </div>
     </div>
+
+    <!-- 🏗️ ENTITY MODAL: Модальное окно создания сущности -->
+    <div v-if="showEntityModal" class="modal-overlay">
+      <div class="modal-content entity-modal">
+        <h3>🏗️ Создать Entity</h3>
+        
+        <div class="entity-form">
+          <!-- Тип сущности -->
+          <div class="form-group">
+            <label>Тип сущности:</label>
+            <select v-model="entityForm.type">
+              <option value="unit">🧙 Unit (юнит)</option>
+              <option value="structure">🏗️ Structure (строение)</option>
+            </select>
+          </div>
+
+          <!-- Фракция -->
+          <div class="form-group">
+            <label>Фракция:</label>
+            <select v-model="entityForm.faction">
+              <option value="player">🟢 Player (игрок)</option>
+              <option value="enemy">🔴 Enemy (враг)</option>
+              <option value="neutral">🟡 Neutral (нейтрал)</option>
+            </select>
+          </div>
+
+          <!-- Визуал -->
+          <div class="form-group">
+            <label>Визуал:</label>
+            <select v-model="entityForm.visual">
+              <option value="triangle">🔺 Triangle (треугольник)</option>
+              <option value="square">🟩 Square (квадрат)</option>
+              <option value="circle">🟡 Circle (круг)</option>
+            </select>
+          </div>
+
+          <!-- Характеристики -->
+          <div class="characteristics-group">
+            <h4>⚔️ Характеристики</h4>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>HP:</label>
+                <input type="number" v-model="entityForm.characteristics.hp" min="1" max="10000" />
+              </div>
+              <div class="form-group">
+                <label>Max HP:</label>
+                <input type="number" v-model="entityForm.characteristics.maxHp" min="1" max="10000" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Скорость:</label>
+                <input type="number" v-model="entityForm.characteristics.speed" min="0" max="20" step="0.5" />
+              </div>
+              <div class="form-group">
+                <label>Броня:</label>
+                <input type="number" v-model="entityForm.characteristics.armor" min="0" max="100" />
+              </div>
+            </div>
+
+            <div class="form-checkboxes">
+              <label>
+                <input type="checkbox" v-model="entityForm.characteristics.canMove" />
+                Может двигаться
+              </label>
+              <label>
+                <input type="checkbox" v-model="entityForm.characteristics.canTakeDamage" />
+                Может получать урон
+              </label>
+            </div>
+          </div>
+
+          <!-- Контроллер движения -->
+          <div class="form-group">
+            <label>Управление:</label>
+            <select v-model="entityForm.movementController">
+              <option value="">Нет управления</option>
+              <option value="wasd">WASD клавиши</option>
+              <option value="arrows">Стрелки</option>
+              <option value="ai">AI (автоматическое)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="modal-buttons">
+          <button class="btn-primary">✅ Создать</button>
+          <button>❌ Отмена</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1487,6 +1580,114 @@
   color: #666;
   font-size: 12px;
 }
+
+/* 🏗️ ENTITY MODAL STYLES */
+.entity-modal {
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.entity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group label {
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-group select,
+.form-group input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.characteristics-group {
+  border: 1px solid #e0e0e0;
+  padding: 15px;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
+
+.characteristics-group h4 {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 16px;
+}
+
+.form-checkboxes {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.form-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.form-checkboxes input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.modal-buttons button:not(.btn-primary) {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-buttons button:not(.btn-primary):hover {
+  background: #545b62;
+}
 </style>
 
 <script setup>
@@ -1495,6 +1696,26 @@ import PixiShooterEngine from '~/services/PixiShooterEngine.js';
 
 const pixiContainer = ref(null);
 const engineRef = ref(null);
+
+// 🏗️ ENTITY MODAL: Переменные для модального окна
+const showEntityModal = ref(false);
+const pendingClickPosition = ref(null); // Позиция клика для создания entity
+
+// 🏗️ ENTITY FORM: Данные формы создания entity
+const entityForm = reactive({
+  type: 'unit',
+  faction: 'enemy',
+  visual: 'square',
+  characteristics: {
+    hp: 1,
+    maxHp: 1,
+    speed: 3,
+    armor: 0,
+    canMove: false,
+    canTakeDamage: true
+  },
+  movementController: '' // Пустая строка = нет управления
+});
 
 // Единая реактивная конфигурация оружия для UI и игры
 const weaponConfig = reactive({
@@ -1637,6 +1858,12 @@ const closeEffectModal = () => {
   selectedEventName.value = '';
 };
 
+// 🏗️ ENTITY MODAL FUNCTIONS
+// Инициализация событий модалки (теперь события привязываются в момент открытия)
+const initializeEntityModalEvents = (engine) => {
+  console.log('🏗️ Entity modal events initialized (события привязываются при открытии модалки)');
+};
+
 const selectEffect = (effect) => {
   // Создаем новый эффект с параметрами по умолчанию
   const newEffect = {
@@ -1718,22 +1945,22 @@ const initializeAddShooterButton = (engine) => {
   newAddShooterBtn.textContent = '🎯 Add Entity';
   instructions.style.display = 'none';
   
-  // Новый обработчик кнопки
+  // 🏗️ НОВЫЙ обработчик кнопки - теперь через модалку
   newAddShooterBtn.addEventListener('click', () => {
     if (isWaitingForClick) {
       // Отменяем режим добавления
       isWaitingForClick = false;
       newAddShooterBtn.classList.remove('waiting');
-      newAddShooterBtn.textContent = '🎯 Add Enemy';
+      newAddShooterBtn.textContent = '🎯 Add Entity';
       instructions.style.display = 'none';
-      console.log('🎯 Add Enemy: режим отменен');
+      console.log('🎯 Add Entity: режим отменен');
     } else {
       // Включаем режим добавления
       isWaitingForClick = true;
       newAddShooterBtn.classList.add('waiting');
       newAddShooterBtn.textContent = '❌ Cancel';
       instructions.style.display = 'block';
-      console.log('🎯 Add Enemy: ожидание клика на канвас...');
+      console.log('🎯 Add Entity: ожидание клика на канвас...');
     }
   });
 
@@ -1748,40 +1975,80 @@ const initializeAddShooterButton = (engine) => {
         y: canvasPos.y + engine.camera.y
       };
       
-      console.log('🎯 Add Enemy: клик обработан', {
+      console.log('🎯 Add Entity: клик обработан', {
         canvasPos: `${canvasPos.x.toFixed(0)}, ${canvasPos.y.toFixed(0)}`,
         worldPos: `${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)}`,
         cameraOffset: `${engine.camera.x.toFixed(0)}, ${engine.camera.y.toFixed(0)}`
       });
       
-      // 🏗️ ENTITY SYSTEM: Создаем сущность в МИРОВЫХ координатах
-      const entityId = engine.addEntity({ 
-        x: worldPos.x, 
-        y: worldPos.y,
-        type: 'unit',
-        faction: 'enemy',  // По умолчанию создаем врага
-        visual: 'square',
-        characteristics: {
-          hp: 1,
-          maxHp: 1,
-          canMove: false,  // Статичный враг
-          canTakeDamage: true
+      // 🏗️ ОТКРЫВАЕМ МОДАЛКУ: Локально, без Vue реактивности
+      pendingClickPosition.value = worldPos;
+      showEntityModal.value = true;
+      
+      // Привязываем события модалки после открытия
+      setTimeout(() => {
+        const createBtn = document.querySelector('.btn-primary');
+        const cancelBtn = document.querySelector('.modal-buttons button:not(.btn-primary)');
+        const overlay = document.querySelector('.modal-overlay');
+        
+        if (createBtn && !createBtn.hasAttribute('data-entity-listener')) {
+          createBtn.setAttribute('data-entity-listener', 'true');
+          createBtn.addEventListener('click', () => {
+            if (!pendingClickPosition.value) return;
+            
+            const worldPos = pendingClickPosition.value;
+            
+            // Создаем entity с данными из формы
+            const entityId = engine.addEntity({
+              x: worldPos.x,
+              y: worldPos.y,
+              type: entityForm.type,
+              faction: entityForm.faction,
+              visual: entityForm.visual,
+              characteristics: { ...entityForm.characteristics },
+              movementController: entityForm.movementController || null,
+              weapons: [] // Пока без оружия
+            });
+            
+            console.log(`✅ Entity создан из модалки! ID: ${entityId}`, {
+              type: entityForm.type,
+              faction: entityForm.faction,
+              visual: entityForm.visual,
+              position: `${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)}`
+            });
+            
+            // Закрываем модалку
+            showEntityModal.value = false;
+            pendingClickPosition.value = null;
+          });
         }
-        // weapons: [] - враги пока без оружия
-      });
+        if (cancelBtn && !cancelBtn.hasAttribute('data-entity-listener')) {
+          cancelBtn.setAttribute('data-entity-listener', 'true');
+          cancelBtn.addEventListener('click', () => {
+            showEntityModal.value = false;
+            pendingClickPosition.value = null;
+          });
+        }
+        if (overlay && !overlay.hasAttribute('data-entity-listener')) {
+          overlay.setAttribute('data-entity-listener', 'true');
+          overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+              showEntityModal.value = false;
+              pendingClickPosition.value = null;
+            }
+          });
+        }
+      }, 100);
       
       // Выходим из режима добавления
       isWaitingForClick = false;
       newAddShooterBtn.classList.remove('waiting');
-      newAddShooterBtn.textContent = '🎯 Add Enemy';
+      newAddShooterBtn.textContent = '🎯 Add Entity';
       instructions.style.display = 'none';
-      
-      // Показываем уведомление
-      console.log(`✅ Entity создан! ID: ${entityId} (враг-квадрат) в мире (${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)})`);
     }
   });
   
-  console.log('🎯 Add Enemy: кнопка переинициализирована для нового движка');
+  console.log('🎯 Add Entity: кнопка переинициализирована для нового движка');
 };
 
 // Функция применения canvas настроек
@@ -1870,6 +2137,9 @@ const applyAllSettings = async () => {
     // Переинициализируем Add Enemy кнопку для нового движка
     initializeAddShooterButton(newEngine);
     
+    // 🏗️ Переинициализируем события модалки для нового движка
+    initializeEntityModalEvents(newEngine);
+    
     // Обновляем отображаемый размер
     currentCanvasSize.width = canvasSettings.width;
     currentCanvasSize.height = canvasSettings.height;
@@ -1939,6 +2209,9 @@ onMounted(async () => {
 
     // 🎯 ADD ENEMY BUTTON: Инициализируем через общую функцию
     initializeAddShooterButton(engine);
+
+    // 🏗️ ENTITY MODAL: Инициализируем события модалки
+    initializeEntityModalEvents(engine);
   }
 });
 
