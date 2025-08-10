@@ -592,6 +592,13 @@ export default class PixiShooterEngine {
     const sp = this._getMainShooterSprite();
     if (!this.app || !sp) return;
 
+    // 📦 ОПТИМИЗАЦИЯ 2: Кешируем weaponConfig один раз в начале тика
+    const weaponCfg = this.weaponConfig;
+    const homingEnabled = weaponCfg.homingEnabled;
+    const gravityEnabled = weaponCfg.gravityEnabled;
+    const ricochetWalls = weaponCfg.ricochetWalls;
+    const ricochetEnemies = weaponCfg.ricochetEnemies;
+
     // Обновление FPS счетчика
     if (this.showFPS && this.fpsText) {
       this.fpsFrames++;
@@ -666,8 +673,17 @@ export default class PixiShooterEngine {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
       this._triggerBulletEvent(b, 'onFlight', ticker);
-      updateHomingSystem(b, this.mousePosition, this.weaponConfig, ticker);
-      updateGravitySystem(b, this.weaponConfig, ticker);
+      
+      // 🚀 ОПТИМИЗАЦИЯ 1a: Early exit для системы самонаведения
+      if (homingEnabled) {
+        updateHomingSystem(b, this.mousePosition, weaponCfg, ticker);
+      }
+      
+      // 🚀 ОПТИМИЗАЦИЯ 1b: Early exit для системы гравитации
+      if (gravityEnabled) {
+        updateGravitySystem(b, weaponCfg, ticker);
+      }
+      
       updateBulletMovement(b, ticker);
 
       let remove = shouldRemoveBullet(b);
@@ -677,7 +693,7 @@ export default class PixiShooterEngine {
         b.hasTriggeredScreenEdge = true;
       }
 
-      if (this.weaponConfig.ricochetWalls && b.ricochetsLeft > 0) {
+      if (ricochetWalls && b.ricochetsLeft > 0) {
         const ric = calculateWallRicochet(b, this.worldBounds, 4);
         if (ric.hasRicocheted) {
           this._triggerBulletEvent(b, 'onRicochet', ticker);
@@ -685,7 +701,7 @@ export default class PixiShooterEngine {
         }
       }
 
-      if (checkScreenBounds(b, this.worldBounds, this.weaponConfig)) {
+      if (checkScreenBounds(b, this.worldBounds, weaponCfg)) {
         remove = true;
       }
 
@@ -697,7 +713,7 @@ export default class PixiShooterEngine {
             b.penetrationLeft -= 1;
 
             if (b.penetrationLeft <= 0) {
-              if (this.weaponConfig.ricochetEnemies && b.ricochetsLeft > 0) {
+              if (ricochetEnemies && b.ricochetsLeft > 0) {
                 this._triggerBulletEvent(b, 'onRicochet', ticker, { target: obstacle });
                 const randomAngle = Math.random() * Math.PI * 2;
                 const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
@@ -710,7 +726,7 @@ export default class PixiShooterEngine {
               }
             }
           } else {
-            if (this.weaponConfig.ricochetEnemies && b.ricochetsLeft > 0) {
+            if (ricochetEnemies && b.ricochetsLeft > 0) {
               dealDamage(obstacle, b.damage, this.respawnCallback);
               const randomAngle = Math.random() * Math.PI * 2;
               const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
