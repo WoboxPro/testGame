@@ -108,6 +108,231 @@ class SpatialGrid {
   }
 }
 
+/**
+ * 🏗️ ENTITY SYSTEM: Управление игровыми сущностями
+ * Отделяет создание объектов от привязки оружий для максимальной гибкости
+ */
+class EntityManager {
+  constructor(app, engine = null) {
+    this.app = app;
+    this.engine = engine; // Ссылка на движок для совместимости
+    this.entities = new Map(); // id -> entity
+    this._entitySeq = 1;
+  }
+
+  /**
+   * Создает новую игровую сущность
+   * @param {Object} options - параметры сущности
+   * @param {number} options.x - позиция X
+   * @param {number} options.y - позиция Y  
+   * @param {string} options.type - тип сущности ('unit', 'structure')
+   * @param {string} options.visual - визуал ('triangle', 'square', 'circle')
+   * @param {string} options.faction - фракция ('player', 'enemy', 'neutral')
+   * @param {Object} options.characteristics - игровые характеристики
+   * @param {Array} options.weapons - массив оружий с настройками
+   * @param {string} options.movementController - контроллер движения (null, 'wasd', 'arrows', 'mouse')
+   * @returns {Object} созданная сущность
+   */
+  createEntity({ 
+    x = 0, y = 0, 
+    type = 'unit', 
+    visual = 'triangle', 
+    faction = 'neutral',
+    characteristics = {},
+    weapons = [],
+    movementController = null 
+  } = {}) {
+    const id = this._entitySeq++;
+    
+    // Создаем PIXI спрайт в зависимости от типа визуала
+    const sprite = this._createVisual(visual, x, y);
+    
+    // Дефолтные характеристики в зависимости от типа и фракции
+    const defaultCharacteristics = this._getDefaultCharacteristics(type, faction);
+    const finalCharacteristics = { ...defaultCharacteristics, ...characteristics };
+    
+    // Подготавливаем оружия с дефолтными настройками
+    const preparedWeapons = weapons.map((weapon, index) => ({
+      weaponId: weapon.weaponId || `weapon_${index}`,
+      weaponConfig: weapon.weaponConfig || {},
+      controller: weapon.controller || 'player',
+      lastFireTime: 0,
+      ammoState: {
+        currentAmmo: (weapon.weaponConfig?.maxAmmo || 30),
+        isReloading: false,
+      },
+      reloadStartTime: 0,
+    }));
+    
+    const entity = {
+      id,
+      x, y,
+      type,                  // 'unit', 'structure'
+      visual,                // 'triangle', 'square', 'circle'
+      faction,               // 'player', 'enemy', 'neutral'
+      
+      // 📊 ХАРАКТЕРИСТИКИ: Игровые свойства
+      characteristics: finalCharacteristics,
+      
+      // 🔫 ОРУЖИЯ: Встроенные в entity (Вариант 1)
+      weapons: preparedWeapons,
+      
+      // 🎮 ИГРОВОЕ СОСТОЯНИЕ
+      movementController,    // Контроллер движения
+      isAlive: true,
+      
+      // 🎨 ВИЗУАЛ И ФИЗИКА
+      sprite,
+      velocity: { x: 0, y: 0 },
+      
+      // 🔧 СЛУЖЕБНОЕ
+      controller: 'entity',  // Помечаем как entity (не shooter)
+    };
+    
+    this.entities.set(id, entity);
+    this.app.stage.addChild(sprite);
+    
+    // 🔧 СОВМЕСТИМОСТЬ: Добавляем врагов в obstacles для коллизий
+    if (faction === 'enemy' && this.engine && this.engine.obstacles) {
+      // Подготавливаем спрайт для совместимости со старой системой коллизий
+      sprite.isAlive = true;
+      sprite.entityType = 'box';
+      sprite.entityId = id; // Связываем с entity
+      sprite.health = finalCharacteristics.hp; // 🩸 ВАЖНО: Добавляем health для dealDamage
+      sprite.maxHealth = finalCharacteristics.maxHp; // 🩸 ВАЖНО: Добавляем maxHealth для respawn
+      this.engine.obstacles.push(sprite);
+      console.log(`🔗 Враг добавлен в obstacles: hp=${sprite.health}/${sprite.maxHealth}, isAlive=${sprite.isAlive}`);
+    }
+    
+    console.log(`🏗️ Entity создан: id=${id}, type=${type}, faction=${faction}, visual=${visual}, weapons=${weapons.length}`);
+    return entity;
+  }
+
+  /**
+   * Возвращает дефолтные характеристики для типа и фракции
+   */
+  _getDefaultCharacteristics(type, faction) {
+    const defaults = {
+      hp: 100,
+      maxHp: 100,
+      damage: 0,
+      armor: 0,
+      speed: 5,
+      canTakeDamage: true,
+      canMove: true,
+    };
+
+    // Настройки по типу
+    if (type === 'structure') {
+      defaults.canMove = false;
+      defaults.hp = 1000;
+      defaults.maxHp = 1000;
+    }
+
+    // Настройки по фракции
+    if (faction === 'enemy') {
+      defaults.hp = 1;           // Враги слабые по умолчанию
+      defaults.maxHp = 1;
+      defaults.damage = 5;
+    } else if (faction === 'player') {
+      defaults.hp = 100;         // Игрок сильный
+      defaults.maxHp = 100;
+      defaults.damage = 10;
+    }
+
+    return defaults;
+  }
+
+  /**
+   * Создает визуал для сущности
+   */
+  _createVisual(visualType, x, y) {
+    switch (visualType) {
+      case 'triangle':
+        return this._createTriangleSprite(x, y);
+      case 'square':
+        return this._createSquareSprite(x, y);
+      case 'circle':
+        return this._createCircleSprite(x, y);
+      default:
+        console.warn(`Неизвестный тип визуала: ${visualType}, используем triangle`);
+        return this._createTriangleSprite(x, y);
+    }
+  }
+
+  /**
+   * Создает треугольный спрайт (для игроков)
+   */
+  _createTriangleSprite(x, y) {
+    const triangle = new PIXI.Graphics();
+    triangle.beginFill(0xde3249); // Красный как у старого игрока
+    // 🔄 ИСПРАВЛЕНИЕ: треугольник смотрит ВПРАВО (по оси +X), а не вверх
+    triangle.moveTo(10, 0);   // Острый угол вправо
+    triangle.lineTo(-8, -8);  // Левый нижний угол  
+    triangle.lineTo(-8, 8);   // Левый верхний угол
+    triangle.closePath();
+    triangle.endFill();
+    triangle.x = x;
+    triangle.y = y;
+    return triangle;
+  }
+
+  /**
+   * Создает квадратный спрайт (для врагов/структур)
+   */
+  _createSquareSprite(x, y) {
+    const square = new PIXI.Graphics();
+    square.beginFill(0xff0000); // Красный для врагов
+    square.drawRect(-10, -10, 20, 20);
+    square.endFill();
+    square.x = x;
+    square.y = y;
+    return square;
+  }
+
+  /**
+   * Создает круглый спрайт (для декораций)
+   */
+  _createCircleSprite(x, y) {
+    const circle = new PIXI.Graphics();
+    circle.beginFill(0x0000ff); // Синий для декораций
+    circle.drawCircle(0, 0, 10);
+    circle.endFill();
+    circle.x = x;
+    circle.y = y;
+    return circle;
+  }
+
+  /**
+   * Получить сущность по ID
+   */
+  getEntity(id) {
+    return this.entities.get(id);
+  }
+
+  /**
+   * Получить все сущности
+   */
+  getAllEntities() {
+    return Array.from(this.entities.values());
+  }
+
+  /**
+   * Удалить сущность
+   */
+  removeEntity(id) {
+    const entity = this.entities.get(id);
+    if (entity) {
+      this.app.stage.removeChild(entity.sprite);
+      try { entity.sprite.destroy(); } catch (_) {}
+      this.entities.delete(id);
+      console.log(`🗑️ Entity удален: id=${id}`);
+      return true;
+    }
+    return false;
+  }
+}
+
 export function getDefaultWeaponConfig() {
   return {
     weaponType: 'projectile',
@@ -185,21 +410,23 @@ export default class PixiShooterEngine {
     /** @type {PIXI.Application | null} */
     this.app = null;
 
-    // Сущности/состояния
-    // Стрелки (шутеры)
-    /** @type {Array<{ id:number, sprite: PIXI.Graphics, controller: 'player'|'object', weaponConfig: any }>} */
-    this.shooters = [];
-    this._shooterSeq = 1;
-    /** @type {number|null} */
-    this.mainShooterId = null;
-    this.obstacles = [];
+    // 🏗️ ENTITY SYSTEM: Управление всеми игровыми объектами
+    this.entityManager = null; // Инициализируется в start()
+
+    // 🎮 ИГРОВЫЕ ОБЪЕКТЫ: Пули, эффекты, etc.
     this.bullets = [];
     this.explosions = [];
     this.rayEffects = [];
     this.impactEffects = [];
 
-    // 🚀 ОПТИМИЗАЦИЯ 3: Spatial Grid для коллизий (инициализируется в start())
+    // 🚀 ОПТИМИЗАЦИЯ: Spatial Grid для коллизий (инициализируется в start())
     this.spatialGrid = null;
+
+    // 🔧 СОВМЕСТИМОСТЬ: Для старого кода (будет удалено позже)
+    this.obstacles = [];  // Временно для совместимости с коллизиями
+    this.shooters = [];   // Временно для совместимости (теперь используем Entity систему)
+    
+
 
     // Ввод/стрельба
     this.keys = {};
@@ -284,6 +511,10 @@ export default class PixiShooterEngine {
       this.spatialGrid = null;
       console.log(`🚀 Spatial Grid отключен, используем стандартные коллизии`);
     }
+
+    // 🏗️ ENTITY SYSTEM: Инициализируем EntityManager
+    this.entityManager = new EntityManager(null, this); // app будет передан после создания, передаем ссылку на движок
+    console.log(`🏗️ Entity System инициализирован`);
     
     // Создаём Camera (камеру) для навигации по миру
     this.camera = new Camera(pixiOptions.width, pixiOptions.height, this.world);
@@ -299,6 +530,9 @@ export default class PixiShooterEngine {
     this.app = new PIXI.Application();
     await this.app.init(pixiOptions);
     mountElement.appendChild(this.app.canvas);
+
+    // 🏗️ Передаем app в EntityManager
+    this.entityManager.app = this.app;
 
     // Создаём UI контейнер (не двигается с камерой)
     this.uiContainer = new PIXI.Container();
@@ -342,17 +576,17 @@ export default class PixiShooterEngine {
     this.world.createVisualBorders(this.worldBorders);
     this.app.stage.addChild(this.worldBorders);
 
-    // Основной шутер (визуал остаётся треугольником)
-    const mainShooter = this._createShooter({ x: 400, y: 300, controller: 'player', weaponConfig: this.weaponConfig });
-    this.mainShooterId = mainShooter.id;
+    // 🏗️ Движок инициализирован! Все объекты создаются через addEntity() API
+    console.log(`🎮 PixiShooterEngine готов! Используйте engine.addEntity() для создания объектов`);
 
-    // Препятствия
-    const obstacle = createObstacle(200, 250, 1);
-    this.obstacles = [obstacle];
-    this.app.stage.addChild(obstacle);
-
-    // Respawn
-    this.respawnCallback = createRespawnFunction(2000, this.worldBounds);
+    // 🔄 РЕСПАВН: Создаем функцию респавна для совместимости с obstacles
+    const originalRespawnFn = createRespawnFunction(2000, this.worldBounds);
+    this.respawnCallback = (obj) => {
+      console.log(`🔄 РЕСПАВН вызван! obj.health=${obj.health}, obj.isAlive=${obj.isAlive}`);
+      originalRespawnFn(obj);
+      console.log(`💀 После респавна: obj.isAlive=${obj.isAlive}, obj.visible=${obj.visible}`);
+    };
+    console.log(`🔄 Respawn функция создана для worldBounds: ${this.worldBounds.width}x${this.worldBounds.height}`);
 
     // Ввод
     window.addEventListener('keydown', this._onKeyDown);
@@ -398,11 +632,16 @@ export default class PixiShooterEngine {
     } catch (_) {}
 
     this.app = null;
-    // Удаляем шутеров
-    for (const shooter of this.shooters) {
-      try { this.app.stage.removeChild(shooter.sprite); } catch (_) {}
-      try { shooter.sprite.destroy(); } catch (_) {}
+    // 🏗️ ENTITY SYSTEM: Удаляем сущности
+    if (this.entityManager) {
+      const allEntities = this.entityManager.getAllEntities();
+      for (const entity of allEntities) {
+        try { this.app.stage.removeChild(entity.sprite); } catch (_) {}
+        try { entity.sprite.destroy(); } catch (_) {}
+      }
     }
+    
+    // 🔧 СОВМЕСТИМОСТЬ: Очищаем старые массивы
     this.shooters = [];
     this.mainShooterId = null;
     this.obstacles = [];
@@ -432,6 +671,8 @@ export default class PixiShooterEngine {
     // 🌍 ПРЕОБРАЗОВАНИЕ: canvas координаты → world координаты
     this.mousePosition.x = canvasPos.x + this.camera.x;
     this.mousePosition.y = canvasPos.y + this.camera.y;
+    
+
   }
 
   _onPointerDown() {
@@ -653,9 +894,26 @@ export default class PixiShooterEngine {
 
   // --- Обертки для одиночных выстрелов от главного шутера (используются в pointerdown) ---
   _getMainShooter() {
-    if (!this.shooters.length) return null;
-    if (this.mainShooterId) return this.shooters.find(s => s.id === this.mainShooterId) || this.shooters[0];
-    return this.shooters[0];
+    // 🏗️ ENTITY SYSTEM: Ищем первую сущность игрока с оружием
+    if (!this.entityManager) return null;
+    
+    const playerEntities = this.entityManager.getAllEntities().filter(entity => 
+      entity.faction === 'player' && 
+      entity.weapons && 
+      entity.weapons.length > 0 &&
+      entity.isAlive
+    );
+    
+    if (playerEntities.length === 0) return null;
+    
+    // Возвращаем в формате старого shooter для совместимости
+    const entity = playerEntities[0];
+    return {
+      id: entity.id,
+      sprite: entity.sprite,
+      controller: 'player',
+      weaponConfig: entity.weapons[0].weaponConfig // Берем первое оружие
+    };
   }
 
   _createBullet() {
@@ -670,8 +928,21 @@ export default class PixiShooterEngine {
 
   // ---------- ТИК ----------
   _tick(ticker) {
-    const sp = this._getMainShooterSprite();
-    if (!this.app || !sp) return;
+    try {
+      // 🛡️ ЗАЩИТНАЯ ПРОВЕРКА: убеждаемся что все массивы инициализированы
+      if (!this.shooters) {
+        console.warn('🚨 this.shooters не инициализирован! Инициализируем пустым массивом.');
+        this.shooters = [];
+      }
+      
+      const sp = this._getMainShooterSprite();
+      if (!this.app || !sp) return;
+    } catch (error) {
+      console.error('🚨 Ошибка в начале _tick:', error);
+      console.error('🔍 this.shooters =', this.shooters);
+      console.error('🔍 typeof this.shooters =', typeof this.shooters);
+      throw error;
+    }
 
     // 📦 ОПТИМИЗАЦИЯ 2: Кешируем weaponConfig один раз в начале тика
     const weaponCfg = this.weaponConfig;
@@ -708,6 +979,10 @@ export default class PixiShooterEngine {
     if (this.spatialGrid) {
       this.spatialGrid.clear();
       
+      // 🛡️ ЗАЩИТНЫЕ ПРОВЕРКИ массивов
+      if (!this.bullets) this.bullets = [];
+      if (!this.obstacles) this.obstacles = [];
+      
       // Добавляем все пули в соответствующие секторы
       for (const bullet of this.bullets) {
         this.spatialGrid.addBullet(bullet);
@@ -727,53 +1002,95 @@ export default class PixiShooterEngine {
       this.camera.applyToStage(this.app.stage, this.uiContainer);
     }
 
-    // Перезарядка
-    // Перезарядка у всех шутеров
-    for (const s of this.shooters) {
-      if (!s.ammoState) continue;
-      if (updateReloadSystem(s.ammoState, s.weaponConfig, Date.now(), s.reloadStartTime || 0)) {
-        // завершили перезарядку
-      }
-      if (
-        s.weaponConfig.useAmmoSystem &&
-        s.ammoState.currentAmmo <= 0 &&
-        !s.ammoState.isReloading &&
-        this._shouldAutoReloadCfg(s.weaponConfig)
-      ) {
-        s.ammoState.isReloading = true;
-        s.reloadStartTime = Date.now();
-      }
-    }
-
-    // Поворот/движение всех шутеров
-    for (const s of this.shooters) {
-      const cfg = s.weaponConfig;
-      const isObjectMode = (s.controller === 'object') || (cfg && cfg.fireSource === 'object');
-      if (isObjectMode) {
-        const angle = this._getFireAngleFor(s);
-        const targetPos = {
-          x: s.sprite.x + Math.cos(angle) * 100,
-          y: s.sprite.y + Math.sin(angle) * 100,
-        };
-        updatePlayerRotation(s.sprite, targetPos, 0.1);
-      } else {
-        updatePlayerRotation(s.sprite, this.mousePosition, 0.1);
-        if (s.controller === 'player') {
-          updatePlayerMovement(s.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
+    // 🏗️ ENTITY SYSTEM: Перезарядка у всех сущностей с оружием
+    if (this.entityManager) {
+      const entitiesWithWeapons = this.entityManager.getAllEntities().filter(entity => 
+        entity.weapons && entity.weapons.length > 0 && entity.isAlive
+      );
+      
+      for (const entity of entitiesWithWeapons) {
+        for (const weapon of entity.weapons) {
+          if (!weapon.ammoState) continue;
+          if (updateReloadSystem(weapon.ammoState, weapon.weaponConfig, Date.now(), weapon.reloadStartTime || 0)) {
+            // завершили перезарядку
+          }
+          if (
+            weapon.weaponConfig.useAmmoSystem &&
+            weapon.ammoState.currentAmmo <= 0 &&
+            !weapon.ammoState.isReloading &&
+            this._shouldAutoReloadCfg(weapon.weaponConfig)
+          ) {
+            weapon.ammoState.isReloading = true;
+            weapon.reloadStartTime = Date.now();
+          }
         }
       }
     }
 
-    // Автоогонь (для object-режима считаем, что "кнопка" зажата всегда)
-    // Стрельба у всех шутеров
-    for (const s of this.shooters) {
-      // 📦 ОПТИМИЗАЦИЯ 2: Используем кешированную конфигурацию вместо s.weaponConfig
-      const cfg = weaponCfg;
-      const isObjectMode = (s.controller === 'object') || (cfg && cfg.fireSource === 'object');
-      const triggerHeld = isObjectMode ? true : this.isMouseDown;
-      if (cfg.autoFire && triggerHeld) {
-        if (cfg.weaponType === 'raycast') this._createRaycastFor(s);
-        else this._createBulletFor(s);
+    // 🏗️ ENTITY SYSTEM: Поворот/движение всех сущностей с оружием
+    if (this.entityManager) {
+      const entitiesWithWeapons = this.entityManager.getAllEntities().filter(entity => 
+        entity.weapons && entity.weapons.length > 0 && entity.isAlive
+      );
+      
+      for (const entity of entitiesWithWeapons) {
+        // Для каждого оружия проверяем его controller
+        for (const weapon of entity.weapons) {
+          const cfg = weapon.weaponConfig;
+          const isObjectMode = (weapon.controller === 'object') || (cfg && cfg.fireSource === 'object');
+          
+          if (isObjectMode) {
+            // Автонаведение для AI/object режима (пока упрощенно)
+            const angle = Math.atan2(this.mousePosition.y - entity.sprite.y, this.mousePosition.x - entity.sprite.x);
+            const targetPos = {
+              x: entity.sprite.x + Math.cos(angle) * 100,
+              y: entity.sprite.y + Math.sin(angle) * 100,
+            };
+            updatePlayerRotation(entity.sprite, targetPos, 0.1);
+          } else if (weapon.controller === 'player') {
+            // Игроковое управление - мгновенный поворот к мыши
+            updatePlayerRotation(entity.sprite, this.mousePosition, 1.0);
+            if (entity.movementController === 'wasd' || entity.faction === 'player') {
+              updatePlayerMovement(entity.sprite, this.keys, this.playerMoveSpeed, ticker.deltaTime);
+            }
+          }
+        }
+      }
+    }
+
+    // 🏗️ ENTITY SYSTEM: Автоогонь у всех сущностей с оружием
+    if (this.entityManager) {
+      const entitiesWithWeapons = this.entityManager.getAllEntities().filter(entity => 
+        entity.weapons && entity.weapons.length > 0 && entity.isAlive
+      );
+      
+      for (const entity of entitiesWithWeapons) {
+        for (const weapon of entity.weapons) {
+          const cfg = weapon.weaponConfig;
+          const isObjectMode = (weapon.controller === 'object') || (cfg && cfg.fireSource === 'object');
+          const triggerHeld = isObjectMode ? true : this.isMouseDown;
+          
+          if (cfg.autoFire && triggerHeld) {
+            // Создаем совместимый объект shooter для старых функций
+            const compatShooter = {
+              id: entity.id,
+              sprite: entity.sprite,
+              controller: weapon.controller,
+              weaponConfig: weapon.weaponConfig,
+              lastFireTime: weapon.lastFireTime,
+              ammoState: weapon.ammoState,
+              reloadStartTime: weapon.reloadStartTime
+            };
+            
+            if (cfg.weaponType === 'raycast') this._createRaycastFor(compatShooter);
+            else this._createBulletFor(compatShooter);
+            
+            // Обновляем состояние оружия
+            weapon.lastFireTime = compatShooter.lastFireTime;
+            weapon.ammoState = compatShooter.ammoState;
+            weapon.reloadStartTime = compatShooter.reloadStartTime;
+          }
+        }
       }
     }
 
@@ -910,22 +1227,35 @@ export default class PixiShooterEngine {
       }
     }
 
-    // Коллизии игрока и коробок
-    for (const s of this.shooters) {
-      for (const obstacle of this.obstacles) {
-        if (obstacle.isAlive && obstacle.entityType === 'box' && checkPlayerObstacleCollision(s.sprite, obstacle)) {
-          if (this.respawnCallback) this.respawnCallback(obstacle);
+    // 🏗️ ENTITY SYSTEM: Коллизии игроков с препятствиями  
+    if (this.entityManager) {
+      const playerEntities = this.entityManager.getAllEntities().filter(entity => 
+        entity.faction === 'player' && entity.isAlive
+      );
+      
+      for (const player of playerEntities) {
+        for (const obstacle of this.obstacles) {
+          if (obstacle.isAlive && obstacle.entityType === 'box' && checkPlayerObstacleCollision(player.sprite, obstacle)) {
+            if (this.respawnCallback) this.respawnCallback(obstacle);
+          }
         }
       }
     }
 
-    // Границы для игрока (используем размеры мира, а не canvas)
+    // 🏗️ ENTITY SYSTEM: Движение игроков с учетом границ мира
     const worldBounds = {
       width: this.world.width,
       height: this.world.height
     };
-    for (const s of this.shooters) {
-      constrainPlayerToBounds(s.sprite, worldBounds);
+    
+    if (this.entityManager) {
+      const playerEntities = this.entityManager.getAllEntities().filter(entity => 
+        entity.faction === 'player' && entity.isAlive
+      );
+      
+      for (const entity of playerEntities) {
+        constrainPlayerToBounds(entity.sprite, worldBounds);
+      }
     }
 
     // Примитивное поведение препятствий (пример)
@@ -997,11 +1327,18 @@ export default class PixiShooterEngine {
   }
 
   _getMainShooterSprite() {
-    if (!this.shooters.length) return null;
-    const main = this.mainShooterId
-      ? this.shooters.find(s => s.id === this.mainShooterId)
-      : this.shooters[0];
-    return main ? main.sprite : null;
+    // 🏗️ ENTITY SYSTEM: Ищем первую сущность с фракцией 'player' и оружием
+    if (!this.entityManager) return null;
+    
+    const playerEntities = this.entityManager.getAllEntities().filter(entity => 
+      entity.faction === 'player' && 
+      entity.weapons && 
+      entity.weapons.length > 0 &&
+      entity.isAlive
+    );
+    
+    if (playerEntities.length === 0) return null;
+    return playerEntities[0].sprite;
   }
 
   // Public API
@@ -1027,6 +1364,64 @@ export default class PixiShooterEngine {
 
   getShooters() {
     return this.shooters.map(s => ({ id: s.id, x: s.sprite.x, y: s.sprite.y, controller: s.controller }));
+  }
+
+  // 🏗️ ENTITY SYSTEM API
+
+  /**
+   * Создает новую игровую сущность (Вариант 1: с weapons внутри)
+   * @param {Object} options - параметры сущности
+   * @returns {number} ID созданной сущности
+   */
+  addEntity(options = {}) {
+    if (!this.entityManager) {
+      console.warn('EntityManager не инициализирован');
+      return null;
+    }
+    const entity = this.entityManager.createEntity(options);
+    return entity.id;
+  }
+
+  /**
+   * Получить информацию о сущности
+   * @param {number} entityId - ID сущности
+   * @returns {Object|null} информация о сущности
+   */
+  getEntity(entityId) {
+    const entity = this.entityManager?.getEntity(entityId);
+    if (!entity) return null;
+
+    return {
+      id: entity.id,
+      x: entity.sprite.x,
+      y: entity.sprite.y,
+      type: entity.type,
+      visual: entity.visual,
+      faction: entity.faction,
+      characteristics: { ...entity.characteristics },
+      weapons: entity.weapons.map(w => ({ weaponId: w.weaponId, controller: w.controller })),
+      isAlive: entity.isAlive,
+      movementController: entity.movementController
+    };
+  }
+
+  /**
+   * Получить все сущности
+   * @returns {Array} массив сущностей
+   */
+  getAllEntities() {
+    if (!this.entityManager) return [];
+    return this.entityManager.getAllEntities().map(entity => this.getEntity(entity.id));
+  }
+
+  /**
+   * Удалить сущность
+   * @param {number} entityId - ID сущности
+   * @returns {boolean} успешность операции
+   */
+  removeEntity(entityId) {
+    if (!this.entityManager) return false;
+    return this.entityManager.removeEntity(entityId);
   }
 }
 

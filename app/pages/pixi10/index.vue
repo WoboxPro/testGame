@@ -3,10 +3,10 @@
     <div class="canvas-section">
       <div ref="pixiContainer" class="game-canvas"></div>
       <button class="add-shooter-btn">
-        🎯 Add Shooter
+        🎯 Add Enemy
       </button>
       <div class="instructions" style="display: none;">
-        Нажмите кнопку, затем кликните на канвас где должен появиться шутер
+        Нажмите кнопку, затем кликните на канвас где должен появиться враг
       </div>
     </div>
     <div class="settings-panel">
@@ -1699,7 +1699,7 @@ const loadPreset = (presetName) => {
   }
 };
 
-// Функция инициализации Add Shooter кнопки
+// Функция инициализации Add Enemy кнопки
 const initializeAddShooterButton = (engine) => {
   // Переменная состояния для каждой инициализации
   let isWaitingForClick = false;
@@ -1715,7 +1715,7 @@ const initializeAddShooterButton = (engine) => {
   
   // Устанавливаем исходное состояние
   newAddShooterBtn.classList.remove('waiting');
-  newAddShooterBtn.textContent = '🎯 Add Shooter';
+  newAddShooterBtn.textContent = '🎯 Add Entity';
   instructions.style.display = 'none';
   
   // Новый обработчик кнопки
@@ -1724,16 +1724,16 @@ const initializeAddShooterButton = (engine) => {
       // Отменяем режим добавления
       isWaitingForClick = false;
       newAddShooterBtn.classList.remove('waiting');
-      newAddShooterBtn.textContent = '🎯 Add Shooter';
+      newAddShooterBtn.textContent = '🎯 Add Enemy';
       instructions.style.display = 'none';
-      console.log('🎯 Add Shooter: режим отменен');
+      console.log('🎯 Add Enemy: режим отменен');
     } else {
       // Включаем режим добавления
       isWaitingForClick = true;
       newAddShooterBtn.classList.add('waiting');
       newAddShooterBtn.textContent = '❌ Cancel';
       instructions.style.display = 'block';
-      console.log('🎯 Add Shooter: ожидание клика на канвас...');
+      console.log('🎯 Add Enemy: ожидание клика на канвас...');
     }
   });
 
@@ -1748,31 +1748,40 @@ const initializeAddShooterButton = (engine) => {
         y: canvasPos.y + engine.camera.y
       };
       
-      console.log('🎯 Add Shooter: клик обработан', {
+      console.log('🎯 Add Enemy: клик обработан', {
         canvasPos: `${canvasPos.x.toFixed(0)}, ${canvasPos.y.toFixed(0)}`,
         worldPos: `${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)}`,
         cameraOffset: `${engine.camera.x.toFixed(0)}, ${engine.camera.y.toFixed(0)}`
       });
       
-      // Создаем шутера в МИРОВЫХ координатах
-      const shooterId = engine.addShooter({ 
+      // 🏗️ ENTITY SYSTEM: Создаем сущность в МИРОВЫХ координатах
+      const entityId = engine.addEntity({ 
         x: worldPos.x, 
-        y: worldPos.y, 
-        controller: 'object' // AI шутер
+        y: worldPos.y,
+        type: 'unit',
+        faction: 'enemy',  // По умолчанию создаем врага
+        visual: 'square',
+        characteristics: {
+          hp: 1,
+          maxHp: 1,
+          canMove: false,  // Статичный враг
+          canTakeDamage: true
+        }
+        // weapons: [] - враги пока без оружия
       });
       
       // Выходим из режима добавления
       isWaitingForClick = false;
       newAddShooterBtn.classList.remove('waiting');
-      newAddShooterBtn.textContent = '🎯 Add Shooter';
+      newAddShooterBtn.textContent = '🎯 Add Enemy';
       instructions.style.display = 'none';
       
       // Показываем уведомление
-      console.log(`✅ Шутер создан! ID: ${shooterId} в мире (${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)})`);
+      console.log(`✅ Entity создан! ID: ${entityId} (враг-квадрат) в мире (${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)})`);
     }
   });
   
-  console.log('🎯 Add Shooter: кнопка переинициализирована для нового движка');
+  console.log('🎯 Add Enemy: кнопка переинициализирована для нового движка');
 };
 
 // Функция применения canvas настроек
@@ -1834,7 +1843,31 @@ const applyAllSettings = async () => {
     await newEngine.start();
     engineRef.value = newEngine;
     
-    // Переинициализируем Add Shooter кнопку для нового движка
+    // 🎮 СОЗДАЕМ ИГРОКА: В центре канваса с оружием (при пересоздании движка)
+    const playerId = newEngine.addEntity({
+      x: canvasSettings.width / 2, 
+      y: canvasSettings.height / 2,
+      type: 'unit',
+      faction: 'player',
+      visual: 'triangle',
+      characteristics: {
+        hp: 100,
+        maxHp: 100,
+        speed: 5,
+        canMove: true,
+        canTakeDamage: true
+      },
+      weapons: [{
+        weaponId: 'mainGun',
+        weaponConfig: weaponConfig,
+        controller: 'player'
+      }],
+      movementController: 'wasd'
+    });
+    
+    console.log(`🎮 Игрок пересоздан! ID: ${playerId} в центре канваса`);
+    
+    // Переинициализируем Add Enemy кнопку для нового движка
     initializeAddShooterButton(newEngine);
     
     // Обновляем отображаемый размер
@@ -1876,11 +1909,35 @@ onMounted(async () => {
     await engine.start();
     engineRef.value = engine;
     
+    // 🎮 СОЗДАЕМ ИГРОКА: В центре канваса с оружием
+    const playerId = engine.addEntity({
+      x: canvasSettings.width / 2, 
+      y: canvasSettings.height / 2,
+      type: 'unit',
+      faction: 'player',
+      visual: 'triangle',
+      characteristics: {
+        hp: 100,
+        maxHp: 100,
+        speed: 5,
+        canMove: true,
+        canTakeDamage: true
+      },
+      weapons: [{
+        weaponId: 'mainGun',
+        weaponConfig: weaponConfig,
+        controller: 'player'
+      }],
+      movementController: 'wasd'
+    });
+    
+    console.log(`🎮 Игрок создан! ID: ${playerId} в центре канваса`);
+    
     // Инициализируем текущий размер
     currentCanvasSize.width = canvasSettings.width;
     currentCanvasSize.height = canvasSettings.height;
 
-    // 🎯 ADD SHOOTER BUTTON: Инициализируем через общую функцию
+    // 🎯 ADD ENEMY BUTTON: Инициализируем через общую функцию
     initializeAddShooterButton(engine);
   }
 });
