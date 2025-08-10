@@ -690,7 +690,15 @@ export default class PixiShooterEngine {
       if (deltaTime >= 250) {
         const fps = Math.round((this.fpsFrames * 1000) / deltaTime);
         const bulletCount = this.bullets.length;
-        this.fpsText.text = `FPS: ${fps} | Bullets: ${bulletCount}`;
+        
+        // Информация о Spatial Grid
+        let spatialInfo = 'SG: false';
+        if (this.spatialGrid) {
+          const sectorCount = this.spatialGrid.sectors.size;
+          spatialInfo = `SG: true (${sectorCount})`;
+        }
+        
+        this.fpsText.text = `FPS: ${fps} | Bullets: ${bulletCount} | ${spatialInfo}`;
         this.fpsFrames = 0;
         this.fpsLastTime = currentTime;
       }
