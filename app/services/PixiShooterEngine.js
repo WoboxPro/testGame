@@ -477,6 +477,7 @@ export default class PixiShooterEngine {
           } else if (this.weaponConfig.raycastAnimation === 'impact') {
             createImpactPoint(currentX, currentY, 'ricochet', this.app, this.impactEffects);
           }
+          // 👻 invisible - никаких эффектов рикошета от стен
 
           ricochetsLeft -= 1;
           return this._performRaycast(currentX, currentY, ric.angle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge);
@@ -499,9 +500,10 @@ export default class PixiShooterEngine {
             const fakeTicker = { elapsedMS: 0 };
             this._triggerBulletEvent(fakeBullet, 'onHitEnemy', fakeTicker, { target: obstacle });
 
-            if (this.weaponConfig.raycastAnimation === 'impact') {
+            if (this.weaponConfig.raycastAnimation === 'impact' || this.weaponConfig.raycastAnimation === 'invisible') {
               createImpactPoint(currentX, currentY, 'hit', this.app, this.impactEffects);
             }
+            // 👻 invisible - показываем только попадания в цели, НЕ показываем луч
 
             penetrationLeft -= 1;
 
@@ -514,6 +516,7 @@ export default class PixiShooterEngine {
               } else if (this.weaponConfig.raycastAnimation === 'impact') {
                 createImpactPoint(currentX, currentY, 'ricochet', this.app, this.impactEffects);
               }
+              // 👻 invisible - никаких эффектов рикошета от врагов
               const randomAngle = Math.random() * Math.PI * 2;
               ricochetsLeft -= 1;
               penetrationLeft = 1;
@@ -535,6 +538,7 @@ export default class PixiShooterEngine {
     } else if (this.weaponConfig.raycastAnimation === 'impact') {
       createImpactPoint(currentX, currentY, 'end', this.app, this.impactEffects);
     }
+    // 👻 invisible - никаких эффектов окончания луча
   }
 
   // ---------- СТРЕЛЬБА (ПУЛИ) ----------

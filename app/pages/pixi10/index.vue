@@ -57,6 +57,7 @@
         <select v-model="weaponConfig.raycastAnimation">
           <option value="laser">🔴 Лазер (видимый луч)</option>
           <option value="impact">💥 Попадания (только точки)</option>
+          <option value="invisible">👻 Невидимый (только эффекты попадания)</option>
         </select>
       </div>
       
