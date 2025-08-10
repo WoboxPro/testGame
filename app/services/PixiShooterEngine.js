@@ -608,7 +608,8 @@ export default class PixiShooterEngine {
       // Обновляем FPS каждые 250ms
       if (deltaTime >= 250) {
         const fps = Math.round((this.fpsFrames * 1000) / deltaTime);
-        this.fpsText.text = `FPS: ${fps}`;
+        const bulletCount = this.bullets.length;
+        this.fpsText.text = `FPS: ${fps} | Bullets: ${bulletCount}`;
         this.fpsFrames = 0;
         this.fpsLastTime = currentTime;
       }
