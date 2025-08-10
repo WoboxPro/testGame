@@ -1646,18 +1646,26 @@ const initializeAddShooterButton = (engine) => {
   // Обработчик клика на канвас (привязываем к НОВОМУ движку!)
   engine.app.stage.on('pointerdown', (event) => {
     if (isWaitingForClick) {
-      const pos = event.global;
+      const canvasPos = event.global; // Позиция относительно canvas
       
-      console.log('🎯 Add Shooter: создаю шутера в позиции', { x: pos.x, y: pos.y });
+      // 🌍 ПРЕОБРАЗОВАНИЕ: canvas координаты → world координаты
+      const worldPos = {
+        x: canvasPos.x + engine.camera.x,
+        y: canvasPos.y + engine.camera.y
+      };
       
-      // Создаем шутера в НОВОМ движке
-      const shooterId = engine.addShooter({ 
-        x: pos.x, 
-        y: pos.y, 
-        controller: 'object' // AI шутер
+      console.log('🎯 Add Shooter: клик обработан', {
+        canvasPos: `${canvasPos.x.toFixed(0)}, ${canvasPos.y.toFixed(0)}`,
+        worldPos: `${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)}`,
+        cameraOffset: `${engine.camera.x.toFixed(0)}, ${engine.camera.y.toFixed(0)}`
       });
       
-      console.log('🎯 Add Shooter: успешно создан ID:', shooterId);
+      // Создаем шутера в МИРОВЫХ координатах
+      const shooterId = engine.addShooter({ 
+        x: worldPos.x, 
+        y: worldPos.y, 
+        controller: 'object' // AI шутер
+      });
       
       // Выходим из режима добавления
       isWaitingForClick = false;
@@ -1666,7 +1674,7 @@ const initializeAddShooterButton = (engine) => {
       instructions.style.display = 'none';
       
       // Показываем уведомление
-      console.log(`✅ Шутер создан! ID: ${shooterId} в (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
+      console.log(`✅ Шутер создан! ID: ${shooterId} в мире (${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)})`);
     }
   });
   
