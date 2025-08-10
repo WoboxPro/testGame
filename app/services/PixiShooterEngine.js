@@ -201,6 +201,14 @@ export default class PixiShooterEngine {
     // Создаём World (мир игры) с учетом canvas размеров
     this.world = new World(this.options.world || {}, pixiOptions.width, pixiOptions.height);
     
+    // 🌍 СОЗДАЁМ ОБЪЕКТ worldBounds для замены this.app.screen
+    this.worldBounds = {
+      width: this.world.width,
+      height: this.world.height,
+      x: 0,
+      y: 0
+    };
+    
     // Создаём Camera (камеру) для навигации по миру
     this.camera = new Camera(pixiOptions.width, pixiOptions.height, this.world);
 
@@ -268,7 +276,7 @@ export default class PixiShooterEngine {
     this.app.stage.addChild(obstacle);
 
     // Respawn
-    this.respawnCallback = createRespawnFunction(2000, this.app.screen);
+    this.respawnCallback = createRespawnFunction(2000, this.worldBounds);
 
     // Ввод
     window.addEventListener('keydown', this._onKeyDown);
@@ -276,11 +284,19 @@ export default class PixiShooterEngine {
 
     // Указатель мыши
     this.app.stage.interactive = true;
-    this.app.stage.hitArea = this.app.screen;
+    this.app.stage.eventMode = 'static';
+    // 🌍 ИСПРАВЛЕНИЕ: hitArea должна быть размером МИРА, а не canvas!
+    this.app.stage.hitArea = new PIXI.Rectangle(0, 0, this.world.width, this.world.height);
     this.app.stage.on('pointermove', this._onPointerMove);
     this.app.stage.on('pointerdown', this._onPointerDown);
     this.app.stage.on('pointerup', this._onPointerUp);
     this.app.stage.on('pointerupoutside', this._onPointerUpOutside);
+    
+    console.log('🔧 Stage интерактивность настроена:', {
+      canvasSize: `${this.app.renderer.width}×${this.app.renderer.height}`,
+      worldSize: `${this.world.width}×${this.world.height}`,
+      hitArea: `${this.world.width}×${this.world.height}`
+    });
 
     // Тик-цикл
     this.app.ticker.add(this._tick);
@@ -335,9 +351,11 @@ export default class PixiShooterEngine {
   }
 
   _onPointerMove(event) {
-    const p = event.global;
-    this.mousePosition.x = p.x;
-    this.mousePosition.y = p.y;
+    const canvasPos = event.global; // Позиция относительно canvas
+    
+    // 🌍 ПРЕОБРАЗОВАНИЕ: canvas координаты → world координаты
+    this.mousePosition.x = canvasPos.x + this.camera.x;
+    this.mousePosition.y = canvasPos.y + this.camera.y;
   }
 
   _onPointerDown() {
@@ -419,7 +437,7 @@ export default class PixiShooterEngine {
       shooter.reloadStartTime = Date.now();
     }
 
-    applyRecoil(shooter.sprite, baseAngle, cfg, this.app.screen);
+    applyRecoil(shooter.sprite, baseAngle, cfg, this.worldBounds);
     shooter.lastFireTime = currentTime;
   }
 
@@ -438,7 +456,7 @@ export default class PixiShooterEngine {
       currentY += dirY * stepSize;
       travelDistance += stepSize;
 
-      const atEdge = currentX <= 0 || currentX >= this.app.screen.width || currentY <= 0 || currentY >= this.app.screen.height;
+      const atEdge = currentX <= 0 || currentX >= this.worldBounds.width || currentY <= 0 || currentY >= this.worldBounds.height;
       if (atEdge && !hasTriggeredScreenEdge) {
         const fakeBullet = { x: currentX, y: currentY };
         const fakeTicker = { elapsedMS: 0 };
@@ -447,7 +465,7 @@ export default class PixiShooterEngine {
       }
 
       if (this.weaponConfig.ricochetWalls && ricochetsLeft > 0) {
-        const ric = calculateRaycastWallRicochet(currentX, currentY, angle, this.app.screen);
+        const ric = calculateRaycastWallRicochet(currentX, currentY, angle, this.worldBounds);
         if (ric.hasRicocheted) {
           currentX = ric.x; currentY = ric.y;
           const fakeBullet = { x: currentX, y: currentY };
@@ -465,7 +483,7 @@ export default class PixiShooterEngine {
         }
       }
 
-      if (checkScreenBounds({ x: currentX, y: currentY }, this.app.screen, this.weaponConfig)) break;
+              if (checkScreenBounds({ x: currentX, y: currentY }, this.worldBounds, this.weaponConfig)) break;
 
       for (const obstacle of this.obstacles) {
         if (obstacle.isAlive && !hitTargets.includes(obstacle)) {
@@ -548,7 +566,7 @@ export default class PixiShooterEngine {
       shooter.reloadStartTime = Date.now();
     }
 
-    applyRecoil(shooter.sprite, baseAngle, cfg, this.app.screen);
+    applyRecoil(shooter.sprite, baseAngle, cfg, this.worldBounds);
     shooter.lastFireTime = currentTime;
   }
 
@@ -654,20 +672,20 @@ export default class PixiShooterEngine {
 
       let remove = shouldRemoveBullet(b);
 
-      if (isAtScreenEdge(b, this.app.screen, 4) && !b.hasTriggeredScreenEdge) {
+      if (isAtScreenEdge(b, this.worldBounds, 4) && !b.hasTriggeredScreenEdge) {
         this._triggerBulletEvent(b, 'onScreenEdge', ticker);
         b.hasTriggeredScreenEdge = true;
       }
 
       if (this.weaponConfig.ricochetWalls && b.ricochetsLeft > 0) {
-        const ric = calculateWallRicochet(b, this.app.screen, 4);
+        const ric = calculateWallRicochet(b, this.worldBounds, 4);
         if (ric.hasRicocheted) {
           this._triggerBulletEvent(b, 'onRicochet', ticker);
           b.ricochetsLeft -= 1;
         }
       }
 
-      if (checkScreenBounds(b, this.app.screen, this.weaponConfig)) {
+      if (checkScreenBounds(b, this.worldBounds, this.weaponConfig)) {
         remove = true;
       }
 
