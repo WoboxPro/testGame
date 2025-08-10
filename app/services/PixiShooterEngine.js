@@ -417,7 +417,8 @@ export default class PixiShooterEngine {
   // ---------- СТРЕЛЬБА (RAYCAST) ----------
   _createRaycastFor(shooter) {
     if (!this.app || !shooter) return;
-    const cfg = shooter.weaponConfig;
+    // 📦 ОПТИМИЗАЦИЯ 2: Используем кешированную weaponConfig из _tick()
+    const cfg = this.weaponConfig;
     const currentTime = Date.now();
     if (!canFireWeapon(currentTime, shooter.lastFireTime || 0, cfg, shooter.ammoState)) return;
 
@@ -665,7 +666,8 @@ export default class PixiShooterEngine {
     // Автоогонь (для object-режима считаем, что "кнопка" зажата всегда)
     // Стрельба у всех шутеров
     for (const s of this.shooters) {
-      const cfg = s.weaponConfig;
+      // 📦 ОПТИМИЗАЦИЯ 2: Используем кешированную конфигурацию вместо s.weaponConfig
+      const cfg = weaponCfg;
       const isObjectMode = (s.controller === 'object') || (cfg && cfg.fireSource === 'object');
       const triggerHeld = isObjectMode ? true : this.isMouseDown;
       if (cfg.autoFire && triggerHeld) {
