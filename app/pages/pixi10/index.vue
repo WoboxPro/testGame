@@ -1701,20 +1701,20 @@ const engineRef = ref(null);
 const showEntityModal = ref(false);
 const pendingClickPosition = ref(null); // Позиция клика для создания entity
 
-// 🏗️ ENTITY FORM: Данные формы создания entity
+// 🏗️ ENTITY FORM: Данные формы создания entity (дефолт для игроков)
 const entityForm = reactive({
   type: 'unit',
-  faction: 'enemy',
-  visual: 'square',
+  faction: 'player',      // 🎮 По умолчанию ИГРОК
+  visual: 'triangle',     // 🔺 По умолчанию ТРЕУГОЛЬНИК  
   characteristics: {
-    hp: 1,
-    maxHp: 1,
-    speed: 3,
+    hp: 100,              // 💪 Больше жизней для игрока
+    maxHp: 100,
+    speed: 5,             // 🏃 Быстрее
     armor: 0,
-    canMove: false,
+    canMove: true,        // ✅ Может двигаться
     canTakeDamage: true
   },
-  movementController: '' // Пустая строка = нет управления
+  movementController: 'wasd' // 🎮 По умолчанию WASD управление
 });
 
 // Единая реактивная конфигурация оружия для UI и игры
@@ -1998,6 +1998,16 @@ const initializeAddShooterButton = (engine) => {
             
             const worldPos = pendingClickPosition.value;
             
+            // 🔫 ОРУЖИЕ: Добавляем оружие игрокам
+            const weapons = [];
+            if (entityForm.faction === 'player') {
+              weapons.push({
+                weaponId: 'mainGun',
+                weaponConfig: weaponConfig,
+                controller: 'player'
+              });
+            }
+            
             // Создаем entity с данными из формы
             const entityId = engine.addEntity({
               x: worldPos.x,
@@ -2007,7 +2017,7 @@ const initializeAddShooterButton = (engine) => {
               visual: entityForm.visual,
               characteristics: { ...entityForm.characteristics },
               movementController: entityForm.movementController || null,
-              weapons: [] // Пока без оружия
+              weapons: weapons
             });
             
             console.log(`✅ Entity создан из модалки! ID: ${entityId}`, {
