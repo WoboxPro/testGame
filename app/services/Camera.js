@@ -72,38 +72,34 @@ export default class Camera {
     const oldX = this.x;
     const oldY = this.y;
     
-    // DEBUG: показываем какие клавиши нажаты
-    const pressedKeys = Object.keys(keys).filter(key => keys[key]);
-    if (pressedKeys.length > 0) {
-      console.log('🔍 DEBUG Pressed keys:', pressedKeys);
-    }
+    // DEBUG: показываем какие клавиши нажаты (закомментировано для производительности)
+    // const pressedKeys = Object.keys(keys).filter(key => keys[key]);
+    // if (pressedKeys.length > 0) {
+    //   console.log('🔍 DEBUG Pressed keys:', pressedKeys);
+    // }
     
     // Управление камерой: Numpad 1,2,3,5 (как WASD) + обычные цифры как резерв
     if (keys['Numpad1'] || keys['Digit1']) { // Влево
       this.x = Math.max(this.bounds.minX, this.x - this.speed);
       moved = true;
-      console.log('🔍 Moving camera LEFT to:', this.x);
     }
     if (keys['Numpad2'] || keys['Digit2']) { // Вниз (поменяли с 5)
       this.y = Math.min(this.bounds.maxY, this.y + this.speed);
       moved = true;
-      console.log('🔍 Moving camera DOWN to:', this.y);
     }
     if (keys['Numpad3'] || keys['Digit3']) { // Вправо
       this.x = Math.min(this.bounds.maxX, this.x + this.speed);
       moved = true;
-      console.log('🔍 Moving camera RIGHT to:', this.x);
     }
     if (keys['Numpad5'] || keys['Digit5']) { // Вверх (поменяли с 2)
       this.y = Math.max(this.bounds.minY, this.y - this.speed);
       moved = true;
-      console.log('🔍 Moving camera UP to:', this.y);
     }
     
-    // Дебаг движения камеры
-    if (moved && (this.x !== oldX || this.y !== oldY)) {
-      console.log(`📹 Camera moved: ${this.x.toFixed(0)}, ${this.y.toFixed(0)} | bounds: ${this.bounds.maxX}×${this.bounds.maxY}`);
-    }
+    // Дебаг движения камеры (закомментировано для производительности)
+    // if (moved && (this.x !== oldX || this.y !== oldY)) {
+    //   console.log(`📹 Camera moved: ${this.x.toFixed(0)}, ${this.y.toFixed(0)} | bounds: ${this.bounds.maxX}×${this.bounds.maxY}`);
+    // }
     
     return moved;
   }
