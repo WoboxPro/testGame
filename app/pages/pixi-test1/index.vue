@@ -25,7 +25,6 @@ const engineRef = ref(null);
 
 // Берём дефолт конфиг из движка и оборачиваем в reactive при необходимости
 const weaponConfig = reactive(getDefaultWeaponConfig());
-console.log(getDefaultWeaponConfig());
 onMounted(async () => {
   if (process.client) {
     // вариант 1
@@ -39,8 +38,8 @@ onMounted(async () => {
       canvas: { width: 800, height: 600, background: '#111111', showFPS: true },
       world: { 
         type: 'solid',     // solid мир с фиксированными размерами больше canvas
-        width: 1600,       // в 2 раза больше canvas (800 * 2)
-        height: 1200,      // в 2 раза больше canvas (600 * 2)
+        width: 1600,       
+        height: 1200,      
         gravity: {
           enabled: false,
           strength: 0.1
