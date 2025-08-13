@@ -393,6 +393,132 @@ export function getDefaultWeaponConfig() {
   };
 }
 
+/**
+ * 🔫 КЛАСС WEAPONCONFIG: Создает независимые экземпляры конфигурации оружия
+ * Каждый new WeaponConfig() создает отдельный объект без ссылок на другие
+ */
+export class WeaponConfig {
+  constructor(preset = 'default', overrides = {}) {
+    // Применяем пресет
+    this.applyPreset(preset);
+    
+    // Применяем пользовательские настройки поверх пресета
+    Object.assign(this, overrides);
+  }
+  
+  /**
+   * Применяет пресет конфигурации
+   * @param {string} preset - название пресета
+   */
+  applyPreset(preset) {
+    const defaultConfig = getDefaultWeaponConfig();
+    
+    switch(preset) {
+      case 'pistol':
+        Object.assign(this, defaultConfig, {
+          weaponType: 'projectile',
+          fireRate: 300,
+          bulletDamage: 2,
+          maxRange: 300,
+          bulletSpeed: 12
+        });
+        break;
+        
+      case 'sniper':
+        Object.assign(this, defaultConfig, {
+          weaponType: 'raycast',
+          raycastAnimation: 'laser',
+          fireRate: 2000,
+          bulletDamage: 10,
+          maxRange: 1500,
+          penetration: 5
+        });
+        break;
+        
+      case 'shotgun':
+        Object.assign(this, defaultConfig, {
+          weaponType: 'projectile',
+          fireRate: 800,
+          bulletsPerShot: 5,
+          spread: 0.5,
+          maxSpreadAngle: 15,
+          bulletDamage: 1,
+          maxRange: 200
+        });
+        break;
+        
+      case 'machinegun':
+        Object.assign(this, defaultConfig, {
+          weaponType: 'projectile',
+          fireRate: 50,
+          bulletDamage: 1,
+          spread: 0.3,
+          maxSpreadAngle: 8,
+          bulletsPerShot: 1
+        });
+        break;
+        
+      case 'laser':
+        Object.assign(this, defaultConfig, {
+          weaponType: 'raycast',
+          raycastAnimation: 'laser',
+          fireRate: 100,
+          bulletDamage: 2,
+          penetration: 10,
+          maxRange: 800
+        });
+        break;
+        
+      default: // 'default'
+        Object.assign(this, defaultConfig);
+    }
+  }
+  
+  /**
+   * Создает независимую копию текущей конфигурации
+   * @returns {WeaponConfig} новый экземпляр с теми же настройками
+   */
+  clone() {
+    return new WeaponConfig('default', this);
+  }
+  
+  /**
+   * Быстрые методы настройки
+   */
+  setSniper() {
+    this.applyPreset('sniper');
+    return this;
+  }
+  
+  setShotgun() {
+    this.applyPreset('shotgun');
+    return this;
+  }
+  
+  setMachineGun() {
+    this.applyPreset('machinegun');
+    return this;
+  }
+  
+  setLaser() {
+    this.applyPreset('laser');
+    return this;
+  }
+  
+  /**
+   * Создает простую копию для UI (совместимость с reactive)
+   */
+  toPlainObject() {
+    const obj = {};
+    for (const key in this) {
+      if (this.hasOwnProperty(key) && typeof this[key] !== 'function') {
+        obj[key] = this[key];
+      }
+    }
+    return obj;
+  }
+}
+
 export default class PixiShooterEngine {
   /**
    * @param {HTMLElement} mountEl - DOM-элемент для канваса PIXI

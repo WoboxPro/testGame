@@ -1701,20 +1701,20 @@ const engineRef = ref(null);
 const showEntityModal = ref(false);
 const pendingClickPosition = ref(null); // Позиция клика для создания entity
 
-// 🏗️ ENTITY FORM: Данные формы создания entity (дефолт для игроков)
+// 🏗️ ENTITY FORM: Данные формы создания entity (дефолт для врагов)
 const entityForm = reactive({
   type: 'unit',
-  faction: 'player',      // 🎮 По умолчанию ИГРОК
-  visual: 'triangle',     // 🔺 По умолчанию ТРЕУГОЛЬНИК  
+  faction: 'enemy',       // 🔴 По умолчанию ВРАГ
+  visual: 'square',       // 🟩 По умолчанию КВАДРАТ  
   characteristics: {
-    hp: 100,              // 💪 Больше жизней для игрока
-    maxHp: 100,
-    speed: 5,             // 🏃 Быстрее
+    hp: 1,                // 💀 Слабые враги (1 HP)
+    maxHp: 1,
+    speed: 3,             // 🐌 Медленнее
     armor: 0,
-    canMove: true,        // ✅ Может двигаться
+    canMove: false,       // ❌ Статичные враги
     canTakeDamage: true
   },
-  movementController: 'wasd' // 🎮 По умолчанию WASD управление
+  movementController: '' // 🚫 Нет управления для врагов
 });
 
 // Единая реактивная конфигурация оружия для UI и игры

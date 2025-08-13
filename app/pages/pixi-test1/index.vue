@@ -18,13 +18,13 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref, reactive } from 'vue';
-import PixiShooterEngine, { getDefaultWeaponConfig } from '~/services/PixiShooterEngine.js';
+import PixiShooterEngine, { WeaponConfig, getDefaultWeaponConfig } from '~/services/PixiShooterEngine.js';
 
 const pixiContainer = ref(null);
 const engineRef = ref(null);
 
 // Берём дефолт конфиг из движка и оборачиваем в reactive при необходимости
-const weaponConfig = reactive(getDefaultWeaponConfig());
+//const weaponConfig = reactive(getDefaultWeaponConfig());
 onMounted(async () => {
   if (process.client) {
     // вариант 1
@@ -34,7 +34,7 @@ onMounted(async () => {
     //   mountTarget: '.game-canvas'
     // });
     // вариант 3 - тестируем новый World класс с типом 'solid'
-    const engine = new PixiShooterEngine(null, weaponConfig, {
+    const engine = new PixiShooterEngine(null, new WeaponConfig(), {
       canvas: { width: 800, height: 600, background: '#111111', showFPS: true },
       world: { 
         type: 'solid',     // solid мир с фиксированными размерами больше canvas
@@ -73,11 +73,15 @@ onMounted(async () => {
       },
       weapons: [{
         weaponId: 'mainGun',
-        weaponConfig: weaponConfig,  // Используем реактивные настройки из UI
+        weaponConfig: new WeaponConfig(),  // Используем реактивные настройки из UI
         controller: 'player'
       }],
       movementController: 'arrows'  // Управление на стрелки
     });
+   
+    
+    const weaponConfig = new WeaponConfig();
+    weaponConfig.maxRange = 100;
     const playerId2 = engine.addEntity({
       x: 450, 
       y: 300,
