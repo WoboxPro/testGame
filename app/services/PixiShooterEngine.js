@@ -517,21 +517,46 @@ export class WeaponConfig {
     }
     return obj;
   }
+  
+  /**
+   * 🎨 СОЗДАНИЕ ИЗ UI: Создает WeaponConfig из реактивного UI объекта
+   * @param {object} uiConfig - реактивный объект из Vue (weaponConfig)
+   * @returns {WeaponConfig} новый независимый экземпляр
+   */
+  static fromUI(uiConfig) {
+    const config = new WeaponConfig();
+    
+    // Копируем все свойства из UI объекта
+    for (const key in uiConfig) {
+      if (uiConfig.hasOwnProperty(key)) {
+        if (typeof uiConfig[key] === 'object' && uiConfig[key] !== null) {
+          // Глубокое копирование вложенных объектов
+          config[key] = JSON.parse(JSON.stringify(uiConfig[key]));
+        } else {
+          config[key] = uiConfig[key];
+        }
+      }
+    }
+    
+    return config;
+  }
 }
 
 export default class PixiShooterEngine {
   /**
+   * 🎮 ЧИСТЫЙ ДВИЖОК: Создает только канвас и мир, БЕЗ игроков
    * @param {HTMLElement} mountEl - DOM-элемент для канваса PIXI
-   * @param {object} weaponConfig - реактивная конфигурация оружия (Vue reactive)
-   * @param {object} options - дополнительные настройки
+   * @param {object} options - настройки движка
    * @param {string} options.mountTarget - CSS селектор для поиска mount элемента
    * @param {object} options.canvas - настройки canvas (width, height, background, showFPS)
    * @param {object} options.world - настройки мира (type, width, height, gravity, boundaries)
    */
-  constructor(mountEl, weaponConfig, options = {}) {
+  constructor(mountEl, options = {}) {
     this.mountEl = mountEl;
-    this.weaponConfig = weaponConfig || getDefaultWeaponConfig();
     this.options = options || {};
+    
+    // 🔧 СОВМЕСТИМОСТЬ: Временно сохраняем weaponConfig для старого кода
+    this.weaponConfig = getDefaultWeaponConfig();
 
     // PIXI/Application & сцена
     /** @type {PIXI.Application | null} */

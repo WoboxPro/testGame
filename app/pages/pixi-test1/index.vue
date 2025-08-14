@@ -34,7 +34,8 @@ onMounted(async () => {
     //   mountTarget: '.game-canvas'
     // });
     // вариант 3 - тестируем новый World класс с типом 'solid'
-    const engine = new PixiShooterEngine(null, new WeaponConfig(), {
+    // 🎮 СОЗДАЕМ ЧИСТЫЙ ДВИЖОК: только канвас и мир
+    const engine = new PixiShooterEngine(null, {
       canvas: { width: 800, height: 600, background: '#111111', showFPS: true },
       world: { 
         type: 'solid',     // solid мир с фиксированными размерами больше canvas
@@ -80,8 +81,7 @@ onMounted(async () => {
     });
    
     
-    const weaponConfig = new WeaponConfig();
-    weaponConfig.maxRange = 100;
+
     const playerId2 = engine.addEntity({
       x: 450, 
       y: 300,
@@ -97,7 +97,7 @@ onMounted(async () => {
       },
       weapons: [{
         weaponId: 'mainGun',
-        weaponConfig: weaponConfig,  // Используем реактивные настройки из UI
+        weaponConfig: new WeaponConfig('shotgun'),  // 🔫 Независимая конфигурация
         controller: 'player'
       }],
       movementController: 'wasd'  // Управление на стрелки

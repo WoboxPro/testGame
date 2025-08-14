@@ -1692,7 +1692,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref, reactive } from 'vue';
-import PixiShooterEngine from '~/services/PixiShooterEngine.js';
+import PixiShooterEngine, { WeaponConfig } from '~/services/PixiShooterEngine.js';
 
 const pixiContainer = ref(null);
 const engineRef = ref(null);
@@ -2001,10 +2001,19 @@ const initializeAddShooterButton = (engine) => {
             // 🔫 ОРУЖИЕ: Добавляем оружие игрокам
             const weapons = [];
             if (entityForm.faction === 'player') {
+              // 🎯 ОСТАЛЬНЫЕ ИГРОКИ: независимая копия через класс из UI данных
+              const independentConfig = WeaponConfig.fromUI(weaponConfig);
+              
               weapons.push({
                 weaponId: 'mainGun',
-                weaponConfig: weaponConfig,
+                weaponConfig: independentConfig, // 🔧 Класс из UI данных
                 controller: 'player'
+              });
+              
+              console.log('🔫 Создан WeaponConfig из UI для нового игрока:', {
+                weaponType: independentConfig.weaponType,
+                fireRate: independentConfig.fireRate,
+                bulletDamage: independentConfig.bulletDamage
               });
             }
             
@@ -2102,8 +2111,8 @@ const applyAllSettings = async () => {
       sectorSize: engineSettings.spatialGrid.sectorSize
     };
     
-    // Создаем новый движок с новыми настройками
-    const newEngine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
+    // 🎮 ЧИСТЫЙ ДВИЖОК: создаем только канвас и мир
+    const newEngine = new PixiShooterEngine(pixiContainer.value, {
       canvas: {
         width: canvasSettings.width,
         height: canvasSettings.height,
@@ -2136,7 +2145,7 @@ const applyAllSettings = async () => {
       },
       weapons: [{
         weaponId: 'mainGun',
-        weaponConfig: weaponConfig,
+        weaponConfig: weaponConfig, // 🎨 ПЕРВЫЙ ИГРОК: UI реактивность (прямая ссылка)
         controller: 'player'
       }],
       movementController: 'arrows'
@@ -2171,8 +2180,8 @@ const applyAllSettings = async () => {
 
 onMounted(async () => {
   if (process.client && pixiContainer.value) {
-    // Создаем движок с начальными canvas и engine настройками
-    const engine = new PixiShooterEngine(pixiContainer.value, weaponConfig, {
+    // 🎮 ЧИСТЫЙ ДВИЖОК: создаем только канвас и мир
+    const engine = new PixiShooterEngine(pixiContainer.value, {
       canvas: {
         width: canvasSettings.width,
         height: canvasSettings.height,
@@ -2205,7 +2214,7 @@ onMounted(async () => {
       },
       weapons: [{
         weaponId: 'mainGun',
-        weaponConfig: weaponConfig,
+        weaponConfig: weaponConfig, // 🎨 ПЕРВЫЙ ИГРОК: UI реактивность (прямая ссылка)
         controller: 'player'
       }],
       movementController: 'arrows'
