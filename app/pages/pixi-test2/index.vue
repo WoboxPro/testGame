@@ -3,7 +3,9 @@
     <div class="info">
       <h1>🎮 PixiGame 2.0</h1>
     </div>
-    <div ref="gameContainer" class="game-area"></div>
+    <div id="game-container" class="game-area"></div>
+    <div id="game-container2" class="game-area"></div>
+
   </div>
 </template>
 
@@ -11,11 +13,10 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { PixiGame } from '~/services/new/pixiGame.js';
 
-const gameContainer = ref(null);
 let game = null;
 
 onMounted(async () => {
-  if (process.client && gameContainer.value) {
+  if (process.client) {
     try {
       console.log('🚀 Создаем PixiGame по вашей архитектуре...');
       
@@ -33,9 +34,28 @@ onMounted(async () => {
       const myCanvas = game.createCanvas({
         width: 800,
         height: 600,
-        backgroundColor: '#333333' // Серый фон незанятых областей
+        backgroundColor: '#333333', // Серый фон незанятых областей
+        containerId: 'game-container'  // 🎯 ID DOM элемента куда помещать канвас
       });
-      
+      const myCanvas2 = game.createCanvas({
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333', // Серый фон незанятых областей
+        containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
+      });
+      const myCamera4 = game.createCamera({
+        id: 'main_camera',
+        width: 400,           // Половина канваса
+        height: 600,          // Вся высота
+        x: 0,                 // Левая половина канваса
+        y: 0,
+        focusX: 0,            // Смотрит на центр мира
+        focusY: 0,
+        world: myWorld,
+        canvas: myCanvas2,
+        zoom: 0.8,            // Уменьшаем zoom чтобы видеть больше объектов
+        priority: 1
+      });
       // 📷 Создаем первую камеру (основная, занимает левую половину)
       const myCamera1 = game.createCamera({
         id: 'main_camera',
@@ -81,8 +101,8 @@ onMounted(async () => {
         priority: 3
       });
       
-      // 🚀 Запускаем канвас
-      await game.startCanvas(myCanvas, gameContainer.value);
+      // 🚀 Запускаем канвас (теперь сам найдет контейнер по ID)
+      await game.startCanvas(myCanvas);
       
       // 🧪 Добавляем тестовые объекты в мир (ближе к центру, чтобы все камеры их видели)
       myWorld.addEntity({ x: 0, y: 0, type: 'center', name: 'Центр' });

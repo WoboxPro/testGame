@@ -65,7 +65,7 @@ export class PixiGame {
   /**
    * 🚀 Запустить канвас
    */
-  async startCanvas(canvas, domContainer) {
+  async startCanvas(canvas, domContainer = null) {
     await canvas.start(domContainer);
     
     // 🔗 Добавляем отложенные камеры

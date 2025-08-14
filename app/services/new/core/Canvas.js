@@ -12,6 +12,7 @@ export class Canvas {
     this.width = options.width || 800;
     this.height = options.height || 600;
     this.backgroundColor = options.backgroundColor || '#333333'; // Цвет незанятых областей
+    this.containerId = options.containerId || null; // 🎯 ID DOM элемента
     
     // 🎮 PIXI приложение
     this.app = null;
@@ -20,13 +21,13 @@ export class Canvas {
     // 📷 Камеры привязанные к этому канвасу
     this.cameras = new Map(); // id -> Camera
     
-    console.log(`🖼️ Canvas создан: ${this.width}×${this.height}, фон=${this.backgroundColor}`);
+    console.log(`🖼️ Canvas создан: ${this.width}×${this.height}, фон=${this.backgroundColor}, containerId=${this.containerId}`);
   }
   
   /**
    * 🚀 Запустить PIXI приложение
    */
-  async start(domContainer) {
+  async start(domContainer = null) {
     if (this.isStarted) {
       console.warn('⚠️ Canvas уже запущен');
       return;
@@ -44,11 +45,26 @@ export class Canvas {
         autoDensity: true
       });
       
+      // 📱 Определяем куда добавлять канвас
+      let targetContainer = domContainer;
+      
+      if (!targetContainer && this.containerId) {
+        // 🎯 Ищем по ID если контейнер не передан
+        targetContainer = document.getElementById(this.containerId);
+        if (!targetContainer) {
+          throw new Error(`DOM элемент с ID '${this.containerId}' не найден`);
+        }
+      }
+      
+      if (!targetContainer) {
+        throw new Error('Не указан DOM контейнер для канваса');
+      }
+      
       // 📱 Добавляем в DOM
-      domContainer.appendChild(this.app.canvas);
+      targetContainer.appendChild(this.app.canvas);
       
       this.isStarted = true;
-      console.log(`✅ Canvas запущен в DOM, размер: ${this.width}×${this.height}`);
+      console.log(`✅ Canvas запущен в DOM элемент: ${this.containerId || 'переданный контейнер'}, размер: ${this.width}×${this.height}`);
       
     } catch (error) {
       console.error('❌ Ошибка запуска Canvas:', error);
