@@ -30,6 +30,10 @@ export class Camera {
     this.zoom = options.zoom || 1.0;
     this.priority = options.priority || 1; // Порядок отрисовки
     
+    // 🎛️ Фильтрация объектов
+    this.visibleTypes = options.visibleTypes || 'all'; // 'all' или массив типов ['building', 'unit']
+    this.hiddenTypes = options.hiddenTypes || []; // Массив скрытых типов ['bullet', 'effect']
+    
     // 🎮 PIXI контейнеры
     this.container = null;
     this.mask = null;
@@ -147,6 +151,25 @@ export class Camera {
   }
   
   /**
+   * 🎛️ Проверить должен ли объект отображаться в этой камере
+   */
+  _shouldRenderEntity(entity) {
+    // 🔍 Проверяем скрытые типы
+    if (this.hiddenTypes.includes(entity.type)) {
+      return false;
+    }
+    
+    // 🔍 Проверяем видимые типы
+    if (this.visibleTypes !== 'all') {
+      if (!this.visibleTypes.includes(entity.type)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  /**
    * 🔲 Обновить рамку камеры
    */
   _updateBorder() {
@@ -212,11 +235,14 @@ export class Camera {
     // 🧹 Очищаем старые графические объекты
     this.container.removeChildren();
     
-    // 🎨 Рендерим все сущности из мира
+    // 🎨 Рендерим отфильтрованные сущности из мира
     const entities = this.world.getAllEntities();
     
     for (const entity of entities) {
-      this._renderEntity(entity);
+      // 🎛️ Проверяем фильтр перед рендерингом
+      if (this._shouldRenderEntity(entity)) {
+        this._renderEntity(entity);
+      }
     }
   }
   
@@ -256,6 +282,50 @@ export class Camera {
     
     // 🎯 Рисуем в зависимости от типа
     switch (entity.type) {
+      // 🏠 ЗДАНИЯ - большие квадраты
+      case 'building':
+        graphics.rect(-10 * this.zoom, -10 * this.zoom, 20 * this.zoom, 20 * this.zoom);
+        graphics.fill({ color: 0x8B4513 }); // Коричневый
+        break;
+        
+      // 👥 ЮНИТЫ - средние круги  
+      case 'unit':
+        graphics.circle(0, 0, 7 * this.zoom);
+        graphics.fill({ color: 0x00FF00 }); // Зеленый
+        break;
+        
+      // 💎 РЕСУРСЫ - ромбы
+      case 'resource':
+        const size = 6 * this.zoom;
+        graphics.poly([
+          -size, 0,    // лево
+          0, -size,    // верх
+          size, 0,     // право
+          0, size      // низ
+        ]);
+        graphics.fill({ color: 0xFFD700 }); // Золотой
+        break;
+        
+      // 🔫 ПУЛИ - маленькие красные точки
+      case 'bullet':
+        graphics.circle(0, 0, 2 * this.zoom);
+        graphics.fill({ color: 0xFF4500 }); // Оранжево-красный
+        break;
+        
+      // ✨ ЭФФЕКТЫ - мерцающие звезды
+      case 'effect':
+        const star = 5 * this.zoom;
+        graphics.star(0, 0, 6, star, star * 0.5);
+        graphics.fill({ color: 0xFF00FF }); // Фиолетовый
+        break;
+        
+      // 🌟 ЧАСТИЦЫ - крошечные точки
+      case 'particle':
+        graphics.circle(0, 0, 1 * this.zoom);
+        graphics.fill({ color: 0xFFFFFF }); // Белый
+        break;
+        
+      // 🔴 СТАРЫЕ ТИПЫ для совместимости
       case 'center':
         graphics.circle(0, 0, 8 * this.zoom);
         graphics.fill({ color: 0xFF0000 }); // Красный
@@ -273,7 +343,7 @@ export class Camera {
         
       default:
         graphics.circle(0, 0, 4 * this.zoom);
-        graphics.fill({ color: 0xFFFFFF }); // Белый
+        graphics.fill({ color: 0xAAAAAA }); // Серый
         break;
     }
     

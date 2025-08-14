@@ -1,10 +1,12 @@
 <template>
   <div class="container">
     <div class="info">
-      <h1>🎮 PixiGame 2.0</h1>
+      <h1>🎮 PixiGame 2.0 - Два канваса</h1>
     </div>
-    <div id="game-container" class="game-area"></div>
-    <div id="game-container2" class="game-area"></div>
+    <div class="canvas-row">
+      <div id="game-container" class="game-area"></div>
+      <div id="game-container2" class="game-area"></div>
+    </div>
 
   </div>
 </template>
@@ -44,8 +46,8 @@ onMounted(async () => {
         containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
       });
       const myCamera4 = game.createCamera({
-        id: 'main_camera',
-        width: 400,           // Половина канваса
+        id: 'main_camera2',
+        width: 800,           // Половина канваса
         height: 600,          // Вся высота
         x: 0,                 // Левая половина канваса
         y: 0,
@@ -53,8 +55,10 @@ onMounted(async () => {
         focusY: 0,
         world: myWorld,
         canvas: myCanvas2,
-        zoom: 0.8,            // Уменьшаем zoom чтобы видеть больше объектов
-        priority: 1
+        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
+        priority: 1,
+        hiddenTypes: ['bullet', 'effect', 'particle']    // Скрываем пули, эффекты, частицы
+
       });
       // 📷 Создаем первую камеру (основная, занимает левую половину)
       const myCamera1 = game.createCamera({
@@ -71,7 +75,7 @@ onMounted(async () => {
         priority: 1
       });
       
-      // 📷 Создаем вторую камеру (мини-карта, правый верх)
+      // 📷 Создаем вторую камеру (мини-карта, правый верх) 
       const myCamera2 = game.createCamera({
         id: 'mini_camera',
         width: 200,           // Маленькая камера
@@ -83,7 +87,10 @@ onMounted(async () => {
         world: myWorld,      // ТОТ ЖЕ МИР!
         canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
         zoom: 0.1,           // Меньший зум для обзора
-        priority: 2          // Рисуется поверх
+        priority: 2,         // Рисуется поверх
+        // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
+        visibleTypes: ['building', 'unit', 'resource'],  // Только здания, юниты, ресурсы
+        hiddenTypes: ['bullet', 'effect', 'particle']    // Скрываем пули, эффекты, частицы
       });
       
       // 📷 Создаем третью камеру (детали, правый низ)
@@ -98,29 +105,43 @@ onMounted(async () => {
         world: myWorld,      // ТОТ ЖЕ МИР!
         canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
         zoom: 2,           // Слегка увеличенный зум (было 2.0)
-        priority: 3
+        priority: 3,
+        hiddenTypes: ['resource']    // Скрываем пули, эффекты, частицы
+
       });
       
-      // 🚀 Запускаем канвас (теперь сам найдет контейнер по ID)
+      // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
       await game.startCanvas(myCanvas);
+      await game.startCanvas(myCanvas2);
       
-      // 🧪 Добавляем тестовые объекты в мир (ближе к центру, чтобы все камеры их видели)
-      myWorld.addEntity({ x: 0, y: 0, type: 'center', name: 'Центр' });
-      myWorld.addEntity({ x: -100, y: -80, type: 'corner', name: 'Левый верх' });
-      myWorld.addEntity({ x: -120, y: -80, type: 'corner', name: 'Левый верх' });
-
-      myWorld.addEntity({ x: -80, y: -80, type: 'corner', name: 'Левый верх' });
-      myWorld.addEntity({ x: 100, y: 80, type: 'corner', name: 'Правый низ' });
-         myWorld.addEntity({ x: 120, y: 80, type: 'corner', name: 'Правый низ' });
-                  myWorld.addEntity({ x: 80, y: 80, type: 'corner', name: 'Правый низ' });
-
-      myWorld.addEntity({ x: -50, y: 40, type: 'random', name: 'Случайный 1' });
-      myWorld.addEntity({ x: 80, y: -60, type: 'random', name: 'Случайный 2' });
-      myWorld.addEntity({ x: 30, y: 30, type: 'random', name: 'Случайный 3' });
-      myWorld.addEntity({ x: -80, y: 0, type: 'random', name: 'Слева' });
-      myWorld.addEntity({ x: 0, y: -50, type: 'random', name: 'Сверху' });
-      myWorld.addEntity({ x: 60, y: 0, type: 'random', name: 'Справа' });
-      myWorld.addEntity({ x: 0, y: 60, type: 'random', name: 'Снизу' });
+      // 🧪 Добавляем тестовые объекты разных типов для демонстрации фильтрации
+      
+      // 🏠 ЗДАНИЯ (будут видны в мини-карте)
+      myWorld.addEntity({ x: -100, y: -80, type: 'building', name: 'База 1' });
+      myWorld.addEntity({ x: 100, y: 80, type: 'building', name: 'База 2' });
+      myWorld.addEntity({ x: 0, y: 0, type: 'building', name: 'Центральная база' });
+      
+      // 👥 ЮНИТЫ (будут видны в мини-карте)
+      myWorld.addEntity({ x: -50, y: -30, type: 'unit', name: 'Солдат 1' });
+      myWorld.addEntity({ x: 50, y: 30, type: 'unit', name: 'Солдат 2' });
+      myWorld.addEntity({ x: 0, y: -60, type: 'unit', name: 'Командир' });
+      
+      // 💎 РЕСУРСЫ (будут видны в мини-карте)
+      myWorld.addEntity({ x: -80, y: 0, type: 'resource', name: 'Руда' });
+      myWorld.addEntity({ x: 80, y: 0, type: 'resource', name: 'Кристаллы' });
+      
+      // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
+      myWorld.addEntity({ x: -20, y: 10, type: 'bullet', name: 'Пуля 1' });
+      myWorld.addEntity({ x: 20, y: -10, type: 'bullet', name: 'Пуля 2' });
+      myWorld.addEntity({ x: 30, y: 20, type: 'bullet', name: 'Пуля 3' });
+      
+      // ✨ ЭФФЕКТЫ (НЕ будут видны в мини-карте)
+      myWorld.addEntity({ x: -30, y: 40, type: 'effect', name: 'Взрыв 1' });
+      myWorld.addEntity({ x: 40, y: -30, type: 'effect', name: 'Дым' });
+      
+      // 🌟 ЧАСТИЦЫ (НЕ будут видны в мини-карте)
+      myWorld.addEntity({ x: -10, y: -20, type: 'particle', name: 'Искра 1' });
+      myWorld.addEntity({ x: 10, y: 50, type: 'particle', name: 'Искра 2' });
       
       console.log('✅ PixiGame 2.0 запущен с гибкой архитектурой!');
       console.log('🌍 1 мир, 1 канвас, 3 камеры в разных областях');
@@ -170,6 +191,13 @@ onUnmounted(() => {
 .info p {
   font-size: 14px;
   color: #666;
+}
+
+.canvas-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .game-area {
