@@ -1502,32 +1502,33 @@ export default class PixiShooterEngine {
     }
 
     // 🏗️ ENTITY SYSTEM: Коллизии игроков с препятствиями  
-    if (this.entityManager) {
-      const playerEntities = this.entityManager.getAllEntities().filter(entity => 
-        entity.faction === 'player' && entity.isAlive
-      );
-      
-      for (const player of playerEntities) {
-        for (const obstacle of this.obstacles) {
-          if (obstacle.isAlive && obstacle.entityType === 'box' && checkPlayerObstacleCollision(player.sprite, obstacle)) {
-            if (this.respawnCallback) this.respawnCallback(obstacle);
-          }
-        }
-      }
-    }
+    // 🚫 ОТКЛЮЧЕНО: Убираем убийство врагов касанием при движении
+    // if (this.entityManager) {
+    //   const playerEntities = this.entityManager.getAllEntities().filter(entity => 
+    //     entity.faction === 'player' && entity.isAlive
+    //   );
+    //   
+    //   for (const player of playerEntities) {
+    //     for (const obstacle of this.obstacles) {
+    //       if (obstacle.isAlive && obstacle.entityType === 'box' && checkPlayerObstacleCollision(player.sprite, obstacle)) {
+    //         if (this.respawnCallback) this.respawnCallback(obstacle);
+    //       }
+    //     }
+    //   }
+    // }
 
-    // 🏗️ ENTITY SYSTEM: Движение игроков с учетом границ мира
+    // 🏗️ ENTITY SYSTEM: Движение ВСЕХ entity с учетом границ мира
     const worldBounds = {
       width: this.world.width,
       height: this.world.height
     };
     
     if (this.entityManager) {
-      const playerEntities = this.entityManager.getAllEntities().filter(entity => 
-        entity.faction === 'player' && entity.isAlive
+      const allEntities = this.entityManager.getAllEntities().filter(entity => 
+        entity.isAlive  // 🔧 ВСЕ живые entity, не только игроки!
       );
       
-      for (const entity of playerEntities) {
+      for (const entity of allEntities) {
         constrainPlayerToBounds(entity.sprite, worldBounds);
       }
     }

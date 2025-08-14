@@ -66,8 +66,8 @@ onMounted(async () => {
       faction: 'player',
       visual: 'triangle',
       characteristics: {
-        hp: 100,
-        maxHp: 100,
+        hp: 1,
+        maxHp: 1,
         speed: 5,
         canMove: true,
         canTakeDamage: true
