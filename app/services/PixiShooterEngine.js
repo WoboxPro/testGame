@@ -129,6 +129,7 @@ class EntityManager {
    * @param {string} options.type - тип сущности ('unit', 'structure')
    * @param {string} options.visual - визуал ('triangle', 'square', 'circle')
    * @param {string} options.faction - фракция ('player', 'enemy', 'neutral')
+   * @param {string} options.displayName - имя для отображения (автогенерируется если null)
    * @param {Object} options.characteristics - игровые характеристики
    * @param {Array} options.weapons - массив оружий с настройками
    * @param {string} options.movementController - контроллер движения (null, 'wasd', 'arrows', 'mouse')
@@ -139,11 +140,15 @@ class EntityManager {
     type = 'unit', 
     visual = 'triangle', 
     faction = 'neutral',
+    displayName = null,
     characteristics = {},
     weapons = [],
     movementController = null 
   } = {}) {
     const id = this._entitySeq++;
+    
+    // 🏷️ Автогенерация имени если не задано:
+    const entityDisplayName = displayName || `${faction.charAt(0).toUpperCase() + faction.slice(1)} ${id}`;
     
     // Создаем PIXI спрайт в зависимости от типа визуала
     const sprite = this._createVisual(visual, x, y);
@@ -171,6 +176,7 @@ class EntityManager {
       type,                  // 'unit', 'structure'
       visual,                // 'triangle', 'square', 'circle'
       faction,               // 'player', 'enemy', 'neutral'
+      displayName: entityDisplayName, // 🏷️ Имя для отображения и статистики
       
       // 📊 ХАРАКТЕРИСТИКИ: Игровые свойства
       characteristics: finalCharacteristics,
@@ -886,18 +892,30 @@ export default class PixiShooterEngine {
   // ---------- СТРЕЛЬБА (RAYCAST) ----------
   _createRaycastFor(shooter) {
     if (!this.app || !shooter) return;
-    // 📦 ОПТИМИЗАЦИЯ 2: Используем кешированную weaponConfig из _tick()
-    const cfg = this.weaponConfig;
+    const cfg = shooter.weaponConfig; // 🎯 Используем weaponConfig стреляющего
     const currentTime = Date.now();
     if (!canFireWeapon(currentTime, shooter.lastFireTime || 0, cfg, shooter.ammoState)) return;
 
     const baseAngle = this._getFireAngleFor(shooter);
 
+    // 🎯 ПОДГОТОВКА ПОЛНОЙ ИНФОРМАЦИИ О СТРЕЛЯЮЩЕМ:
+    const shooterInfo = {
+      id: shooter.id,
+      faction: shooter.faction || 'neutral',
+      displayName: shooter.displayName || `${shooter.faction || 'Unknown'} ${shooter.id || ''}`,
+      x: shooter.sprite?.x || shooter.x,
+      y: shooter.sprite?.y || shooter.y,
+      teamId: shooter.teamId || null
+    };
+
     for (let i = 0; i < cfg.bulletsPerShot; i++) {
       const finalAngle = calculateFinalAngle(baseAngle, i, cfg);
       const rayMaxRange = calculateRangeWithSpread(cfg);
-      this._performRaycast(shooter.sprite.x, shooter.sprite.y, finalAngle, rayMaxRange, cfg.penetration, cfg.maxRicochets);
+      // 🎨 ПЕРЕДАЁМ SHOOTER INFO В RAYCAST:
+      this._performRaycast(shooter.sprite.x, shooter.sprite.y, finalAngle, rayMaxRange, cfg.penetration, cfg.maxRicochets, false, shooterInfo, cfg);
     }
+    
+    console.log(`🔫 Raycast создан: ${shooterInfo.displayName} (${shooterInfo.faction}) -> ${cfg.name || 'raycast'}`);
 
     createMuzzleFlash(shooter.sprite.x, shooter.sprite.y, this.app, this.impactEffects);
 
@@ -911,7 +929,7 @@ export default class PixiShooterEngine {
     shooter.lastFireTime = currentTime;
   }
 
-  _performRaycast(startX, startY, angle, maxRange, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge = false) {
+  _performRaycast(startX, startY, angle, maxRange, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge = false, shooterInfo = {}, weaponConfig = null) {
     if (!this.app) return;
     const stepSize = 5;
     let currentX = startX;
@@ -920,6 +938,7 @@ export default class PixiShooterEngine {
     const dirY = Math.sin(angle);
     let travelDistance = 0;
     const hitTargets = [];
+    const cfg = weaponConfig || this.weaponConfig; // 🎯 Используем переданный config или дефолтный
 
     while (travelDistance < maxRange && penetrationLeft > 0) {
       currentX += dirX * stepSize;
@@ -934,7 +953,7 @@ export default class PixiShooterEngine {
         hasTriggeredScreenEdge = true;
       }
 
-      if (this.weaponConfig.ricochetWalls && ricochetsLeft > 0) {
+      if (cfg.ricochetWalls && ricochetsLeft > 0) {
         const ric = calculateRaycastWallRicochet(currentX, currentY, angle, this.worldBounds);
         if (ric.hasRicocheted) {
           currentX = ric.x; currentY = ric.y;
@@ -942,19 +961,19 @@ export default class PixiShooterEngine {
           const fakeTicker = { elapsedMS: 0 };
           this._triggerBulletEvent(fakeBullet, 'onRicochet', fakeTicker);
 
-          if (this.weaponConfig.raycastAnimation === 'laser') {
+          if (cfg.raycastAnimation === 'laser') {
             createRayVisual(startX, startY, currentX, currentY, this.app, this.rayEffects);
-          } else if (this.weaponConfig.raycastAnimation === 'impact') {
+          } else if (cfg.raycastAnimation === 'impact') {
             createImpactPoint(currentX, currentY, 'ricochet', this.app, this.impactEffects);
           }
           // 👻 invisible - никаких эффектов рикошета от стен
 
           ricochetsLeft -= 1;
-          return this._performRaycast(currentX, currentY, ric.angle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge);
+          return this._performRaycast(currentX, currentY, ric.angle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge, shooterInfo, cfg);
         }
       }
 
-              if (checkScreenBounds({ x: currentX, y: currentY }, this.worldBounds, this.weaponConfig)) break;
+              if (checkScreenBounds({ x: currentX, y: currentY }, this.worldBounds, cfg)) break;
 
       for (const obstacle of this.obstacles) {
         if (obstacle.isAlive && !hitTargets.includes(obstacle)) {
@@ -963,34 +982,56 @@ export default class PixiShooterEngine {
           const distance = Math.sqrt(dx * dx + dy * dy);
           const obstacleRadius = 20; // TODO: хранить на объекте
           if (distance <= obstacleRadius) {
+            
+            // 🚫 ПРОВЕРКА ДРУЖЕСТВЕННОГО ОГНЯ ДЛЯ RAYCAST:
+            const rayFaction = shooterInfo.faction || 'neutral';
+            const targetEntity = this.entityManager.getEntity(obstacle.entityId);
+            const targetFaction = targetEntity?.faction || obstacle.faction || 'neutral';
+            
+            if (rayFaction === targetFaction) {
+              console.log(`🚫 Дружественный огонь (raycast): ${shooterInfo.displayName} (${rayFaction}) не бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})`);
+              continue; // Пропускаем дружественные цели
+            }
+            
+            console.log(`💥 Попадание (raycast): ${shooterInfo.displayName} (${rayFaction}) бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})!`);
+            
             hitTargets.push(obstacle);
-            dealDamage(obstacle, this.weaponConfig.bulletDamage, this.respawnCallback);
+            const wasKilled = dealDamage(obstacle, cfg.bulletDamage, this.respawnCallback);
+            
+            // 🏆 KILL TRACKING ДЛЯ RAYCAST:
+            if (wasKilled) {
+              const distance = Math.round(Math.sqrt(
+                Math.pow(currentX - startX, 2) + 
+                Math.pow(currentY - startY, 2)
+              ));
+              console.log(`💪 KILL (raycast): ${shooterInfo.displayName} убил ${targetEntity?.displayName || 'врага'} с ${cfg.name || 'raycast'} на дистанции ${distance}px!`);
+            }
 
             const fakeBullet = { x: currentX, y: currentY };
             const fakeTicker = { elapsedMS: 0 };
             this._triggerBulletEvent(fakeBullet, 'onHitEnemy', fakeTicker, { target: obstacle });
 
-            if (this.weaponConfig.raycastAnimation === 'impact' || this.weaponConfig.raycastAnimation === 'invisible') {
+            if (cfg.raycastAnimation === 'impact' || cfg.raycastAnimation === 'invisible') {
               createImpactPoint(currentX, currentY, 'hit', this.app, this.impactEffects);
             }
             // 👻 invisible - показываем только попадания в цели, НЕ показываем луч
 
             penetrationLeft -= 1;
 
-            if (penetrationLeft <= 0 && this.weaponConfig.ricochetEnemies && ricochetsLeft > 0) {
+            if (penetrationLeft <= 0 && cfg.ricochetEnemies && ricochetsLeft > 0) {
               const rb = { x: currentX, y: currentY };
               const ft = { elapsedMS: 0 };
               this._triggerBulletEvent(rb, 'onRicochet', ft, { target: obstacle });
-              if (this.weaponConfig.raycastAnimation === 'laser') {
+              if (cfg.raycastAnimation === 'laser') {
                 createRayVisual(startX, startY, currentX, currentY, this.app, this.rayEffects);
-              } else if (this.weaponConfig.raycastAnimation === 'impact') {
+              } else if (cfg.raycastAnimation === 'impact') {
                 createImpactPoint(currentX, currentY, 'ricochet', this.app, this.impactEffects);
               }
               // 👻 invisible - никаких эффектов рикошета от врагов
               const randomAngle = Math.random() * Math.PI * 2;
               ricochetsLeft -= 1;
               penetrationLeft = 1;
-              return this._performRaycast(currentX, currentY, randomAngle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge);
+              return this._performRaycast(currentX, currentY, randomAngle, maxRange - travelDistance, penetrationLeft, ricochetsLeft, hasTriggeredScreenEdge, shooterInfo, cfg);
             }
 
             break;
@@ -1003,9 +1044,9 @@ export default class PixiShooterEngine {
     const fakeTicker = { elapsedMS: 0 };
     this._triggerBulletEvent(fakeBullet, 'onExpire', fakeTicker);
 
-    if (this.weaponConfig.raycastAnimation === 'laser') {
+    if (cfg.raycastAnimation === 'laser') {
       createRayVisual(startX, startY, currentX, currentY, this.app, this.rayEffects);
-    } else if (this.weaponConfig.raycastAnimation === 'impact') {
+    } else if (cfg.raycastAnimation === 'impact') {
       createImpactPoint(currentX, currentY, 'end', this.app, this.impactEffects);
     }
     // 👻 invisible - никаких эффектов окончания луча
@@ -1020,6 +1061,16 @@ export default class PixiShooterEngine {
 
     const baseAngle = this._getFireAngleFor(shooter);
 
+    // 🎯 ПОДГОТОВКА ПОЛНОЙ ИНФОРМАЦИИ О СТРЕЛЯЮЩЕМ:
+    const shooterInfo = {
+      id: shooter.id,
+      faction: shooter.faction || 'neutral',
+      displayName: shooter.displayName || `${shooter.faction || 'Unknown'} ${shooter.id || ''}`,
+      x: shooter.sprite?.x || shooter.x,
+      y: shooter.sprite?.y || shooter.y,
+      teamId: shooter.teamId || null
+    };
+
     for (let i = 0; i < cfg.bulletsPerShot; i++) {
       const finalAngle = calculateFinalAngle(baseAngle, i, cfg);
       const vx = Math.cos(finalAngle) * cfg.bulletSpeed;
@@ -1029,9 +1080,12 @@ export default class PixiShooterEngine {
       const spawnX = cfg.spawnAtCursor ? this.mousePosition.x : shooter.sprite.x;
       const spawnY = cfg.spawnAtCursor ? this.mousePosition.y : shooter.sprite.y;
 
-      const bullet = createBulletHelper(spawnX, spawnY, vx, vy, cfg, bulletMaxRange);
+      // 🎨 СОЗДАНИЕ ПУЛИ С ПОЛНОЙ OWNERSHIP ИНФОРМАЦИЕЙ:
+      const bullet = createBulletHelper(spawnX, spawnY, vx, vy, cfg, bulletMaxRange, shooterInfo);
       this.bullets.push(bullet);
       this.app.stage.addChild(bullet);
+      
+      console.log(`🔫 Пуля создана: ${shooterInfo.displayName} (${shooterInfo.faction}) -> ${cfg.name || 'unknown'}`);
     }
 
     consumeAmmo(shooter.ammoState, cfg, cfg.bulletsPerShot);
@@ -1064,7 +1118,10 @@ export default class PixiShooterEngine {
       id: entity.id,
       sprite: entity.sprite,
       controller: 'player',
-      weaponConfig: entity.weapons[0].weaponConfig // Берем первое оружие
+      weaponConfig: entity.weapons[0].weaponConfig, // Берем первое оружие
+      // 🎯 ВАЖНО: Передаём фракцию и имя для ownership!
+      faction: entity.faction,
+      displayName: entity.displayName
     };
   }
 
@@ -1234,7 +1291,10 @@ export default class PixiShooterEngine {
               weaponConfig: weapon.weaponConfig,
               lastFireTime: weapon.lastFireTime,
               ammoState: weapon.ammoState,
-              reloadStartTime: weapon.reloadStartTime
+              reloadStartTime: weapon.reloadStartTime,
+              // 🎯 ВАЖНО: Передаём фракцию и имя для ownership!
+              faction: entity.faction,
+              displayName: entity.displayName
             };
             
             if (cfg.weaponType === 'raycast') this._createRaycastFor(compatShooter);
@@ -1338,9 +1398,32 @@ export default class PixiShooterEngine {
         // Старый способ: проверяем все препятствия подряд
         for (const obstacle of this.obstacles) {
           if (obstacle.isAlive && checkBulletObstacleCollision(b, obstacle)) {
+            
+            // 🚫 ПРОВЕРКА ДРУЖЕСТВЕННОГО ОГНЯ:
+            const bulletFaction = b.ownership?.faction || 'neutral';
+            const targetEntity = this.entityManager.getEntity(obstacle.entityId);
+            const targetFaction = targetEntity?.faction || obstacle.faction || 'neutral';
+            
+            if (bulletFaction === targetFaction) {
+              console.log(`🚫 Дружественный огонь: ${b.ownership?.displayName} (${bulletFaction}) не бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})`);
+              continue; // Пропускаем дружественные цели
+            }
+            
+            console.log(`💥 Попадание: ${b.ownership?.displayName} (${bulletFaction}) бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})!`);
+            
             if (b.penetrationLeft > 0) {
-              dealDamage(obstacle, b.damage, this.respawnCallback);
+              const wasKilled = dealDamage(obstacle, b.damage, this.respawnCallback);
               this._triggerBulletEvent(b, 'onHitEnemy', ticker, { target: obstacle });
+              
+              // 🏆 KILL TRACKING (если цель убита):
+              if (wasKilled) {
+                const distance = Math.round(Math.sqrt(
+                  Math.pow(b.x - b.ownership.spawnPosition.x, 2) + 
+                  Math.pow(b.y - b.ownership.spawnPosition.y, 2)
+                ));
+                console.log(`💪 KILL: ${b.ownership?.displayName} убил ${targetEntity?.displayName || 'врага'} с ${b.ownership?.weaponType} на дистанции ${distance}px!`);
+              }
+              
               b.penetrationLeft -= 1;
 
               if (b.penetrationLeft <= 0) {

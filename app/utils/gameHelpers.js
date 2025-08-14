@@ -199,9 +199,10 @@ export function createObstacle(x = 200, y = 250, health = 1) {
  * @param {number} vy - скорость по Y
  * @param {Object} weaponConfig - конфигурация оружия
  * @param {number} maxRange - максимальная дальность
+ * @param {Object} shooterInfo - информация о стреляющем
  * @returns {PIXI.Graphics} объект снаряда
  */
-export function createBullet(x, y, vx, vy, weaponConfig, maxRange) {
+export function createBullet(x, y, vx, vy, weaponConfig, maxRange, shooterInfo = {}) {
   const bullet = new PIXI.Graphics();
   bullet.entityType = 'bullet';
   
@@ -211,6 +212,24 @@ export function createBullet(x, y, vx, vy, weaponConfig, maxRange) {
   
   bullet.circle(0, 0, bulletRadius).fill(0xffff00);
   bullet.position.set(x, y);
+  
+  // 🎯 ПОЛНАЯ СИСТЕМА OWNERSHIP:
+  bullet.ownership = {
+    // 🔒 ДЛЯ КОЛЛИЗИЙ (быстро):
+    faction: shooterInfo.faction || 'neutral',           // 'player', 'enemy', 'neutral'
+    
+    // 🎯 ДЛЯ СТАТИСТИКИ (детально):
+    entityId: shooterInfo.id || null,                    // 'player_001', 'enemy_042'
+    displayName: shooterInfo.displayName || 'Unknown',   // 'Player 1', 'Bot Killer'
+    
+    // 🔫 ДЛЯ АНАЛИТИКИ:
+    weaponType: weaponConfig.name || 'unknown',          // 'pistol', 'sniper', 'shotgun'
+    teamId: shooterInfo.teamId || null,                  // Для командных режимов
+    
+    // 📍 ДЛЯ ЭФФЕКТОВ:
+    spawnPosition: { x: shooterInfo.x || x, y: shooterInfo.y || y },
+    fireTimestamp: Date.now()
+  };
   
   // Физические свойства
   bullet.vx = vx;

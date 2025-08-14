@@ -1998,19 +1998,21 @@ const initializeAddShooterButton = (engine) => {
             
             const worldPos = pendingClickPosition.value;
             
-            // 🔫 ОРУЖИЕ: Добавляем оружие игрокам
+            // 🔫 ОРУЖИЕ: Добавляем оружие всем entity с контроллером движения
             const weapons = [];
-            if (entityForm.faction === 'player') {
-              // 🎯 ОСТАЛЬНЫЕ ИГРОКИ: независимая копия через класс из UI данных
+            if (entityForm.movementController && entityForm.movementController !== '') {
+              // 🎯 НЕЗАВИСИМАЯ КОПИЯ: через класс из UI данных для всех управляемых entity
               const independentConfig = WeaponConfig.fromUI(weaponConfig);
               
               weapons.push({
                 weaponId: 'mainGun',
                 weaponConfig: independentConfig, // 🔧 Класс из UI данных
-                controller: 'player'
+                controller: 'player'  // 🎮 Все управляемые entity могут стрелять
               });
               
-              console.log('🔫 Создан WeaponConfig из UI для нового игрока:', {
+              console.log('🔫 Создан WeaponConfig из UI для управляемого entity:', {
+                faction: entityForm.faction,
+                movementController: entityForm.movementController,
                 weaponType: independentConfig.weaponType,
                 fireRate: independentConfig.fireRate,
                 bulletDamage: independentConfig.bulletDamage

@@ -139,11 +139,11 @@ onMounted(async () => {
       }
       // weapons: [] - без оружия пока что
     });
-    engine.addEntity({
+        engine.addEntity({
       x: 240,
-      y: 290, 
+      y: 350, 
       type: 'unit',
-      faction: 'enemy',
+      faction: 'neutral',
       visual: 'triangle',
       characteristics: {
         hp: 1,           // Слабый враг
@@ -153,6 +153,20 @@ onMounted(async () => {
       }
       // weapons: [] - без оружия пока что
     });
+    // engine.addEntity({
+    //   x: 240,
+    //   y: 290, 
+    //   type: 'unit',
+    //   faction: 'enemy',
+    //   visual: 'triangle',
+    //   characteristics: {
+    //     hp: 1,           // Слабый враг
+    //     maxHp: 1,
+    //     canMove: false,  // Статичный
+    //     canTakeDamage: true
+    //   }
+    //   // weapons: [] - без оружия пока что
+    // });
     console.log(`🎯 Создано сущностей: Игрок ID=${playerId}, Враг ID=${enemyId}`);
     console.log(`🎮 Визуально: 1 зеленый треугольник (игрок) + 1 красный квадрат (враг)`);
   }
