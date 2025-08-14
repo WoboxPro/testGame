@@ -741,7 +741,29 @@ export default class PixiShooterEngine {
     const originalRespawnFn = createRespawnFunction(2000, this.worldBounds);
     this.respawnCallback = (obj) => {
       console.log(`🔄 РЕСПАВН вызван! obj.health=${obj.health}, obj.isAlive=${obj.isAlive}`);
+      
+      // 🚨 КРИТИЧНО: Обновляем entity.isAlive при смерти sprite
+      if (obj.entityId && this.entityManager) {
+        const entity = this.entityManager.getEntity(obj.entityId);
+        if (entity) {
+          entity.isAlive = false; // ⚰️ Останавливаем стрельбу мертвого entity
+          console.log(`💀 Entity ${obj.entityId} помечен как мертвый (isAlive = false)`);
+        }
+      }
+      
       originalRespawnFn(obj);
+      
+      // 🔄 При респавне восстанавливаем entity.isAlive
+      if (obj.entityId && this.entityManager) {
+        setTimeout(() => {
+          const entity = this.entityManager.getEntity(obj.entityId);
+          if (entity) {
+            entity.isAlive = true; // 🌟 Возвращаем к жизни
+            console.log(`🌟 Entity ${obj.entityId} воскрешен (isAlive = true)`);
+          }
+        }, 2000); // Тот же delay что и у originalRespawnFn
+      }
+      
       console.log(`💀 После респавна: obj.isAlive=${obj.isAlive}, obj.visible=${obj.visible}`);
     };
     console.log(`🔄 Respawn функция создана для worldBounds: ${this.worldBounds.width}x${this.worldBounds.height}`);
