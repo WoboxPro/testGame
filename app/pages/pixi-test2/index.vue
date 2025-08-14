@@ -2,6 +2,8 @@
   <div class="container">
     <div class="info">
       <h1>🎮 PixiGame 2.0 - Два канваса</h1>
+      <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
+      <p>🔲 <strong>Границы мира:</strong> Голубые линии показывают границы мира (1200×900px). Видны на всех камерах с разным зумом!</p>
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
@@ -25,11 +27,17 @@ onMounted(async () => {
       // 🎮 Создаем движок
       game = new PixiGame();
       
-      // 🌍 Создаем мир с размерами и фоном
+      // 🌍 Создаем мир с размерами, фоном и границами
       const myWorld = game.createWorld({
         width: 1200,
         height: 900,
-        backgroundColor: '#ff0000'
+        backgroundColor: '#ff0000', // Красный фон для отладки
+        borders: {
+          enabled: true,        // Включаем границы
+          width: 2,            // Толщина 6px
+          color: 0x00FFFF,     // Голубой цвет
+          style: 'solid'       // Сплошная линия
+        }
       });
       
       // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
@@ -55,7 +63,7 @@ onMounted(async () => {
         focusY: 0,
         world: myWorld,
         canvas: myCanvas2,
-        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
+        zoom: 0.7,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
         style: {
@@ -77,7 +85,7 @@ onMounted(async () => {
         focusY: 0,
         world: myWorld,
         canvas: myCanvas,
-        zoom: 0.8,            // Уменьшаем zoom чтобы видеть больше объектов
+        zoom: 0.5,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         style: {
           border: {
@@ -99,10 +107,10 @@ onMounted(async () => {
         focusY: 0,
         world: myWorld,      // ТОТ ЖЕ МИР!
         canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 0.1,           // Меньший зум для обзора
+        zoom: 0.2,           // Меньший зум для обзора
         priority: 2,         // Рисуется поверх
         // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
-        visibleTypes: ['building', 'unit', 'resource'],  // Только здания, юниты, ресурсы
+        visibleTypes: ['building', 'unit', 'resource', 'world_border'],  // + границы мира!
         hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
         style: {
           border: {
@@ -140,34 +148,53 @@ onMounted(async () => {
       await game.startCanvas(myCanvas);
       await game.startCanvas(myCanvas2);
       
-      // 🧪 Добавляем тестовые объекты разных типов для демонстрации фильтрации
+      // 🖱️ Настраиваем обработчики кликов для тестирования координат
+      myCanvas.onCameraClick = (camera, worldCoords, canvasCoords) => {
+        console.log(`🎯 ЛЕВЫЙ КАНВАС - Клик в камере ${camera.id}:`);
+        console.log(`   📍 Мир: (${worldCoords.x.toFixed(2)}, ${worldCoords.y.toFixed(2)})`);
+        console.log(`   🖱️ Канвас: (${canvasCoords.canvasX.toFixed(1)}, ${canvasCoords.canvasY.toFixed(1)})`);
+        console.log(`   🔍 Зум: ${camera.zoom}x`);
+      };
       
-      // 🏠 ЗДАНИЯ (будут видны в мини-карте)
-      myWorld.addEntity({ x: -100, y: -80, type: 'building', name: 'База 1' });
-      myWorld.addEntity({ x: 100, y: 80, type: 'building', name: 'База 2' });
-      myWorld.addEntity({ x: 0, y: 0, type: 'building', name: 'Центральная база' });
+      myCanvas2.onCameraClick = (camera, worldCoords, canvasCoords) => {
+        console.log(`🎯 ПРАВЫЙ КАНВАС - Клик в камере ${camera.id}:`);
+        console.log(`   📍 Мир: (${worldCoords.x.toFixed(2)}, ${worldCoords.y.toFixed(2)})`);
+        console.log(`   🖱️ Канвас: (${canvasCoords.canvasX.toFixed(1)}, ${canvasCoords.canvasY.toFixed(1)})`);
+        console.log(`   🔍 Зум: ${camera.zoom}x`);
+      };
+      
+      // 🧪 Добавляем тестовые сущности с новой системой форм!
+      
+      // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
+      myWorld.addStructure(-100, -80, { name: 'База 1', form: 'building', size: 25 });
+      myWorld.addStructure(100, 80, { name: 'База 2', form: 'building', size: 20 });
+      myWorld.addStructure(0, 0, { name: 'Центр', form: 'building', size: 30, color: 0xFF6B35 });
+      myWorld.addStructure(-60, 60, { name: 'Башня', form: 'tower', size: 15, color: 0x654321 });
       
       // 👥 ЮНИТЫ (будут видны в мини-карте)
-      myWorld.addEntity({ x: -50, y: -30, type: 'unit', name: 'Солдат 1' });
-      myWorld.addEntity({ x: 50, y: 30, type: 'unit', name: 'Солдат 2' });
-      myWorld.addEntity({ x: 0, y: -60, type: 'unit', name: 'Командир' });
+      myWorld.addUnit(-50, -30, { name: 'Солдат 1', form: 'soldier', size: 8 });
+      myWorld.addUnit(50, 30, { name: 'Солдат 2', form: 'soldier', size: 8 });
+      myWorld.addUnit(0, -60, { name: 'Командир', form: 'soldier', size: 10, color: 0x0000FF });
+      myWorld.addUnit(70, -20, { name: 'Танк', form: 'tank', size: 12, color: 0x228B22 });
       
-      // 💎 РЕСУРСЫ (будут видны в мини-карте)
-      myWorld.addEntity({ x: -80, y: 0, type: 'resource', name: 'Руда' });
-      myWorld.addEntity({ x: 80, y: 0, type: 'resource', name: 'Кристаллы' });
+      // 🌿 ДЕКОРАЦИИ/РЕСУРСЫ (будут видны в мини-карте, но скрыты в detail)
+      myWorld.addDecoration(-80, 0, { name: 'Руда', form: 'diamond', size: 8, color: 0xFFD700, type: 'resource' });
+      myWorld.addDecoration(80, 0, { name: 'Кристаллы', form: 'diamond', size: 6, color: 0x9370DB, type: 'resource' });
+      myWorld.addDecoration(-40, 70, { name: 'Дерево 1', form: 'tree', size: 12, type: 'decoration' });
+      myWorld.addDecoration(40, -70, { name: 'Дерево 2', form: 'tree', size: 10, type: 'decoration' });
       
       // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
-      myWorld.addEntity({ x: -20, y: 10, type: 'bullet', name: 'Пуля 1' });
-      myWorld.addEntity({ x: 20, y: -10, type: 'bullet', name: 'Пуля 2' });
-      myWorld.addEntity({ x: 30, y: 20, type: 'bullet', name: 'Пуля 3' });
+      myWorld.addEntity({ x: -20, y: 10, type: 'bullet', form: 'bullet', size: 3, name: 'Пуля 1', color: 0xFF4500 });
+      myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
+      myWorld.addEntity({ x: 30, y: 20, type: 'bullet', form: 'circle', size: 2, name: 'Пуля 3', color: 0xDC143C });
       
       // ✨ ЭФФЕКТЫ (НЕ будут видны в мини-карте)
-      myWorld.addEntity({ x: -30, y: 40, type: 'effect', name: 'Взрыв 1' });
-      myWorld.addEntity({ x: 40, y: -30, type: 'effect', name: 'Дым' });
+      myWorld.addEntity({ x: -30, y: 40, type: 'effect', form: 'explosion', size: 8, name: 'Взрыв 1', color: 0xFF4500 });
+      myWorld.addEntity({ x: 40, y: -30, type: 'effect', form: 'star', size: 6, name: 'Дым', color: 0x696969 });
       
       // 🌟 ЧАСТИЦЫ (НЕ будут видны в мини-карте)
-      myWorld.addEntity({ x: -10, y: -20, type: 'particle', name: 'Искра 1' });
-      myWorld.addEntity({ x: 10, y: 50, type: 'particle', name: 'Искра 2' });
+      myWorld.addEntity({ x: -10, y: -20, type: 'particle', form: 'circle', size: 1, name: 'Искра 1', color: 0xFFFFFF });
+      myWorld.addEntity({ x: 10, y: 50, type: 'particle', form: 'circle', size: 1, name: 'Искра 2', color: 0xFFFACD });
       
       console.log('✅ PixiGame 2.0 запущен с гибкой архитектурой!');
       console.log('🌍 1 мир, 1 канвас, 3 камеры в разных областях');

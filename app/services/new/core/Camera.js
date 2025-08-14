@@ -245,6 +245,9 @@ export class Camera {
     // 🧹 Очищаем старые графические объекты
     this.container.removeChildren();
     
+    // 🔍 Устанавливаем масштаб контейнера (применится ко всем объектам)
+    this.container.scale.set(this.zoom);
+    
     // 🎨 Рендерим отфильтрованные сущности из мира
     const entities = this.world.getAllEntities();
     
@@ -268,96 +271,24 @@ export class Camera {
     const cameraX = relativeX + this.width / 2;
     const cameraY = relativeY + this.height / 2;
     
-    // 🕵️ ОТЛАДКА: логируем для всех объектов в detail_camera
-    if (this.id === 'detail_camera') {
-      console.log(`🎯 ${this.id}: entity(${entity.x},${entity.y}) type=${entity.type} → focus(${this.focusX},${this.focusY}) → relative(${relativeX.toFixed(1)},${relativeY.toFixed(1)}) → camera(${cameraX.toFixed(1)},${cameraY.toFixed(1)})`);
-    }
+
     
     // 📏 Проверяем, видна ли сущность в области камеры
     const margin = 200; // Увеличенный запас для отладки
     const isVisible = !(cameraX < -margin || cameraX > this.width + margin ||
         cameraY < -margin || cameraY > this.height + margin);
     
-    // 🕵️ ОТЛАДКА: логируем отсечение объектов в detail_camera
-    if (this.id === 'detail_camera') {
-      console.log(`   → visible=${isVisible} (bounds: ${-margin} < ${cameraX.toFixed(1)} < ${this.width + margin}, ${-margin} < ${cameraY.toFixed(1)} < ${this.height + margin})`);
-    }
-    
     if (!isVisible) {
       return; // Не видна, пропускаем
     }
     
-    // 🎨 Создаем графический объект для сущности
+    // 🎨 Создаем графический объект
     const graphics = new PIXI.Graphics();
     
-    // 🎯 Рисуем в зависимости от типа
-    switch (entity.type) {
-      // 🏠 ЗДАНИЯ - большие квадраты
-      case 'building':
-        graphics.rect(-10 * this.zoom, -10 * this.zoom, 20 * this.zoom, 20 * this.zoom);
-        graphics.fill({ color: 0x8B4513 }); // Коричневый
-        break;
-        
-      // 👥 ЮНИТЫ - средние круги  
-      case 'unit':
-        graphics.circle(0, 0, 7 * this.zoom);
-        graphics.fill({ color: 0x00FF00 }); // Зеленый
-        break;
-        
-      // 💎 РЕСУРСЫ - ромбы
-      case 'resource':
-        const size = 6 * this.zoom;
-        graphics.poly([
-          -size, 0,    // лево
-          0, -size,    // верх
-          size, 0,     // право
-          0, size      // низ
-        ]);
-        graphics.fill({ color: 0xFFD700 }); // Золотой
-        break;
-        
-      // 🔫 ПУЛИ - маленькие красные точки
-      case 'bullet':
-        graphics.circle(0, 0, 2 * this.zoom);
-        graphics.fill({ color: 0xFF4500 }); // Оранжево-красный
-        break;
-        
-      // ✨ ЭФФЕКТЫ - мерцающие звезды
-      case 'effect':
-        const star = 5 * this.zoom;
-        graphics.star(0, 0, 6, star, star * 0.5);
-        graphics.fill({ color: 0xFF00FF }); // Фиолетовый
-        break;
-        
-      // 🌟 ЧАСТИЦЫ - крошечные точки
-      case 'particle':
-        graphics.circle(0, 0, 1 * this.zoom);
-        graphics.fill({ color: 0xFFFFFF }); // Белый
-        break;
-        
-      // 🔴 СТАРЫЕ ТИПЫ для совместимости
-      case 'center':
-        graphics.circle(0, 0, 8 * this.zoom);
-        graphics.fill({ color: 0xFF0000 }); // Красный
-        break;
-        
-      case 'corner':
-        graphics.rect(-6 * this.zoom, -6 * this.zoom, 12 * this.zoom, 12 * this.zoom);
-        graphics.fill({ color: 0x00FF00 }); // Зеленый
-        break;
-        
-      case 'random':
-        graphics.circle(0, 0, 6 * this.zoom);
-        graphics.fill({ color: 0x0080FF }); // Синий
-        break;
-        
-      default:
-        graphics.circle(0, 0, 4 * this.zoom);
-        graphics.fill({ color: 0xAAAAAA }); // Серый
-        break;
-    }
+    // 🎯 Entity рендерит СЕБЯ (правильная архитектура!)
+    entity.render(graphics);
     
-    // 📍 Устанавливаем позицию В КОНТЕЙНЕРЕ КАМЕРЫ (контейнер уже сдвинут в нужное место канваса)
+    // 📍 Камера отвечает ТОЛЬКО за позиционирование
     graphics.x = cameraX;
     graphics.y = cameraY;
     
