@@ -139,7 +139,7 @@ onMounted(async () => {
       }
       // weapons: [] - без оружия пока что
     });
-        engine.addEntity({
+    engine.addEntity({
       x: 240,
       y: 350, 
       type: 'unit',
