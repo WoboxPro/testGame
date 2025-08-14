@@ -1,114 +1,88 @@
 /**
- * 🌍 World - Игровой мир с центрированной системой координат
+ * 🌍 World - Мир с сущностями
  * 
- * Особенности:
- * - Центр мира в точке (0, 0)
- * - Координаты могут быть отрицательными
- * - Мир независим от канваса (может быть больше экрана)
+ * Хранит все игровые объекты в центрированной системе координат
  */
 
 export class World {
-  constructor(width = 2000, height = 1500) {
-    this.width = width;
-    this.height = height;
+  constructor(options = {}) {
+    this.id = options.id || `world_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    this.width = options.width || 2000;
+    this.height = options.height || 1500;
+    this.backgroundColor = options.backgroundColor || '#0a0a0a';
     
-    // 🎯 ЦЕНТРИРОВАННАЯ СИСТЕМА: границы мира
+    // 🎯 Центрированная система координат
+    this.halfWidth = this.width / 2;
+    this.halfHeight = this.height / 2;
+    
     this.bounds = {
-      left: -width / 2,    // -1000
-      right: width / 2,    // +1000  
-      top: -height / 2,    // -750
-      bottom: height / 2   // +750
+      left: -this.halfWidth,
+      right: this.halfWidth,
+      top: -this.halfHeight,
+      bottom: this.halfHeight,
     };
     
-    // 📊 Метаданные мира
-    this.entities = new Map(); // id -> entity
-    this.entityIdCounter = 1;
+    // 📦 Хранилище сущностей
+    this.entities = new Map();
+    this._entityIdCounter = 1;
     
-    console.log(`🌍 World создан: ${width}x${height}, центр (0,0)`);
-    console.log(`📐 Границы: X[${this.bounds.left}, ${this.bounds.right}], Y[${this.bounds.top}, ${this.bounds.bottom}]`);
+    console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
   }
   
   /**
-   * Проверить находится ли точка в границах мира
+   * ➕ Добавить сущность в мир
    */
-  isInBounds(x, y) {
-    return x >= this.bounds.left && 
-           x <= this.bounds.right && 
-           y >= this.bounds.top && 
-           y <= this.bounds.bottom;
-  }
-  
-  /**
-   * Ограничить координаты границами мира
-   */
-  clampToBounds(x, y) {
-    return {
-      x: Math.max(this.bounds.left, Math.min(this.bounds.right, x)),
-      y: Math.max(this.bounds.top, Math.min(this.bounds.bottom, y))
+  addEntity(entityData) {
+    const id = this._entityIdCounter++;
+    const entity = {
+      id,
+      x: entityData.x || 0,
+      y: entityData.y || 0,
+      type: entityData.type || 'unknown',
+      name: entityData.name || `Entity_${id}`,
+      ...entityData
     };
-  }
-  
-  /**
-   * Добавить сущность в мир
-   */
-  addEntity(entity) {
-    const id = this.entityIdCounter++;
-    entity.id = id;
-    entity.worldId = this.id;
     
     this.entities.set(id, entity);
-    
-    console.log(`➕ Entity добавлен в мир: ID=${id}, pos=(${entity.x}, ${entity.y})`);
+    console.log(`➕ Entity добавлен: ID=${id}, позиция=(${entity.x}, ${entity.y}), тип=${entity.type}`);
     return id;
   }
   
   /**
-   * Удалить сущность из мира
-   */
-  removeEntity(id) {
-    if (this.entities.has(id)) {
-      this.entities.delete(id);
-      console.log(`➖ Entity удален из мира: ID=${id}`);
-      return true;
-    }
-    return false;
-  }
-  
-  /**
-   * Получить сущность по ID
+   * 🔍 Получить сущность по ID
    */
   getEntity(id) {
     return this.entities.get(id);
   }
   
   /**
-   * Получить все сущности
+   * 📊 Получить все сущности
    */
   getAllEntities() {
     return Array.from(this.entities.values());
   }
   
   /**
-   * Получить сущности в области
+   * 🗑️ Удалить сущность
    */
-  getEntitiesInArea(centerX, centerY, radius) {
-    return this.getAllEntities().filter(entity => {
-      const dx = entity.x - centerX;
-      const dy = entity.y - centerY;
-      return Math.sqrt(dx * dx + dy * dy) <= radius;
-    });
+  removeEntity(id) {
+    const removed = this.entities.delete(id);
+    if (removed) {
+      console.log(`🗑️ Entity удален: ID=${id}`);
+    }
+    return removed;
   }
   
   /**
-   * Получить информацию о мире
+   * 📊 Информация о мире
    */
   getInfo() {
     return {
       width: this.width,
       height: this.height,
+      backgroundColor: this.backgroundColor,
       bounds: { ...this.bounds },
-      entityCount: this.entities.size,
-      center: { x: 0, y: 0 }
+      entityCount: this.entities.size
     };
   }
 }

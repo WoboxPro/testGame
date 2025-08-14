@@ -1,12 +1,9 @@
 <template>
   <div class="container">
-    <div class="main-view">
-      <div ref="gameContainer" class="game-area"></div>
+    <div class="info">
+      <h1>🎮 PixiGame 2.0</h1>
     </div>
-    <div class="mini-view">
-      <div ref="miniContainer" class="mini-area"></div>
-      <p class="mini-label">Mini Camera (Zoom 0.3)</p>
-    </div>
+    <div ref="gameContainer" class="game-area"></div>
   </div>
 </template>
 
@@ -15,65 +12,98 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { PixiGame } from '~/services/new/pixiGame.js';
 
 const gameContainer = ref(null);
-const miniContainer = ref(null);
 let game = null;
 
 onMounted(async () => {
   if (process.client && gameContainer.value) {
     try {
-      // 🎮 Создаем движок только с миром (НОВЫЙ гибкий API)
-      game = new PixiGame({
-        worldWidth: 1200,
-        worldHeight: 900
+      console.log('🚀 Создаем PixiGame по вашей архитектуре...');
+      
+      // 🎮 Создаем движок
+      game = new PixiGame();
+      
+      // 🌍 Создаем мир с размерами и фоном
+      const myWorld = game.createWorld({
+        width: 1200,
+        height: 900,
+        backgroundColor: '#ff0000'
       });
       
-      // 🖼️ Создаем канвас вручную
-      const { id: canvasId, canvas } = game.createCanvas(800, 600, {
-        backgroundColor: '#0a0a0a'
+      // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
+      const myCanvas = game.createCanvas({
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333' // Серый фон незанятых областей
       });
       
-      // 📷 Создаем камеру привязанную к канвасу
-      const { id: cameraId, camera } = game.createCamera(canvasId);
+      // 📷 Создаем первую камеру (основная, занимает левую половину)
+      const myCamera1 = game.createCamera({
+        id: 'main_camera',
+        width: 400,           // Половина канваса
+        height: 600,          // Вся высота
+        x: 0,                 // Левая половина канваса
+        y: 0,
+        focusX: 0,            // Смотрит на центр мира
+        focusY: 0,
+        world: myWorld,
+        canvas: myCanvas,
+        zoom: 0.8,            // Уменьшаем zoom чтобы видеть больше объектов
+        priority: 1
+      });
       
-      // 🚀 Запускаем канвас в DOM контейнер
-      await game.startCanvas(canvasId, gameContainer.value);
+      // 📷 Создаем вторую камеру (мини-карта, правый верх)
+      const myCamera2 = game.createCamera({
+        id: 'mini_camera',
+        width: 200,           // Маленькая камера
+        height: 200,
+        x: 600,              // Правая часть канваса
+        y: 0,                // Верх
+        focusX: 0,           // Тоже смотрит на центр
+        focusY: 0,
+        world: myWorld,      // ТОТ ЖЕ МИР!
+        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+        zoom: 0.1,           // Меньший зум для обзора
+        priority: 2          // Рисуется поверх
+      });
       
-      // ▶️ Запускаем игровой цикл
-      game.isRunning = true;
-      game.lastTime = performance.now();
-      game._gameLoop();
+      // 📷 Создаем третью камеру (детали, правый низ)
+      const myCamera3 = game.createCamera({
+        id: 'detail_camera',
+        width: 400,
+        height: 400,
+        x: 400,              // Правая часть
+        y: 200,              // Низ
+        focusX: 0,           // 🎯 Тоже смотрит на центр мира
+        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
+        world: myWorld,      // ТОТ ЖЕ МИР!
+        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+        zoom: 2,           // Слегка увеличенный зум (было 2.0)
+        priority: 3
+      });
       
-      // 🧪 Добавляем несколько тестовых объектов в центрированной системе координат
-      game.addEntity({ x: 0, y: 0, type: 'center', name: 'Center' });
-      game.addEntity({ x: -400, y: -300, type: 'corner', name: 'TopLeft' });
-      game.addEntity({ x: 400, y: 300, type: 'corner', name: 'BottomRight' });
-      game.addEntity({ x: -200, y: 150, type: 'random', name: 'Random1' });
-      game.addEntity({ x: 300, y: -200, type: 'random', name: 'Random2' });
+      // 🚀 Запускаем канвас
+      await game.startCanvas(myCanvas, gameContainer.value);
       
-      // 🖼️📷 ДЕМОНСТРАЦИЯ ГИБКОСТИ: Создаем вторую камеру!
-      if (miniContainer.value) {
-        // Создаем второй канвас для мини-карты
-        const { id: miniCanvasId, canvas: miniCanvas } = game.createCanvas(200, 200, {
-          backgroundColor: '#1a1a3e'
-        });
-        
-        // Создаем вторую камеру для того же мира
-        const { id: miniCameraId, camera: miniCamera } = game.createCamera(miniCanvasId);
-        
-        // Запускаем второй канвас в другой DOM элемент
-        await game.startCanvas(miniCanvasId, miniContainer.value);
-        
-        // Настраиваем мини-камеру: меньший zoom, показываем весь мир
-        miniCamera.setZoom(0.3);
-        miniCamera.setPosition(0, 0); // Центр мира
-        
-        console.log(`🗺️ Mini Camera ID: ${miniCameraId}, Canvas ID: ${miniCanvasId}`);
-      }
+      // 🧪 Добавляем тестовые объекты в мир (ближе к центру, чтобы все камеры их видели)
+      myWorld.addEntity({ x: 0, y: 0, type: 'center', name: 'Центр' });
+      myWorld.addEntity({ x: -100, y: -80, type: 'corner', name: 'Левый верх' });
+      myWorld.addEntity({ x: -120, y: -80, type: 'corner', name: 'Левый верх' });
+
+      myWorld.addEntity({ x: -80, y: -80, type: 'corner', name: 'Левый верх' });
+      myWorld.addEntity({ x: 100, y: 80, type: 'corner', name: 'Правый низ' });
+         myWorld.addEntity({ x: 120, y: 80, type: 'corner', name: 'Правый низ' });
+                  myWorld.addEntity({ x: 80, y: 80, type: 'corner', name: 'Правый низ' });
+
+      myWorld.addEntity({ x: -50, y: 40, type: 'random', name: 'Случайный 1' });
+      myWorld.addEntity({ x: 80, y: -60, type: 'random', name: 'Случайный 2' });
+      myWorld.addEntity({ x: 30, y: 30, type: 'random', name: 'Случайный 3' });
+      myWorld.addEntity({ x: -80, y: 0, type: 'random', name: 'Слева' });
+      myWorld.addEntity({ x: 0, y: -50, type: 'random', name: 'Сверху' });
+      myWorld.addEntity({ x: 60, y: 0, type: 'random', name: 'Справа' });
+      myWorld.addEntity({ x: 0, y: 60, type: 'random', name: 'Снизу' });
       
-      console.log('✅ PixiGame 2.0 запущен с гибкой системой камер!');
-      console.log('🌍 Мир создан с центрированными координатами');
-      console.log(`🖼️ Main Canvas ID: ${canvasId}`);
-      console.log(`📷 Main Camera ID: ${cameraId}`);
+      console.log('✅ PixiGame 2.0 запущен с гибкой архитектурой!');
+      console.log('🌍 1 мир, 1 канвас, 3 камеры в разных областях');
       console.log('📊 Отладочная информация:', game.getDebugInfo());
       
     } catch (error) {
@@ -91,8 +121,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-
-*{
+* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -100,47 +129,32 @@ onUnmounted(() => {
 
 .container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  gap: 20px;
   height: 100vh;
   background: #838383;
   padding: 20px;
+  gap: 20px;
 }
 
-.main-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.info {
+  text-align: center;
+  color: #333;
 }
 
-.mini-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+.info h1 {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.info p {
+  font-size: 14px;
+  color: #666;
 }
 
 .game-area {
   border: 3px solid #333;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.mini-area {
-  border: 2px solid #666;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.mini-label {
-  color: #333;
-  font-family: 'Segoe UI', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-  background: rgba(255,255,255,0.9);
-  padding: 4px 8px;
-  border-radius: 4px;
 }
 </style>

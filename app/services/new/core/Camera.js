@@ -1,197 +1,270 @@
 /**
- * 📷 Camera - Связь между миром и канвасом
+ * 📷 Camera - Камера (viewport в канвасе)
  * 
- * Особенности:
- * - Позиция камеры в мировых координатах
- * - Привязана к конкретному Canvas
- * - Преобразует мировые координаты в экранные
- * - Может следить за объектами
+ * Отображает часть мира в указанной области канваса
  */
 
+import * as PIXI from 'pixi.js';
+
 export class Camera {
-  constructor(canvas, world = null) {
-    this.canvas = canvas;
-    this.world = world;
+  constructor(options = {}) {
+    this.id = options.id || `camera_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     
-    // 📍 Позиция камеры в мировых координатах
-    this.x = 0;  // Камера смотрит на центр мира
-    this.y = 0;
+    // 📐 Размеры камеры
+    this.width = options.width || 800;
+    this.height = options.height || 600;
     
-    // 🔍 Настройки камеры
-    this.zoom = 1.0;
-    this.rotation = 0;
+    // 📍 Позиция камеры В канвасе (где рисовать)
+    this.x = options.x || 0;
+    this.y = options.y || 0;
     
-    // 🎯 Следование за объектом
-    this.target = null;        // ID сущности за которой следить
-    this.followSpeed = 1.0;    // Скорость следования (1.0 = мгновенно)
-    this.followOffset = { x: 0, y: 0 }; // Смещение от цели
+    // 🎯 Фокус камеры В мире (на что смотрим)
+    this.focusX = options.focusX || 0;
+    this.focusY = options.focusY || 0;
     
-    // 🚧 Ограничения движения камеры
-    this.bounds = null; // Установится автоматически если есть world
-    this.setBoundsFromWorld();
+    // 🔗 Привязки
+    this.world = options.world || null;
+    this.canvas = options.canvas || null;
     
-    console.log(`📷 Camera создана: позиция (${this.x}, ${this.y}), привязана к Canvas ${canvas.width}x${canvas.height}`);
+    // ⚙️ Параметры
+    this.zoom = options.zoom || 1.0;
+    this.priority = options.priority || 1; // Порядок отрисовки
+    
+    // 🎮 PIXI контейнеры
+    this.container = null;
+    this.mask = null;
+    this.graphics = new Map(); // entityId -> PIXI.Graphics
+    
+    console.log(`📷 Camera создана: ID=${this.id}, размер=${this.width}×${this.height}, позиция в канвасе=(${this.x}, ${this.y}), фокус=(${this.focusX}, ${this.focusY}), zoom=${this.zoom}, priority=${this.priority}`);
   }
   
   /**
-   * Установить границы камеры из мира
+   * 🔗 Инициализация для канваса (вызывается Canvas.addCamera)
    */
-  setBoundsFromWorld() {
-    if (!this.world) return;
+  _initForCanvas(canvas) {
+    if (!canvas.app) {
+      throw new Error('Canvas должен быть запущен перед добавлением камеры');
+    }
     
-    // Камера не может показать за пределы мира
-    const halfCanvasW = this.canvas.width / 2;
-    const halfCanvasH = this.canvas.height / 2;
+    // 📦 Создаем контейнер для этой камеры
+    this.container = new PIXI.Container();
+    canvas.app.stage.addChild(this.container);
     
-    this.bounds = {
-      left: this.world.bounds.left + halfCanvasW,
-      right: this.world.bounds.right - halfCanvasW,
-      top: this.world.bounds.top + halfCanvasH,
-      bottom: this.world.bounds.bottom - halfCanvasH
-    };
+    // ✂️ Создаем маску для ограничения области рендеринга
+    this.mask = new PIXI.Graphics();
+    this.mask.rect(this.x, this.y, this.width, this.height);
+    this.mask.fill({ color: 0xFFFFFF });
     
-    console.log(`🚧 Границы камеры: X[${this.bounds.left}, ${this.bounds.right}], Y[${this.bounds.top}, ${this.bounds.bottom}]`);
+    this.container.mask = this.mask;
+    canvas.app.stage.addChild(this.mask);
+    
+    // 🔲 Создаем рамку камеры для визуализации границ
+    this.border = new PIXI.Graphics();
+    this._updateBorder();
+    canvas.app.stage.addChild(this.border);
+    
+    console.log(`🔗 Camera инициализирована для Canvas: контейнер, маска и рамка созданы`);
   }
   
   /**
-   * Установить позицию камеры
+   * 🧹 Очистка при удалении из канваса
    */
-  setPosition(x, y) {
-    this.x = x;
-    this.y = y;
-    this._applyBounds();
+  _cleanupFromCanvas() {
+    if (this.container) {
+      this.container.destroy({ children: true });
+      this.container = null;
+    }
+    
+    if (this.mask) {
+      this.mask.destroy();
+      this.mask = null;
+    }
+    
+    if (this.border) {
+      this.border.destroy();
+      this.border = null;
+    }
+    
+    this.graphics.clear();
+    console.log(`🧹 Camera очищена: контейнер, маска и рамка удалены`);
   }
   
   /**
-   * Переместить камеру относительно текущей позиции
+   * 🎯 Установить фокус камеры (координаты в мире)
    */
-  move(deltaX, deltaY) {
-    this.x += deltaX;
-    this.y += deltaY;
-    this._applyBounds();
+  setFocus(worldX, worldY) {
+    this.focusX = worldX;
+    this.focusY = worldY;
   }
   
   /**
-   * Применить ограничения границ
+   * 📍 Установить позицию камеры в канвасе
    */
-  _applyBounds() {
-    if (this.bounds) {
-      this.x = Math.max(this.bounds.left, Math.min(this.bounds.right, this.x));
-      this.y = Math.max(this.bounds.top, Math.min(this.bounds.bottom, this.y));
+  setPosition(canvasX, canvasY) {
+    this.x = canvasX;
+    this.y = canvasY;
+    
+    // 🔄 Обновляем маску
+    if (this.mask) {
+      this.mask.clear();
+      this.mask.rect(this.x, this.y, this.width, this.height);
+      this.mask.fill({ color: 0xFFFFFF });
+    }
+    
+    // 🔄 Обновляем рамку
+    if (this.border) {
+      this._updateBorder();
     }
   }
   
   /**
-   * Установить цель для следования
+   * 🔍 Установить зум
    */
-  setTarget(entityId, followSpeed = 1.0, offset = { x: 0, y: 0 }) {
-    this.target = entityId;
-    this.followSpeed = followSpeed;
-    this.followOffset = offset;
+  setZoom(zoomLevel) {
+    this.zoom = Math.max(0.1, zoomLevel); // Минимальный зум 0.1
     
-    console.log(`🎯 Camera следует за entity ${entityId} (скорость: ${followSpeed})`);
+    // 🔄 Обновляем рамку (чтобы показать новый zoom в подписи)
+    if (this.border) {
+      this._updateBorder();
+    }
   }
   
   /**
-   * Убрать цель следования
+   * 🔲 Обновить рамку камеры
    */
-  clearTarget() {
-    this.target = null;
-    console.log(`🎯 Camera перестала следовать за целью`);
-  }
-  
-  /**
-   * Обновить камеру (вызывается каждый кадр)
-   */
-  update() {
-    if (this.target && this.world) {
-      const entity = this.world.getEntity(this.target);
-      if (entity) {
-        // Целевая позиция с учетом смещения
-        const targetX = entity.x + this.followOffset.x;
-        const targetY = entity.y + this.followOffset.y;
-        
-        // Плавное следование или мгновенное
-        if (this.followSpeed >= 1.0) {
-          this.setPosition(targetX, targetY);
-        } else {
-          // Интерполяция для плавного движения
-          const lerpX = this.x + (targetX - this.x) * this.followSpeed;
-          const lerpY = this.y + (targetY - this.y) * this.followSpeed;
-          this.setPosition(lerpX, lerpY);
-        }
+  _updateBorder() {
+    if (!this.border) return;
+    
+    this.border.clear();
+    
+    // 🎨 Определяем цвет рамки по priority
+    let borderColor;
+    switch (this.priority) {
+      case 1: borderColor = 0x00FF00; break; // Зеленый для основной камеры
+      case 2: borderColor = 0x0080FF; break; // Синий для мини-карты
+      case 3: borderColor = 0xFF8000; break; // Оранжевый для детальной
+      default: borderColor = 0xFFFFFF; break; // Белый по умолчанию
+    }
+    
+    // 🔲 Рисуем рамку (толщина 2px)
+    this.border.rect(this.x, this.y, this.width, this.height);
+    this.border.stroke({ color: borderColor, width: 2 });
+    
+    // 📝 Добавляем подпись камеры в левый верхний угол
+    const text = new PIXI.Text({
+      text: `${this.id} (${this.zoom}x)`,
+      style: {
+        fontSize: 12,
+        fill: borderColor,
+        fontWeight: 'bold'
       }
-    }
+    });
+    
+    text.x = this.x + 4;
+    text.y = this.y + 4;
+    this.border.addChild(text);
   }
   
   /**
-   * Преобразовать мировые координаты в экранные
+   * 🌍➡️📱 Конвертация координат: мир → экран
    */
   worldToScreen(worldX, worldY) {
-    return {
-      x: (worldX - this.x) * this.zoom + this.canvas.centerX,
-      y: (worldY - this.y) * this.zoom + this.canvas.centerY
-    };
+    // 📐 Учитываем фокус камеры, зум и позицию в канвасе
+    const screenX = this.x + (worldX - this.focusX) * this.zoom + this.width / 2;
+    const screenY = this.y + (worldY - this.focusY) * this.zoom + this.height / 2;
+    
+    return { x: screenX, y: screenY };
   }
   
   /**
-   * Преобразовать экранные координаты в мировые
+   * 📱➡️🌍 Конвертация координат: экран → мир
    */
   screenToWorld(screenX, screenY) {
-    return {
-      x: (screenX - this.canvas.centerX) / this.zoom + this.x,
-      y: (screenY - this.canvas.centerY) / this.zoom + this.y
-    };
-  }
-  
-  /**
-   * Проверить видимость точки на экране
-   */
-  isVisible(worldX, worldY, margin = 0) {
-    const screen = this.worldToScreen(worldX, worldY);
-    return screen.x >= -margin && 
-           screen.x <= this.canvas.width + margin && 
-           screen.y >= -margin && 
-           screen.y <= this.canvas.height + margin;
-  }
-  
-  /**
-   * Получить область мира которая видна на экране
-   */
-  getVisibleWorldArea() {
-    const topLeft = this.screenToWorld(0, 0);
-    const bottomRight = this.screenToWorld(this.canvas.width, this.canvas.height);
+    const worldX = this.focusX + (screenX - this.x - this.width / 2) / this.zoom;
+    const worldY = this.focusY + (screenY - this.y - this.height / 2) / this.zoom;
     
-    return {
-      left: topLeft.x,
-      top: topLeft.y,
-      right: bottomRight.x,
-      bottom: bottomRight.y,
-      width: bottomRight.x - topLeft.x,
-      height: bottomRight.y - topLeft.y
-    };
+    return { x: worldX, y: worldY };
   }
   
   /**
-   * Установить zoom
+   * 🎨 Рендеринг камеры (вызывается каждый кадр)
    */
-  setZoom(zoom) {
-    this.zoom = Math.max(0.1, Math.min(5.0, zoom)); // Ограничиваем zoom
-    console.log(`🔍 Camera zoom: ${this.zoom}`);
+  render() {
+    if (!this.world || !this.container) return;
+    
+    // 🧹 Очищаем старые графические объекты
+    this.container.removeChildren();
+    
+    // 🎨 Рендерим все сущности из мира
+    const entities = this.world.getAllEntities();
+    
+    for (const entity of entities) {
+      this._renderEntity(entity);
+    }
   }
   
   /**
-   * Получить информацию о камере
+   * 🎨 Рендеринг одной сущности
+   */
+  _renderEntity(entity) {
+    // 🌍➡️📱 Конвертируем координаты
+    const screenPos = this.worldToScreen(entity.x, entity.y);
+    
+    // 📏 Проверяем, видна ли сущность в этой камере
+    if (screenPos.x < this.x - 20 || screenPos.x > this.x + this.width + 20 ||
+        screenPos.y < this.y - 20 || screenPos.y > this.y + this.height + 20) {
+      return; // Не видна, пропускаем
+    }
+    
+    // 🎨 Создаем графический объект для сущности
+    const graphics = new PIXI.Graphics();
+    
+    // 🎯 Рисуем в зависимости от типа
+    switch (entity.type) {
+      case 'center':
+        graphics.circle(0, 0, 8 * this.zoom);
+        graphics.fill({ color: 0xFF0000 }); // Красный
+        break;
+        
+      case 'corner':
+        graphics.rect(-6 * this.zoom, -6 * this.zoom, 12 * this.zoom, 12 * this.zoom);
+        graphics.fill({ color: 0x00FF00 }); // Зеленый
+        break;
+        
+      case 'random':
+        graphics.circle(0, 0, 6 * this.zoom);
+        graphics.fill({ color: 0x0080FF }); // Синий
+        break;
+        
+      default:
+        graphics.circle(0, 0, 4 * this.zoom);
+        graphics.fill({ color: 0xFFFFFF }); // Белый
+        break;
+    }
+    
+    // 📍 Устанавливаем позицию (относительно камеры)
+    graphics.x = screenPos.x - this.x;
+    graphics.y = screenPos.y - this.y;
+    
+    // ➕ Добавляем в контейнер камеры
+    this.container.addChild(graphics);
+  }
+  
+  /**
+   * 📊 Информация о камере
    */
   getInfo() {
     return {
+      id: this.id,
+      width: this.width,
+      height: this.height,
       position: { x: this.x, y: this.y },
+      focus: { x: this.focusX, y: this.focusY },
       zoom: this.zoom,
-      rotation: this.rotation,
-      target: this.target,
-      followSpeed: this.followSpeed,
-      bounds: this.bounds ? { ...this.bounds } : null,
-      visibleArea: this.getVisibleWorldArea()
+      priority: this.priority,
+      hasWorld: !!this.world,
+      hasCanvas: !!this.canvas,
+      isInitialized: !!this.container
     };
   }
 }
