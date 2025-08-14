@@ -199,8 +199,8 @@ class EntityManager {
     this.entities.set(id, entity);
     this.app.stage.addChild(sprite);
     
-    // 🔧 СОВМЕСТИМОСТЬ: Добавляем врагов в obstacles для коллизий
-    if (faction === 'enemy' && this.engine && this.engine.obstacles) {
+    // 🔧 СОВМЕСТИМОСТЬ: Добавляем врагов и нейтралов в obstacles для коллизий
+    if ((faction === 'enemy' || faction === 'neutral') && this.engine && this.engine.obstacles) {
       // Подготавливаем спрайт для совместимости со старой системой коллизий
       sprite.isAlive = true;
       sprite.entityType = 'box';
@@ -208,7 +208,7 @@ class EntityManager {
       sprite.health = finalCharacteristics.hp; // 🩸 ВАЖНО: Добавляем health для dealDamage
       sprite.maxHealth = finalCharacteristics.maxHp; // 🩸 ВАЖНО: Добавляем maxHealth для respawn
       this.engine.obstacles.push(sprite);
-      console.log(`🔗 Враг добавлен в obstacles: hp=${sprite.health}/${sprite.maxHealth}, isAlive=${sprite.isAlive}`);
+      console.log(`🔗 Entity (${faction}) добавлен в obstacles: hp=${sprite.health}/${sprite.maxHealth}, isAlive=${sprite.isAlive}`);
     }
     
     console.log(`🏗️ Entity создан: id=${id}, type=${type}, faction=${faction}, visual=${visual}, weapons=${weapons.length}`);
@@ -1010,9 +1010,16 @@ export default class PixiShooterEngine {
             const targetEntity = this.entityManager.getEntity(obstacle.entityId);
             const targetFaction = targetEntity?.faction || obstacle.faction || 'neutral';
             
-            if (rayFaction === targetFaction) {
+            // 🚫 ДРУЖЕСТВЕННЫЙ ОГОНЬ: Не бьем своих, кроме нейтралов (они могут бить друг друга)
+            if (rayFaction === targetFaction && rayFaction !== 'neutral') {
               console.log(`🚫 Дружественный огонь (raycast): ${shooterInfo.displayName} (${rayFaction}) не бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})`);
               continue; // Пропускаем дружественные цели
+            }
+            
+            // 🚫 САМОУБИЙСТВО: Нейтралы не бьют сами себя (по ID)
+            if (rayFaction === 'neutral' && targetFaction === 'neutral' && shooterInfo.id === targetEntity?.id) {
+              console.log(`🚫 Самоубийство блокировано: ${shooterInfo.displayName} не бьёт сам себя`);
+              continue;
             }
             
             console.log(`💥 Попадание (raycast): ${shooterInfo.displayName} (${rayFaction}) бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})!`);
@@ -1426,9 +1433,16 @@ export default class PixiShooterEngine {
             const targetEntity = this.entityManager.getEntity(obstacle.entityId);
             const targetFaction = targetEntity?.faction || obstacle.faction || 'neutral';
             
-            if (bulletFaction === targetFaction) {
+            // 🚫 ДРУЖЕСТВЕННЫЙ ОГОНЬ: Не бьем своих, кроме нейтралов (они могут бить друг друга)
+            if (bulletFaction === targetFaction && bulletFaction !== 'neutral') {
               console.log(`🚫 Дружественный огонь: ${b.ownership?.displayName} (${bulletFaction}) не бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})`);
               continue; // Пропускаем дружественные цели
+            }
+            
+            // 🚫 САМОУБИЙСТВО: Нейтралы не бьют сами себя (по ID)
+            if (bulletFaction === 'neutral' && targetFaction === 'neutral' && b.ownership?.entityId === targetEntity?.id) {
+              console.log(`🚫 Самоубийство блокировано: ${b.ownership?.displayName} не бьёт сам себя`);
+              continue;
             }
             
             console.log(`💥 Попадание: ${b.ownership?.displayName} (${bulletFaction}) бьёт ${targetEntity?.displayName || 'target'} (${targetFaction})!`);
