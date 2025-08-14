@@ -32,6 +32,9 @@ export class FPSCounter {
     this.currentFPS = 0;
     this.isEnabled = options.enabled !== false;
     
+    // 🎯 Ticker интеграция (как в PixiShooterEngine)
+    this.lastUpdateTime = 0;
+    
     // 🎯 DOM элемент
     this.element = null;
     
@@ -59,8 +62,8 @@ export class FPSCounter {
     console.log('🚀 Запуск FPS Counter...');
     this.isEnabled = true;
     this._createDOM();
-    this._startCounting();
-    console.log('✅ FPS Counter запущен');
+    // 🎯 НЕ запускаем _startCounting - будет работать через ticker!
+    console.log('✅ FPS Counter запущен (через ticker)');
   }
   
   /**
@@ -74,8 +77,19 @@ export class FPSCounter {
     
     console.log('🛑 Остановка FPS Counter...');
     this.isEnabled = false;
-    this._stopCounting();
+    // 🎯 УДАЛЕНО: _stopCounting - нет больше таймеров
     this._removeDOM();
+    
+    // 🔧 ФИКС: Дополнительная очистка таймеров!
+    if (this.animationFrame) {
+      cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+    if (this.updateTimer) {
+      clearInterval(this.updateTimer);
+      this.updateTimer = null;
+    }
+    
     console.log('✅ FPS Counter остановлен');
   }
   
@@ -122,71 +136,17 @@ export class FPSCounter {
     }
   }
   
-  /**
-   * 🔄 Начать подсчет FPS
-   */
-  _startCounting() {
-    // 📊 Сброс счетчиков
-    this.frameCount = 0;
-    this.lastTime = performance.now();
-    
-    // 🔄 Запуск циклов
-    this._startFrameLoop();
-    this._startUpdateLoop();
-  }
+  // 🎯 УДАЛЕНО: _startCounting
+  // Теперь используем PIXI ticker через _updateFromTicker()
   
-  /**
-   * 🛑 Остановить подсчет FPS
-   */
-  _stopCounting() {
-    // 🛑 Остановка циклов
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
-    }
-    
-    if (this.updateTimer) {
-      clearInterval(this.updateTimer);
-      this.updateTimer = null;
-    }
-  }
+  // 🎯 УДАЛЕНО: _stopCounting
+  // Теперь все таймеры управляются через PIXI ticker
   
-  /**
-   * 🎞️ Цикл подсчета кадров (каждый кадр)
-   */
-  _startFrameLoop() {
-    const countFrame = () => {
-      if (!this.isEnabled) return;
-      
-      this.frameCount++;
-      this.animationFrame = requestAnimationFrame(countFrame);
-    };
-    
-    this.animationFrame = requestAnimationFrame(countFrame);
-  }
+  // 🎯 УДАЛЕНО: _startFrameLoop
+  // Теперь кадры считаются в _updateFromTicker()
   
-  /**
-   * 🔄 Цикл обновления отображения (каждую секунду)
-   */
-  _startUpdateLoop() {
-    this.updateTimer = setInterval(() => {
-      if (!this.isEnabled || !this.element) return;
-      
-      const currentTime = performance.now();
-      const deltaTime = currentTime - this.lastTime;
-      
-      // 📊 Вычисляем FPS
-      this.currentFPS = Math.round((this.frameCount * 1000) / deltaTime);
-      
-      // 🎨 Обновляем отображение
-      this._updateDisplay();
-      
-      // 🔄 Сброс для следующего измерения
-      this.frameCount = 0;
-      this.lastTime = currentTime;
-      
-    }, this.updateInterval);
-  }
+  // 🎯 УДАЛЕНО: _startUpdateLoop  
+  // Теперь используем PIXI ticker через _updateFromTicker()
   
   /**
    * 🎨 Обновить отображение FPS
@@ -227,11 +187,8 @@ export class FPSCounter {
     if (newSettings.updateInterval && newSettings.updateInterval !== this.updateInterval) {
       this.updateInterval = newSettings.updateInterval;
       
-      // 🔄 Перезапускаем таймер
-      if (this.isEnabled) {
-        this._stopCounting();
-        this._startCounting();
-      }
+      // 🎯 УДАЛЕНО: перезапуск таймеров
+      // Теперь все работает через ticker автоматически
     }
     
     console.log('⚙️ FPS Counter настройки обновлены:', newSettings);
@@ -250,12 +207,44 @@ export class FPSCounter {
   }
   
   /**
+   * 🎯 Обновление через PIXI ticker (как в PixiShooterEngine)
+   */
+  _updateFromTicker(ticker) {
+    if (!this.isEnabled || !this.element) return;
+    
+    // Считаем кадры
+    this.frameCount++;
+    
+    // Проверяем нужно ли обновить отображение
+    const currentTime = ticker.lastTime;
+    const deltaTime = currentTime - this.lastUpdateTime;
+    
+    if (deltaTime >= this.updateInterval) {
+      // Вычисляем FPS как в PixiShooterEngine
+      this.currentFPS = Math.round((this.frameCount * 1000) / deltaTime);
+      
+      // Обновляем отображение
+      this._updateDisplay();
+      
+      // Сброс для следующего измерения
+      this.frameCount = 0;
+      this.lastUpdateTime = currentTime;
+    }
+  }
+
+  /**
    * 🧹 Уничтожить счетчик
    */
   destroy() {
     console.log('🧹 Уничтожение FPS Counter...');
     this.stop();
     this._removeDOM();
+    
+    // 🔧 ФИКС: Полная очистка всех ссылок!
+    this.element = null;
+    this.updateTimer = null;
+    this.animationFrame = null;
+    
     console.log('✅ FPS Counter уничтожен');
   }
 }

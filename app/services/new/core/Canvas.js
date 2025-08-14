@@ -123,6 +123,11 @@ export class Canvas {
    * 🛑 Остановить и очистить
    */
   destroy() {
+    // 🔧 ФИКС: Очищаем события canvas!
+    if (this.app && this.app.canvas) {
+      this.app.canvas.removeEventListener('click', this._boundClickHandler);
+    }
+    
     if (this.app) {
       this.app.destroy(true, true);
       this.app = null;
@@ -130,6 +135,7 @@ export class Canvas {
     
     this.cameras.clear();
     this.isStarted = false;
+    this.onCameraClick = null;  // 🔧 ФИКС: очищаем callback!
     // Canvas уничтожен
   }
   
@@ -139,10 +145,11 @@ export class Canvas {
   _setupClickEvents() {
     if (!this.app.canvas) return;
     
+    // 🔧 ФИКС: Сохраняем ссылку на обработчик для очистки!
+    this._boundClickHandler = (event) => this._handleCanvasClick(event);
+    
     // 🖱️ Добавляем обработчик клика на канвас
-    this.app.canvas.addEventListener('click', (event) => {
-      this._handleCanvasClick(event);
-    });
+    this.app.canvas.addEventListener('click', this._boundClickHandler);
     
     // 📱 Делаем канвас интерактивным
     this.app.stage.eventMode = 'static';

@@ -15,8 +15,8 @@ export class CameraController {
     // ⚙️ Настройки управления
     this.settings = {
       // 📍 Движение камеры
-      moveSpeed: options.moveSpeed || 50,        // пикселей за нажатие
-      smoothMove: options.smoothMove || false,   // плавное движение
+      moveSpeed: options.moveSpeed || 1,         // 🎯 1 пиксель за шаг (плавно!)
+      smoothMove: options.smoothMove !== false,  // 🎯 плавное движение по умолчанию
       
       // 🔍 Зум
       zoomStep: options.zoomStep || 0.1,         // шаг зума
@@ -33,7 +33,7 @@ export class CameraController {
     // 🎯 Состояние
     this.pressedKeys = new Set();
     this.lastMoveTime = 0;
-    this.moveInterval = 100; // мс между движениями при зажатой клавише
+    // 🎯 Удаляем moveInterval - будем использовать ticker deltaTime
     
     // 📋 Карта клавиш (Numpad)
     this.keyMap = {
@@ -70,6 +70,7 @@ export class CameraController {
     
     this.isEnabled = true;
     this._addEventListeners();
+    // 🎯 НЕ запускаем _startUpdateLoop - будет работать через ticker!
   }
   
   /**
@@ -80,6 +81,7 @@ export class CameraController {
     
     this.isEnabled = false;
     this._removeEventListeners();
+    // 🎯 НЕ нужно останавливать таймеры - их больше нет!
     this.pressedKeys.clear();
     // CameraController выключен
   }
@@ -108,9 +110,8 @@ export class CameraController {
     
     // Обработчики событий подключены
     
-    // 🔄 Обновление движения
-    this.updateHandler = () => this._update();
-    this._startUpdateLoop();
+    // 🎯 УДАЛЕНО: updateHandler и _startUpdateLoop
+    // Теперь используем PIXI ticker
   }
   
   /**
@@ -119,7 +120,7 @@ export class CameraController {
   _removeEventListeners() {
     document.removeEventListener('keydown', this.keyDownHandler);
     document.removeEventListener('keyup', this.keyUpHandler);
-    this._stopUpdateLoop();
+    // 🎯 УДАЛЕНО: _stopUpdateLoop - больше нет таймеров
   }
   
   /**
@@ -176,7 +177,7 @@ export class CameraController {
   /**
    * ⚡ Выполнить действие
    */
-  _executeAction(action) {
+  _executeAction(action, ticker = null) {
     const camera = this.game.getSelectedCamera();
     
     switch (action) {
@@ -286,22 +287,8 @@ export class CameraController {
     // Камера переключена
   }
   
-  /**
-   * 🔄 Запуск цикла обновления
-   */
-  _startUpdateLoop() {
-    this.updateInterval = setInterval(this.updateHandler, 16); // ~60fps
-  }
-  
-  /**
-   * 🔄 Остановка цикла обновления
-   */
-  _stopUpdateLoop() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
-  }
+  // 🎯 УДАЛЕНЫ: _startUpdateLoop и _stopUpdateLoop
+  // Теперь используем PIXI ticker через _updateFromTicker()
   
   /**
    * ⚙️ Изменить настройки
@@ -330,8 +317,35 @@ export class CameraController {
   /**
    * 🧹 Очистка ресурсов
    */
+  /**
+   * 🎯 Обновление через PIXI ticker (как в PixiShooterEngine)
+   */
+  _updateFromTicker(ticker) {
+    if (!this.isEnabled) return;
+    
+    // Проверяем нажатые клавиши и выполняем движение
+    // Используем deltaTime для плавности движения
+    const currentTime = ticker.lastTime;
+    
+    // Проверяем что прошло достаточно времени для движения (16ms = ~60fps)
+    if (currentTime - this.lastMoveTime >= 16) {
+      
+      // Обрабатываем все нажатые клавиши движения
+      for (const key of this.pressedKeys) {
+        const action = this.keyMap[key];
+        if (action && action.startsWith('move_')) {
+          this._executeAction(action, ticker);
+        }
+      }
+      
+      this.lastMoveTime = currentTime;
+    }
+  }
+
   destroy() {
     this.disable();
+    // 🎯 НЕ нужно останавливать таймеры - их больше нет!
+    this.game = null;        // 🔧 ФИКС: очищаем ссылки!
     // CameraController уничтожен
   }
 }

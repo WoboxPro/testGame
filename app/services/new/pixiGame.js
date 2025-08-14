@@ -15,7 +15,7 @@ export class PixiGame {
   constructor() {
     // 🎮 Состояние движка
     this.isRunning = false;
-    this.lastTime = 0;
+    this.mainApp = null;        // 🎯 Главное PIXI приложение для ticker
     
     // 📊 Хранилища компонентов
     this.worlds = new Map();   // id -> World
@@ -87,31 +87,44 @@ export class PixiGame {
       canvas._pendingCameras = [];
     }
     
-    // ▶️ Запускаем игровой цикл если еще не запущен
+    // ▶️ Запускаем ticker если еще не запущен
     if (!this.isRunning) {
       this.isRunning = true;
-      this.lastTime = performance.now();
-      this._gameLoop();
+      
+      // 🎯 Используем первый канвас как главный для ticker
+      if (!this.mainApp && canvas.app) {
+        this.mainApp = canvas.app;
+        // Подключаемся к ticker как в PixiShooterEngine
+        this.mainApp.ticker.add(this._tick);
+      }
     }
   }
   
   /**
-   * 🔄 Главный игровой цикл
+   * 🔄 Главный tick (как в PixiShooterEngine)
    */
-  _gameLoop = () => {
+  _tick = (ticker) => {
     if (!this.isRunning) return;
     
-    const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastTime;
-    this.lastTime = currentTime;
-    
-    // 🎨 Рендерим все канвасы
-    this.canvases.forEach(canvas => {
-      canvas.render();
-    });
-    
-    // 🔁 Следующий кадр
-    requestAnimationFrame(this._gameLoop);
+    try {
+      // 🎮 Обновляем CameraController
+      if (this.cameraController) {
+        this.cameraController._updateFromTicker(ticker);
+      }
+      
+      // 📊 Обновляем FPS Counter
+      if (this.fpsCounter) {
+        this.fpsCounter._updateFromTicker(ticker);
+      }
+      
+      // 🎨 Рендерим все канвасы
+      this.canvases.forEach(canvas => {
+        canvas.render();
+      });
+      
+    } catch (error) {
+      console.error('❌ Ошибка в главном tick:', error);
+    }
   }
   
   /**
@@ -120,10 +133,29 @@ export class PixiGame {
   stop() {
     this.isRunning = false;
     
+    // 🎯 Отключаемся от ticker как в PixiShooterEngine
+    if (this.mainApp && this.mainApp.ticker) {
+      this.mainApp.ticker.remove(this._tick);
+      this.mainApp = null;
+    }
+    
+    // 🔧 ФИКС: Очищаем ВСЕ компоненты!
+    if (this.cameraController) {
+      this.cameraController.destroy();
+      this.cameraController = null;
+    }
+    
+    if (this.fpsCounter) {
+      this.fpsCounter.destroy();
+      this.fpsCounter = null;
+    }
+    
     this.canvases.forEach(canvas => canvas.destroy());
     this.canvases.clear();
     this.cameras.clear();
     this.worlds.clear();
+    
+    this.selectedCamera = null;  // 🔧 ФИКС: очищаем ссылки!
     
     // PixiGame остановлен
   }

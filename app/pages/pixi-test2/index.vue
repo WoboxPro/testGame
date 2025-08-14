@@ -9,7 +9,7 @@
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
-      <div id="game-container2" class="game-area"></div>
+      <!-- <div id="game-container2" class="game-area"></div> -->
     </div>
     
   </div>
@@ -45,7 +45,7 @@ onMounted(async () => {
         width: 800,
         height: 600,
         backgroundColor: '#333333', // Серый фон незанятых областей
-        containerId: 'game-container'  // 🎯 ID DOM элемента куда помещать канвас
+        containerId: 'game-container'  //  ID DOM элемента куда помещать канвас
       });
       // const myCanvas2 = game.createCanvas({
       //   width: 800,
@@ -74,6 +74,8 @@ onMounted(async () => {
       //     }
       //   }
       // });
+      //      await game.startCanvas(myCanvas2);
+
       // 📷 Создаем первую камеру (основная, занимает левую половину)
       const myCamera1 = game.createCamera({
         id: 'main_camera',
@@ -121,7 +123,7 @@ onMounted(async () => {
       //   }
       // });
       
-      // 📷 Создаем третью камеру (детали, правый низ)
+      // // 📷 Создаем третью камеру (детали, правый низ)
       // const myCamera3 = game.createCamera({
       //   id: 'detail_camera',
       //   width: 400,
@@ -146,19 +148,8 @@ onMounted(async () => {
       
       // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
       await game.startCanvas(myCanvas);
-      //await game.startCanvas(myCanvas2);
       
-      // 🖱️ Настраиваем обработчики кликов для тестирования координат
-      myCanvas.onCameraClick = (camera, worldCoords, canvasCoords) => {
-        // Убраны логи для производительности
-      };
-      
-      // myCanvas2.onCameraClick = (camera, worldCoords, canvasCoords) => {
-      //   console.log(`🎯 ПРАВЫЙ КАНВАС - Клик в камере ${camera.id}:`);
-      //   console.log(`   📍 Мир: (${worldCoords.x.toFixed(2)}, ${worldCoords.y.toFixed(2)})`);
-      //   console.log(`   🖱️ Канвас: (${canvasCoords.canvasX.toFixed(1)}, ${canvasCoords.canvasY.toFixed(1)})`);
-      //   console.log(`   🔍 Зум: ${camera.zoom}x`);
-      // };
+
       
       // 🧪 Добавляем тестовые сущности с НОВОЙ ГИБРИДНОЙ СИСТЕМОЙ РЕНДЕРИНГА!
       
@@ -264,8 +255,9 @@ onMounted(async () => {
       
       // 🎮 НОВИНКА: Создаем контроллер управления камерой
       const controller = game.createCameraController({
-        moveSpeed: 30,           // Скорость движения камеры
-        zoomStep: 0.10,          // Шаг зума
+        moveSpeed: 2,            // 🎯 1 пиксель за шаг (плавно!)
+       // smoothMove: true,        // 🎯 плавное движение включено
+        zoomStep: 0.02,          // Более плавный зум
         minZoom: 0.2,            // Минимальный зум
         maxZoom: 3.0             // Максимальный зум
       });
@@ -274,18 +266,18 @@ onMounted(async () => {
       controller.enable();
       
       // 📊 НОВИНКА: Создаем счетчик FPS
-      const fpsCounter = game.createFPSCounter({
-        updateInterval: 500,     // Обновление каждые 500мс (более отзывчивый)
-        style: {
-          top: '10px',
-          left: '10px',
-          backgroundColor: 'rgba(0, 20, 0, 0.8)',
-          color: '#00FF00',
-          fontSize: '16px',
-          padding: '10px 15px',
-          borderRadius: '8px'
-        }
-      });
+      // const fpsCounter = game.createFPSCounter({
+      //   updateInterval: 500,     // Обновление каждые 500мс (более отзывчивый)
+      //   style: {
+      //     top: '10px',
+      //     left: '10px',
+      //     backgroundColor: 'rgba(0, 20, 0, 0.8)',
+      //     color: '#00FF00',
+      //     fontSize: '16px',
+      //     padding: '10px 15px',
+      //     borderRadius: '8px'
+      //   }
+      // });
       
 
       
