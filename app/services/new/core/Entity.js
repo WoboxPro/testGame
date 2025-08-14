@@ -3,6 +3,7 @@
  * 
  * Базовый класс для всех объектов в мире
  */
+import * as PIXI from 'pixi.js';
 
 export class Entity {
   constructor(options = {}) {
@@ -16,12 +17,26 @@ export class Entity {
     // 🏷️ Классификация (для будущей логики)
     this.type = options.type || 'decoration'; // structure / decoration / unit
     
+    // 🎨 Система рендеринга
+    this.renderSystem = options.renderSystem || 'graphics'; // 'graphics' | 'sprite' | 'skeletal'
+    
     // 🎨 Визуальное представление
     this.visual = {
+      // Для graphics системы (текущая)
       form: options.form || 'circle',           // Форма: circle, rect, diamond, star, etc.
       size: options.size || 5,                  // Основной размер
       color: options.color || 0x888888,         // Цвет
-      sprite: options.sprite || null,           // Путь к спрайту (в будущем)
+      
+      // Для sprite системы
+      sprite: options.sprite || null,           // Путь к базовому спрайту
+      attachmentPoints: options.attachmentPoints || {}, // Точки привязки экипировки
+      equippedItems: options.equippedItems || {}, // Экипированные предметы
+      
+      // Для skeletal системы
+      skeleton: options.skeleton || null,       // Путь к skeletal данным
+      animations: options.animations || {},     // Доступные анимации
+      currentAnimation: options.currentAnimation || 'idle', // Текущая анимация
+      
       ...options.visual                         // Дополнительные визуальные настройки
     };
     
@@ -29,7 +44,7 @@ export class Entity {
     this.name = options.name || `${this.type}_${this.id}`;
     this.data = options.data || {};             // Произвольные данные
     
-    console.log(`🎯 Entity создана: ${this.name} (${this.type}) в (${this.x}, ${this.y}), форма=${this.visual.form}`);
+    console.log(`🎯 Entity создана: ${this.name} (${this.type}) в (${this.x}, ${this.y}), система=${this.renderSystem}, форма=${this.visual.form}`);
   }
   
   /**
@@ -65,7 +80,33 @@ export class Entity {
   /**
    * 🎨 Рендеринг сущности (Entity отвечает за свой внешний вид)
    */
-  render(graphics) {
+  render(container) {
+    // 🎯 Выбираем систему рендеринга
+    switch (this.renderSystem) {
+      case 'graphics':
+        this._renderGraphics(container);
+        break;
+        
+      case 'sprite':
+        this._renderSprite(container);
+        break;
+        
+      case 'skeletal':
+        this._renderSkeletal(container);
+        break;
+        
+      default:
+        console.warn(`Неизвестная система рендеринга: ${this.renderSystem}`);
+        this._renderGraphics(container); // Fallback
+    }
+  }
+  
+  /**
+   * 🔵 Graphics рендеринг (геометрические фигуры)
+   */
+  _renderGraphics(container) {
+    const graphics = new PIXI.Graphics();
+    
     // 🎨 Рендерим по форме
     switch (this.visual.form) {
       case 'circle':
@@ -119,7 +160,8 @@ export class Entity {
         // Крона
         graphics.circle(0, -this.visual.size * 0.3, this.visual.size * 0.7);
         graphics.fill({ color: 0x228B22 });
-        return; // Уже покрасили
+        container.addChild(graphics);
+        return; // Уже покрасили и добавили
         
       case 'aircraft':
         // Треугольный самолет
@@ -165,6 +207,7 @@ export class Entity {
           color: this.visual.color, 
           width: strokeWidth 
         });
+        container.addChild(graphics);
         return; // Не применяем fill - только stroke
         
       case 'border_line':
@@ -189,6 +232,78 @@ export class Entity {
     
     // 🎨 Применяем цвет (кроме сложных форм типа tree)
     graphics.fill({ color: this.visual.color });
+    
+    // ➕ Добавляем в контейнер
+    container.addChild(graphics);
+  }
+  
+  /**
+   * 👤 Sprite рендеринг (Terraria-стиль)
+   */
+  _renderSprite(container) {
+    // 🎨 Базовый спрайт
+    if (this.visual.sprite) {
+      const baseSprite = PIXI.Sprite.from(this.visual.sprite);
+      baseSprite.anchor.set(0.5, 0.5); // Центрируем спрайт
+      container.addChild(baseSprite);
+    }
+    
+    // 👕 Экипировка по точкам привязки
+    Object.keys(this.visual.equippedItems).forEach(slot => {
+      const itemTexture = this.visual.equippedItems[slot];
+      const attachPoint = this.visual.attachmentPoints[slot];
+      
+      if (itemTexture && attachPoint) {
+        const itemSprite = PIXI.Sprite.from(itemTexture);
+        itemSprite.anchor.set(0.5, 0.5);
+        itemSprite.x = attachPoint.x;
+        itemSprite.y = attachPoint.y;
+        container.addChild(itemSprite);
+        
+        console.log(`👕 Экипировка: ${slot} -> ${itemTexture} в (${attachPoint.x}, ${attachPoint.y})`);
+      }
+    });
+  }
+  
+  /**
+   * 🦴 Skeletal рендеринг (продвинутая анимация)
+   */
+  _renderSkeletal(container) {
+    // TODO: Интеграция с pixi-spine
+    console.log('🦴 Skeletal рендеринг пока не реализован, используем fallback');
+    this._renderGraphics(container); // Временный fallback
+  }
+  
+  /**
+   * 👕 Экипировать предмет (для sprite системы)
+   */
+  equipItem(slot, itemTexture) {
+    if (this.renderSystem !== 'sprite') {
+      console.warn('equipItem() работает только с renderSystem: "sprite"');
+      return;
+    }
+    
+    if (!this.visual.attachmentPoints[slot]) {
+      console.warn(`Точка привязки "${slot}" не найдена`);
+      return;
+    }
+    
+    this.visual.equippedItems[slot] = itemTexture;
+    console.log(`👕 Экипирован предмет: ${slot} -> ${itemTexture}`);
+  }
+  
+  /**
+   * 🎭 Сменить анимацию (для skeletal системы)
+   */
+  playAnimation(animationName) {
+    if (this.renderSystem !== 'skeletal') {
+      console.warn('playAnimation() работает только с renderSystem: "skeletal"');
+      return;
+    }
+    
+    this.visual.currentAnimation = animationName;
+    console.log(`🎭 Анимация изменена на: ${animationName}`);
+    // TODO: Применить анимацию к skeletal объекту
   }
   
   /**
@@ -246,13 +361,16 @@ export const EntityForms = {
  */
 export class EntityFactory {
   
+  // 🔵 GRAPHICS СИСТЕМА (геометрические фигуры)
+  
   /**
-   * 🏗️ Создать структуру
+   * 🏗️ Создать структуру (graphics)
    */
   static createStructure(x, y, options = {}) {
     return new Entity({
       x, y,
       type: 'structure',
+      renderSystem: 'graphics',
       form: options.form || EntityForms.BUILDING,
       size: options.size || 20,
       color: options.color || 0x8B4513, // Коричневый
@@ -262,12 +380,13 @@ export class EntityFactory {
   }
   
   /**
-   * 👥 Создать юнита
+   * 👥 Создать юнита (graphics)
    */
   static createUnit(x, y, options = {}) {
     return new Entity({
       x, y,
       type: 'unit',
+      renderSystem: 'graphics',
       form: options.form || EntityForms.SOLDIER,
       size: options.size || 7,
       color: options.color || 0x00FF00, // Зеленый
@@ -277,16 +396,118 @@ export class EntityFactory {
   }
   
   /**
-   * 🌿 Создать декорацию
+   * 🌿 Создать декорацию (graphics)
    */
   static createDecoration(x, y, options = {}) {
     return new Entity({
       x, y,
       type: 'decoration',
+      renderSystem: 'graphics',
       form: options.form || EntityForms.CIRCLE,
       size: options.size || 5,
       color: options.color || 0x888888, // Серый
       name: options.name || 'Декорация',
+      ...options
+    });
+  }
+  
+  // 👤 SPRITE СИСТЕМА (Terraria-стиль)
+  
+  /**
+   * 👤 Создать sprite персонажа с точками привязки
+   */
+  static createSpriteCharacter(x, y, options = {}) {
+    return new Entity({
+      x, y,
+      type: 'character',
+      renderSystem: 'sprite',
+      sprite: options.sprite || 'character_base.png',
+      attachmentPoints: {
+        'head': { x: 0, y: -22 },
+        'chest': { x: 0, y: -12 },
+        'hand_right': { x: 8, y: -8 },
+        'hand_left': { x: -8, y: -8 },
+        'waist': { x: 0, y: -2 },
+        'feet': { x: 0, y: 15 },
+        ...options.attachmentPoints
+      },
+      equippedItems: options.equippedItems || {},
+      name: options.name || 'Sprite Персонаж',
+      ...options
+    });
+  }
+  
+  /**
+   * 🏰 Создать sprite строение
+   */
+  static createSpriteBuilding(x, y, options = {}) {
+    return new Entity({
+      x, y,
+      type: 'structure',
+      renderSystem: 'sprite',
+      sprite: options.sprite || 'building_base.png',
+      name: options.name || 'Sprite Строение',
+      ...options
+    });
+  }
+  
+  /**
+   * 🌳 Создать sprite декорацию
+   */
+  static createSpriteDecoration(x, y, options = {}) {
+    return new Entity({
+      x, y,
+      type: 'decoration',
+      renderSystem: 'sprite',
+      sprite: options.sprite || 'decoration_base.png',
+      name: options.name || 'Sprite Декорация',
+      ...options
+    });
+  }
+  
+  // 🦴 SKELETAL СИСТЕМА (продвинутая анимация)
+  
+  /**
+   * 🤺 Создать skeletal персонажа
+   */
+  static createSkeletalCharacter(x, y, options = {}) {
+    return new Entity({
+      x, y,
+      type: 'character',
+      renderSystem: 'skeletal',
+      skeleton: options.skeleton || 'character_skeleton.json',
+      currentAnimation: options.currentAnimation || 'idle',
+      animations: {
+        'idle': { loop: true, speed: 1.0 },
+        'walk': { loop: true, speed: 1.2 },
+        'run': { loop: true, speed: 2.0 },
+        'attack': { loop: false, speed: 1.5 },
+        'death': { loop: false, speed: 0.8 },
+        ...options.animations
+      },
+      name: options.name || 'Skeletal Персонаж',
+      ...options
+    });
+  }
+  
+  /**
+   * 🐉 Создать skeletal существо/монстра
+   */
+  static createSkeletalCreature(x, y, options = {}) {
+    return new Entity({
+      x, y,
+      type: 'unit',
+      renderSystem: 'skeletal',
+      skeleton: options.skeleton || 'creature_skeleton.json',
+      currentAnimation: options.currentAnimation || 'idle',
+      animations: {
+        'idle': { loop: true, speed: 0.8 },
+        'move': { loop: true, speed: 1.5 },
+        'attack': { loop: false, speed: 2.0 },
+        'special': { loop: false, speed: 1.0 },
+        ...options.animations
+      },
+      name: options.name || 'Skeletal Существо',
       ...options
     });
   }

@@ -1,7 +1,8 @@
 <template>
   <div class="container">
     <div class="info">
-      <h1>🎮 PixiGame 2.0 - Два канваса</h1>
+      <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга</h1>
+      <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
       <p>🔲 <strong>Границы мира:</strong> Голубые линии показывают границы мира (1200×900px). Видны на всех камерах с разным зумом!</p>
     </div>
@@ -9,7 +10,7 @@
       <div id="game-container" class="game-area"></div>
       <div id="game-container2" class="game-area"></div>
     </div>
-
+    
   </div>
 </template>
 
@@ -163,19 +164,21 @@ onMounted(async () => {
         console.log(`   🔍 Зум: ${camera.zoom}x`);
       };
       
-      // 🧪 Добавляем тестовые сущности с новой системой форм!
+      // 🧪 Добавляем тестовые сущности с НОВОЙ ГИБРИДНОЙ СИСТЕМОЙ РЕНДЕРИНГА!
+      
+      // 🔵 GRAPHICS СИСТЕМА (геометрические фигуры - как раньше)
       
       // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
-      myWorld.addStructure(-100, -80, { name: 'База 1', form: 'building', size: 25 });
-      myWorld.addStructure(100, 80, { name: 'База 2', form: 'building', size: 20 });
-      myWorld.addStructure(0, 0, { name: 'Центр', form: 'building', size: 30, color: 0xFF6B35 });
-      myWorld.addStructure(-60, 60, { name: 'Башня', form: 'tower', size: 15, color: 0x654321 });
+      myWorld.addStructure(-100, -80, { name: 'База 1 (Graphics)', form: 'building', size: 25 });
+      myWorld.addStructure(100, 80, { name: 'База 2 (Graphics)', form: 'building', size: 20 });
+      myWorld.addStructure(0, 0, { name: 'Центр (Graphics)', form: 'building', size: 30, color: 0xFF6B35 });
+      myWorld.addStructure(-60, 60, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
       
       // 👥 ЮНИТЫ (будут видны в мини-карте)
-      myWorld.addUnit(-50, -30, { name: 'Солдат 1', form: 'soldier', size: 8 });
-      myWorld.addUnit(50, 30, { name: 'Солдат 2', form: 'soldier', size: 8 });
-      myWorld.addUnit(0, -60, { name: 'Командир', form: 'soldier', size: 10, color: 0x0000FF });
-      myWorld.addUnit(70, -20, { name: 'Танк', form: 'tank', size: 12, color: 0x228B22 });
+      myWorld.addUnit(-50, -30, { name: 'Солдат 1 (Graphics)', form: 'soldier', size: 8 });
+      myWorld.addUnit(50, 30, { name: 'Солдат 2 (Graphics)', form: 'soldier', size: 8 });
+      myWorld.addUnit(0, -60, { name: 'Командир (Graphics)', form: 'soldier', size: 10, color: 0x0000FF });
+      myWorld.addUnit(70, -20, { name: 'Танк (Graphics)', form: 'tank', size: 12, color: 0x228B22 });
       
       // 🌿 ДЕКОРАЦИИ/РЕСУРСЫ (будут видны в мини-карте, но скрыты в detail)
       myWorld.addDecoration(-80, 0, { name: 'Руда', form: 'diamond', size: 8, color: 0xFFD700, type: 'resource' });
@@ -196,8 +199,73 @@ onMounted(async () => {
       myWorld.addEntity({ x: -10, y: -20, type: 'particle', form: 'circle', size: 1, name: 'Искра 1', color: 0xFFFFFF });
       myWorld.addEntity({ x: 10, y: 50, type: 'particle', form: 'circle', size: 1, name: 'Искра 2', color: 0xFFFACD });
       
-      console.log('✅ PixiGame 2.0 запущен с гибкой архитектурой!');
-      console.log('🌍 1 мир, 1 канвас, 3 камеры в разных областях');
+      // 👤 НОВИНКА: SPRITE СИСТЕМА (Terraria-стиль) - ВРЕМЕННО ЗАКОММЕНТИРОВАНО
+      /*
+      // Импортируем EntityFactory для доступа к новым методам
+      const { EntityFactory } = await import('~/services/new/core/Entity.js');
+      
+      // 🎮 Создаем sprite персонажей с экипировкой
+      const spriteHero = EntityFactory.createSpriteCharacter(-150, 0, {
+        name: 'Герой (Sprite)',
+        sprite: 'hero_base.png', // Базовый спрайт (файл пока не существует, но система готова!)
+        equippedItems: {
+          'head': 'iron_helmet.png',
+          'chest': 'chainmail_armor.png',
+          'hand_right': 'steel_sword.png',
+          'hand_left': 'wooden_shield.png'
+        }
+      });
+      myWorld.addEntity(spriteHero);
+      
+      const spriteWizard = EntityFactory.createSpriteCharacter(150, 0, {
+        name: 'Маг (Sprite)',
+        sprite: 'wizard_base.png',
+        equippedItems: {
+          'head': 'wizard_hat.png',
+          'chest': 'magic_robe.png',
+          'hand_right': 'magic_staff.png'
+        }
+      });
+      myWorld.addEntity(spriteWizard);
+      
+      // 🦴 НОВИНКА: SKELETAL СИСТЕМА (продвинутая анимация)
+      
+      // 🤺 Skeletal персонажи с анимациями
+      const skeletalWarrior = EntityFactory.createSkeletalCharacter(0, 150, {
+        name: 'Воин (Skeletal)',
+        skeleton: 'warrior_skeleton.json', // Файл пока не существует, но система готова!
+        currentAnimation: 'idle'
+      });
+      myWorld.addEntity(skeletalWarrior);
+      
+      const skeletalDragon = EntityFactory.createSkeletalCreature(0, -150, {
+        name: 'Дракон (Skeletal)',
+        skeleton: 'dragon_skeleton.json',
+        currentAnimation: 'idle'
+      });
+      myWorld.addEntity(skeletalDragon);
+      
+      // 🎭 Демонстрация возможностей
+      setTimeout(() => {
+        console.log('🎭 Демонстрация гибридной системы рендеринга:');
+        
+        // Меняем экипировку sprite персонажа
+        spriteHero.equipItem('hand_right', 'magic_bow.png');
+        spriteHero.equipItem('head', 'dragon_helmet.png');
+        console.log('⚔️ Герой сменил меч на лук и надел драконий шлем!');
+        
+        // Меняем анимацию skeletal персонажа
+        skeletalWarrior.playAnimation('attack');
+        skeletalDragon.playAnimation('move');
+        console.log('🎬 Воин атакует, дракон двигается!');
+      }, 3000);
+      */
+      
+      console.log('✅ PixiGame 2.0 с базовой Graphics системой запущен!');
+      console.log('🔵 Graphics: геометрические фигуры работают');
+      console.log('👤 Sprite: система готова (закомментирована)');
+      console.log('🦴 Skeletal: система готова (закомментирована)');
+      console.log('🌍 1 мир, 2 канваса, 4 камеры в разных областях');
       console.log('📊 Отладочная информация:', game.getDebugInfo());
       
     } catch (error) {

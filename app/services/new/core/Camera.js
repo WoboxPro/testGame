@@ -271,8 +271,6 @@ export class Camera {
     const cameraX = relativeX + this.width / 2;
     const cameraY = relativeY + this.height / 2;
     
-
-    
     // 📏 Проверяем, видна ли сущность в области камеры
     const margin = 200; // Увеличенный запас для отладки
     const isVisible = !(cameraX < -margin || cameraX > this.width + margin ||
@@ -282,18 +280,18 @@ export class Camera {
       return; // Не видна, пропускаем
     }
     
-    // 🎨 Создаем графический объект
-    const graphics = new PIXI.Graphics();
+    // 🎨 Создаем контейнер для сущности (вместо graphics)
+    const entityContainer = new PIXI.Container();
     
-    // 🎯 Entity рендерит СЕБЯ (правильная архитектура!)
-    entity.render(graphics);
+    // 🎯 Entity рендерит СЕБЯ в контейнер (поддерживает все системы рендеринга!)
+    entity.render(entityContainer);
     
     // 📍 Камера отвечает ТОЛЬКО за позиционирование
-    graphics.x = cameraX;
-    graphics.y = cameraY;
+    entityContainer.x = cameraX;
+    entityContainer.y = cameraY;
     
     // ➕ Добавляем в контейнер камеры
-    this.container.addChild(graphics);
+    this.container.addChild(entityContainer);
   }
   
   /**
