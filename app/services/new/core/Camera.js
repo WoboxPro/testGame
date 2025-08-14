@@ -34,6 +34,17 @@ export class Camera {
     this.visibleTypes = options.visibleTypes || 'all'; // 'all' или массив типов ['building', 'unit']
     this.hiddenTypes = options.hiddenTypes || []; // Массив скрытых типов ['bullet', 'effect']
     
+    // 🎨 Стиль камеры
+    this.style = {
+      border: {
+        enabled: options.style?.border?.enabled !== false, // По умолчанию включены
+        width: options.style?.border?.width || 2,
+        color: options.style?.border?.color || 0x00FF00,   // По умолчанию зеленый
+        ...options.style?.border
+      },
+      ...options.style
+    };
+    
     // 🎮 PIXI контейнеры
     this.container = null;
     this.mask = null;
@@ -177,25 +188,24 @@ export class Camera {
     
     this.border.clear();
     
-    // 🎨 Определяем цвет рамки по priority
-    let borderColor;
-    switch (this.priority) {
-      case 1: borderColor = 0x00FF00; break; // Зеленый для основной камеры
-      case 2: borderColor = 0x0080FF; break; // Синий для мини-карты
-      case 3: borderColor = 0xFF8000; break; // Оранжевый для детальной
-      default: borderColor = 0xFFFFFF; break; // Белый по умолчанию
+    // 🎨 Проверяем включена ли рамка
+    if (!this.style.border.enabled) {
+      return; // Не рисуем рамку если отключена
     }
     
-    // 🔲 Рисуем рамку (толщина 2px)
+    // 🔲 Рисуем рамку с настройками из стиля
     this.border.rect(this.x, this.y, this.width, this.height);
-    this.border.stroke({ color: borderColor, width: 2 });
+    this.border.stroke({ 
+      color: this.style.border.color, 
+      width: this.style.border.width 
+    });
     
     // 📝 Добавляем подпись камеры в левый верхний угол
     const text = new PIXI.Text({
       text: `${this.id} (${this.zoom}x)`,
       style: {
         fontSize: 12,
-        fill: borderColor,
+        fill: this.style.border.color,
         fontWeight: 'bold'
       }
     });

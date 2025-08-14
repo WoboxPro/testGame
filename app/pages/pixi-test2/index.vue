@@ -57,8 +57,14 @@ onMounted(async () => {
         canvas: myCanvas2,
         zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
-        hiddenTypes: ['bullet', 'effect', 'particle']    // Скрываем пули, эффекты, частицы
-
+        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 3,
+            color: 0xFF0080  // Розовый для четвертой камеры
+          }
+        }
       });
       // 📷 Создаем первую камеру (основная, занимает левую половину)
       const myCamera1 = game.createCamera({
@@ -72,7 +78,14 @@ onMounted(async () => {
         world: myWorld,
         canvas: myCanvas,
         zoom: 0.8,            // Уменьшаем zoom чтобы видеть больше объектов
-        priority: 1
+        priority: 1,
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0x00FF00  // Зеленый для основной камеры
+          }
+        }
       });
       
       // 📷 Создаем вторую камеру (мини-карта, правый верх) 
@@ -90,7 +103,14 @@ onMounted(async () => {
         priority: 2,         // Рисуется поверх
         // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
         visibleTypes: ['building', 'unit', 'resource'],  // Только здания, юниты, ресурсы
-        hiddenTypes: ['bullet', 'effect', 'particle']    // Скрываем пули, эффекты, частицы
+        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 1,
+            color: 0x0080FF  // Синий для мини-карты
+          }
+        }
       });
       
       // 📷 Создаем третью камеру (детали, правый низ)
@@ -106,8 +126,14 @@ onMounted(async () => {
         canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
         zoom: 2,           // Слегка увеличенный зум (было 2.0)
         priority: 3,
-        hiddenTypes: ['resource']    // Скрываем пули, эффекты, частицы
-
+        hiddenTypes: ['resource'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0xFF8000  // Оранжевый для детальной камеры
+          }
+        }
       });
       
       // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
