@@ -76,13 +76,20 @@ export class Camera {
     
     canvas.app.stage.addChild(this.container);
     
-    // ✂️ Маска ограничивает область рендеринга
+    // ✂️ Маска ограничивает область рендеринга (на stage, чтобы не масштабировалась)
     this.mask = new PIXI.Graphics();
     this.mask.rect(0, 0, this.width, this.height);
     this.mask.fill({ color: 0xFFFFFF });
-    // Маску держим внутри контейнера, чтобы она двигалась вместе с ним
-    this.container.addChild(this.mask);
+    this.mask.x = this.x;
+    this.mask.y = this.y;
     this.container.mask = this.mask;
+    canvas.app.stage.addChild(this.mask);
+
+    // 🌍 Слой мира, который масштабируется зумом
+    this.worldLayer = new PIXI.Container();
+    this.worldLayer.x = 0 + this.width / 2;
+    this.worldLayer.y = 0 + this.height / 2;
+    this.container.addChild(this.worldLayer);
     
     // 🔲 Создаем рамку камеры для визуализации границ
     this.border = new PIXI.Graphics();
@@ -97,6 +104,10 @@ export class Camera {
    * 🧹 Очистка при удалении из канваса
    */
   _cleanupFromCanvas() {
+    if (this.worldLayer) {
+      this.worldLayer.destroy({ children: true });
+      this.worldLayer = null;
+    }
     if (this.container) {
       this.container.destroy({ children: true });
       this.container = null;
@@ -255,7 +266,10 @@ export class Camera {
   render() {
     if (!this.world || !this.container) return;
     
-    // ❗ Не очищаем контейнер целиком — обновляем/переиспользуем объекты
+    // Обновляем масштаб слоя мира
+    if (this.worldLayer) {
+      this.worldLayer.scale.set(this.zoom);
+    }
     
     // 🎨 Рендерим отфильтрованные сущности из мира
     const entities = this.world.getAllEntities();
@@ -271,7 +285,7 @@ export class Camera {
     // 🧹 Удаляем объекты, которых больше нет в мире/в фильтре
     for (const [entityId, displayObject] of this._entityDisplayObjects) {
       if (!aliveIds.has(entityId)) {
-        this.container.removeChild(displayObject);
+        if (this.worldLayer) this.worldLayer.removeChild(displayObject);
         displayObject.destroy({ children: true });
         this._entityDisplayObjects.delete(entityId);
       }
@@ -283,12 +297,12 @@ export class Camera {
    */
   _renderEntity(entity, aliveIds) {
     // 🌍➡️📱 Конвертируем координаты мира в координаты камеры
-    const relativeX = (entity.x - this.focusX) * this.zoom;
-    const relativeY = (entity.y - this.focusY) * this.zoom;
+    const relativeX = (entity.x - this.focusX);
+    const relativeY = (entity.y - this.focusY);
     
     // 📍 Позиция в камере (от центра камеры)
-    const cameraX = relativeX + this.width / 2;
-    const cameraY = relativeY + this.height / 2;
+    const cameraX = relativeX;
+    const cameraY = relativeY;
     
     // DEBUG: Логируем позиции для центрального объекта
     // Центр объект отладка убрана
@@ -310,7 +324,7 @@ export class Camera {
       entityContainer = new PIXI.Container();
       entity.render(entityContainer);
       this._entityDisplayObjects.set(entity.id, entityContainer);
-      this.container.addChild(entityContainer);
+      if (this.worldLayer) this.worldLayer.addChild(entityContainer);
     }
     
     // Обновляем позицию
