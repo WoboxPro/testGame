@@ -52,6 +52,9 @@ export class Camera {
     this.container = null;
     this.mask = null;
     this.graphics = new Map(); // entityId -> PIXI.Graphics
+
+    // 🔁 Кэш отображения сущностей (для избежания аллокаций каждый кадр)
+    this._entityDisplayObjects = new Map(); // entityId -> PIXI.Container
     
     // Camera создана
   }
@@ -67,26 +70,23 @@ export class Camera {
     // 📦 Создаем контейнер для этой камеры
     this.container = new PIXI.Container();
     
-    // 📍 ИСПРАВЛЕНИЕ: Позиционируем контейнер в нужном месте канваса
+    // 📍 Позиция контейнера в канвасе
     this.container.x = this.x;
     this.container.y = this.y;
     
     canvas.app.stage.addChild(this.container);
     
-    // ✂️ Создаем маску для ограничения области рендеринга  
+    // ✂️ Маска ограничивает область рендеринга
     this.mask = new PIXI.Graphics();
-    this.mask.rect(0, 0, this.width, this.height); // ← Маска теперь относительно контейнера!
+    this.mask.rect(0, 0, this.width, this.height);
     this.mask.fill({ color: 0xFFFFFF });
-    
-    // 📍 ИСПРАВЛЕНИЕ: Маска позиционируется вместе с контейнером
-    this.mask.x = this.x;
-    this.mask.y = this.y;
-    
+    // Маску держим внутри контейнера, чтобы она двигалась вместе с ним
+    this.container.addChild(this.mask);
     this.container.mask = this.mask;
-    canvas.app.stage.addChild(this.mask);
     
     // 🔲 Создаем рамку камеры для визуализации границ
     this.border = new PIXI.Graphics();
+    this.borderLabel = null; // Один Text для подписи
     this._updateBorder();
     canvas.app.stage.addChild(this.border);
     
@@ -113,6 +113,9 @@ export class Camera {
     }
     
     this.graphics.clear();
+    // 🧹 Очищаем кэш отображения
+    this._entityDisplayObjects.forEach(obj => obj.destroy({ children: true }));
+    this._entityDisplayObjects.clear();
     // Camera очищена
   }
   
@@ -129,6 +132,9 @@ export class Camera {
    */
   setZoom(newZoom) {
     this.zoom = Math.max(0.1, Math.min(10.0, newZoom));
+    if (this.border) {
+      this._updateBorder();
+    }
   }
   
   /**
@@ -162,14 +168,7 @@ export class Camera {
   /**
    * 🔍 Установить зум
    */
-  setZoom(zoomLevel) {
-    this.zoom = Math.max(0.1, zoomLevel); // Минимальный зум 0.1
-    
-    // 🔄 Обновляем рамку (чтобы показать новый zoom в подписи)
-    if (this.border) {
-      this._updateBorder();
-    }
-  }
+  // ВТОРОЙ setZoom был дубликатом — удален, логика объединена выше
   
   /**
    * 🎛️ Проверить должен ли объект отображаться в этой камере
@@ -196,9 +195,8 @@ export class Camera {
   _updateBorder() {
     if (!this.border) return;
     
-    // 🧹 ИСПРАВЛЕНИЕ: Полная очистка включая дочерние объекты
+    // 🧹 Очищаем графику рамки
     this.border.clear();
-    this.border.removeChildren(); // ← Удаляем все дочерние объекты (включая старый текст)
     
     // 🎨 Проверяем включена ли рамка
     if (!this.style.border.enabled) {
@@ -212,19 +210,22 @@ export class Camera {
       width: this.style.border.width 
     });
     
-    // 📝 Добавляем подпись камеры в левый верхний угол
-    const text = new PIXI.Text({
-      text: `${this.id} (${this.zoom.toFixed(2)}x)`, // ← Показываем зум с 2 знаками
-      style: {
-        fontSize: 12,
-        fill: this.style.border.color,
-        fontWeight: 'bold'
-      }
-    });
-    
-    text.x = this.x + 4;
-    text.y = this.y + 4;
-    this.border.addChild(text);
+    // 📝 Обновляем/создаем подпись камеры один раз
+    if (!this.borderLabel) {
+      this.borderLabel = new PIXI.Text({
+        text: '',
+        style: {
+          fontSize: 12,
+          fill: this.style.border.color,
+          fontWeight: 'bold'
+        }
+      });
+      this.border.addChild(this.borderLabel);
+    }
+    this.borderLabel.style.fill = this.style.border.color;
+    this.borderLabel.text = `${this.id} (${this.zoom.toFixed(2)}x)`;
+    this.borderLabel.x = this.x + 4;
+    this.borderLabel.y = this.y + 4;
   }
   
   /**
@@ -254,19 +255,25 @@ export class Camera {
   render() {
     if (!this.world || !this.container) return;
     
-    // 🧹 Очищаем старые графические объекты
-    this.container.removeChildren();
-    
-    // 🔍 Устанавливаем масштаб контейнера (применится ко всем объектам)
-    this.container.scale.set(this.zoom);
+    // ❗ Не очищаем контейнер целиком — обновляем/переиспользуем объекты
     
     // 🎨 Рендерим отфильтрованные сущности из мира
     const entities = this.world.getAllEntities();
+    const aliveIds = new Set();
     
     for (const entity of entities) {
       // 🎛️ Проверяем фильтр перед рендерингом
       if (this._shouldRenderEntity(entity)) {
-        this._renderEntity(entity);
+        this._renderEntity(entity, aliveIds);
+      }
+    }
+
+    // 🧹 Удаляем объекты, которых больше нет в мире/в фильтре
+    for (const [entityId, displayObject] of this._entityDisplayObjects) {
+      if (!aliveIds.has(entityId)) {
+        this.container.removeChild(displayObject);
+        displayObject.destroy({ children: true });
+        this._entityDisplayObjects.delete(entityId);
       }
     }
   }
@@ -274,7 +281,7 @@ export class Camera {
   /**
    * 🎨 Рендеринг одной сущности
    */
-  _renderEntity(entity) {
+  _renderEntity(entity, aliveIds) {
     // 🌍➡️📱 Конвертируем координаты мира в координаты камеры
     const relativeX = (entity.x - this.focusX) * this.zoom;
     const relativeY = (entity.y - this.focusY) * this.zoom;
@@ -297,18 +304,21 @@ export class Camera {
     //   return; // Не видна, пропускаем
     // }
     
-    // 🎨 Создаем контейнер для сущности (вместо graphics)
-    const entityContainer = new PIXI.Container();
+    // ⚡ Переиспользуем или создаем контейнер сущности
+    let entityContainer = this._entityDisplayObjects.get(entity.id);
+    if (!entityContainer) {
+      entityContainer = new PIXI.Container();
+      entity.render(entityContainer);
+      this._entityDisplayObjects.set(entity.id, entityContainer);
+      this.container.addChild(entityContainer);
+    }
     
-    // 🎯 Entity рендерит СЕБЯ в контейнер (поддерживает все системы рендеринга!)
-    entity.render(entityContainer);
-    
-    // 📍 Камера отвечает ТОЛЬКО за позиционирование
+    // Обновляем позицию
     entityContainer.x = cameraX;
     entityContainer.y = cameraY;
     
-    // ➕ Добавляем в контейнер камеры
-    this.container.addChild(entityContainer);
+    // Отмечаем как актуальный
+    if (aliveIds) aliveIds.add(entity.id);
   }
   
   /**

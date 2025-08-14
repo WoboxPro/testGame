@@ -87,7 +87,7 @@ onMounted(async () => {
         focusY: 0,
         world: myWorld,
         canvas: myCanvas,
-        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
+        zoom: 3,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         style: {
           border: {
