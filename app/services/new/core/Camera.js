@@ -30,6 +30,9 @@ export class Camera {
     this.zoom = options.zoom || 1.0;
     this.priority = options.priority || 1; // Порядок отрисовки
     
+    // 🎯 Состояние выбора для управления
+    this.isSelected = false;
+    
     // 🎛️ Фильтрация объектов
     this.visibleTypes = options.visibleTypes || 'all'; // 'all' или массив типов ['building', 'unit']
     this.hiddenTypes = options.hiddenTypes || []; // Массив скрытых типов ['bullet', 'effect']
@@ -50,7 +53,7 @@ export class Camera {
     this.mask = null;
     this.graphics = new Map(); // entityId -> PIXI.Graphics
     
-    console.log(`📷 Camera создана: ID=${this.id}, размер=${this.width}×${this.height}, позиция в канвасе=(${this.x}, ${this.y}), фокус=(${this.focusX}, ${this.focusY}), zoom=${this.zoom}, priority=${this.priority}`);
+    // Camera создана
   }
   
   /**
@@ -87,7 +90,7 @@ export class Camera {
     this._updateBorder();
     canvas.app.stage.addChild(this.border);
     
-    console.log(`🔗 Camera инициализирована для Canvas: контейнер, маска и рамка созданы`);
+    // Camera инициализирована
   }
   
   /**
@@ -110,7 +113,7 @@ export class Camera {
     }
     
     this.graphics.clear();
-    console.log(`🧹 Camera очищена: контейнер, маска и рамка удалены`);
+    // Camera очищена
   }
   
   /**
@@ -119,6 +122,13 @@ export class Camera {
   setFocus(worldX, worldY) {
     this.focusX = worldX;
     this.focusY = worldY;
+  }
+  
+  /**
+   * 🔍 Установить зум камеры
+   */
+  setZoom(newZoom) {
+    this.zoom = Math.max(0.1, Math.min(10.0, newZoom));
   }
   
   /**
@@ -186,7 +196,9 @@ export class Camera {
   _updateBorder() {
     if (!this.border) return;
     
+    // 🧹 ИСПРАВЛЕНИЕ: Полная очистка включая дочерние объекты
     this.border.clear();
+    this.border.removeChildren(); // ← Удаляем все дочерние объекты (включая старый текст)
     
     // 🎨 Проверяем включена ли рамка
     if (!this.style.border.enabled) {
@@ -202,7 +214,7 @@ export class Camera {
     
     // 📝 Добавляем подпись камеры в левый верхний угол
     const text = new PIXI.Text({
-      text: `${this.id} (${this.zoom}x)`,
+      text: `${this.id} (${this.zoom.toFixed(2)}x)`, // ← Показываем зум с 2 знаками
       style: {
         fontSize: 12,
         fill: this.style.border.color,
@@ -271,14 +283,19 @@ export class Camera {
     const cameraX = relativeX + this.width / 2;
     const cameraY = relativeY + this.height / 2;
     
-    // 📏 Проверяем, видна ли сущность в области камеры
+    // DEBUG: Логируем позиции для центрального объекта
+    // Центр объект отладка убрана
+    
+    // 📏 ВРЕМЕННО ОТКЛЮЧЕН: Проверяем, видна ли сущность в области камеры
     const margin = 200; // Увеличенный запас для отладки
     const isVisible = !(cameraX < -margin || cameraX > this.width + margin ||
         cameraY < -margin || cameraY > this.height + margin);
     
-    if (!isVisible) {
-      return; // Не видна, пропускаем
-    }
+    // DEBUG: Показываем все объекты для диагностики
+    // if (!isVisible) {
+    //   Объект скрыт (отладка убрана)
+    //   return; // Не видна, пропускаем
+    // }
     
     // 🎨 Создаем контейнер для сущности (вместо graphics)
     const entityContainer = new PIXI.Container();

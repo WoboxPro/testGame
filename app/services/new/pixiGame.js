@@ -8,6 +8,8 @@
 import { World } from './core/World.js';
 import { Canvas } from './core/Canvas.js';
 import { Camera } from './core/Camera.js';
+import { CameraController } from './core/CameraController.js';
+import { FPSCounter } from './core/FPSCounter.js';
 
 export class PixiGame {
   constructor() {
@@ -20,7 +22,16 @@ export class PixiGame {
     this.canvases = new Map(); // id -> Canvas  
     this.cameras = new Map();  // id -> Camera
     
-    console.log('🎮 PixiGame 2.0 создан с гибкой архитектурой');
+    // 🎯 Выбранная камера для управления
+    this.selectedCamera = null;
+    
+    // 🎮 Контроллер управления камерой
+    this.cameraController = null;
+    
+    // 📊 Счетчик FPS
+    this.fpsCounter = null;
+    
+    // PixiGame 2.0 создан
   }
   
   /**
@@ -114,7 +125,103 @@ export class PixiGame {
     this.cameras.clear();
     this.worlds.clear();
     
-    console.log('🛑 PixiGame остановлен');
+    // PixiGame остановлен
+  }
+  
+  /**
+   * 🎯 Выбрать камеру для управления
+   */
+  selectCamera(camera) {
+    if (!camera) {
+      // Камера не передана
+      return;
+    }
+    
+    // 🔍 Проверяем что камера существует в нашей системе
+    if (!this.cameras.has(camera.id)) {
+      // Камера не найдена в движке
+      return;
+    }
+    
+    // 🎯 Снимаем выделение с предыдущей камеры
+    if (this.selectedCamera) {
+      this.selectedCamera.isSelected = false;
+      // Камера снята с управления
+    }
+    
+    // 🎯 Выбираем новую камеру
+    this.selectedCamera = camera;
+    this.selectedCamera.isSelected = true;
+    
+    // Камера выбрана для управления
+    
+    return camera;
+  }
+  
+  /**
+   * ❌ Снять выделение с камеры
+   */
+  deselectCamera() {
+    if (this.selectedCamera) {
+      this.selectedCamera.isSelected = false;
+      // Камера снята с управления
+      this.selectedCamera = null;
+    } else {
+      // Нет выбранной камеры
+    }
+  }
+  
+  /**
+   * 📹 Получить выбранную камеру
+   */
+  getSelectedCamera() {
+    return this.selectedCamera;
+  }
+  
+  /**
+   * 🎮 Создать контроллер управления камерой
+   */
+  createCameraController(options = {}) {
+    // 🧹 Удаляем старый контроллер если есть
+    if (this.cameraController) {
+      this.cameraController.destroy();
+    }
+    
+    // 🎮 Создаем новый контроллер
+    this.cameraController = new CameraController(this, options);
+    
+    // CameraController создан
+    return this.cameraController;
+  }
+  
+  /**
+   * 🎮 Получить контроллер управления
+   */
+  getCameraController() {
+    return this.cameraController;
+  }
+  
+  /**
+   * 📊 Создать счетчик FPS
+   */
+  createFPSCounter(options = {}) {
+    // 🧹 Удаляем старый счетчик если есть
+    if (this.fpsCounter) {
+      this.fpsCounter.destroy();
+    }
+    
+    // 📊 Создаем новый счетчик
+    this.fpsCounter = new FPSCounter(options);
+    
+    // FPS Counter создан
+    return this.fpsCounter;
+  }
+  
+  /**
+   * 📊 Получить счетчик FPS
+   */
+  getFPSCounter() {
+    return this.fpsCounter;
   }
   
   /**
@@ -126,6 +233,7 @@ export class PixiGame {
       worldCount: this.worlds.size,
       canvasCount: this.canvases.size,
       cameraCount: this.cameras.size,
+      selectedCamera: this.selectedCamera?.id || null,
       worlds: Array.from(this.worlds.values()).map(w => w.getInfo()),
       canvases: Array.from(this.canvases.values()).map(c => c.getInfo()),
       cameras: Array.from(this.cameras.values()).map(c => c.getInfo())

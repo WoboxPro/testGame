@@ -21,7 +21,7 @@ export class Canvas {
     // 📷 Камеры привязанные к этому канвасу
     this.cameras = new Map(); // id -> Camera
     
-    console.log(`🖼️ Canvas создан: ${this.width}×${this.height}, фон=${this.backgroundColor}, containerId=${this.containerId}`);
+    // Canvas создан
   }
   
   /**
@@ -29,7 +29,7 @@ export class Canvas {
    */
   async start(domContainer = null) {
     if (this.isStarted) {
-      console.warn('⚠️ Canvas уже запущен');
+      // Canvas уже запущен
       return;
     }
     
@@ -67,10 +67,10 @@ export class Canvas {
       this._setupClickEvents();
       
       this.isStarted = true;
-      console.log(`✅ Canvas запущен в DOM элемент: ${this.containerId || 'переданный контейнер'}, размер: ${this.width}×${this.height}`);
+      // Canvas запущен
       
     } catch (error) {
-      console.error('❌ Ошибка запуска Canvas:', error);
+      // Ошибка запуска Canvas
       throw error;
     }
   }
@@ -84,7 +84,7 @@ export class Canvas {
     }
     
     this.cameras.set(camera.id, camera);
-    console.log(`📷 Camera добавлена к Canvas: ID=${camera.id}`);
+    // Camera добавлена
     
     // 🔄 Инициализируем камеру для этого канваса
     camera._initForCanvas(this);
@@ -98,7 +98,7 @@ export class Canvas {
     if (camera) {
       camera._cleanupFromCanvas();
       this.cameras.delete(cameraId);
-      console.log(`🗑️ Camera удалена из Canvas: ID=${cameraId}`);
+      // Camera удалена
       return true;
     }
     return false;
@@ -130,7 +130,7 @@ export class Canvas {
     
     this.cameras.clear();
     this.isStarted = false;
-    console.log('🛑 Canvas уничтожен');
+    // Canvas уничтожен
   }
   
   /**
@@ -148,7 +148,7 @@ export class Canvas {
     this.app.stage.eventMode = 'static';
     this.app.stage.hitArea = this.app.screen;
     
-    console.log('🖱️ События клика настроены для Canvas');
+    // События клика настроены
   }
   
   /**
@@ -160,7 +160,7 @@ export class Canvas {
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
     
-    console.log(`🖱️ Клик по канвасу: (${canvasX.toFixed(1)}, ${canvasY.toFixed(1)})`);
+    // Клик по канвасу
     
     // 🔍 Проверяем все камеры этого канваса
     for (const [cameraId, camera] of this.cameras) {
@@ -168,9 +168,7 @@ export class Canvas {
         // 🌍 Преобразуем координаты канваса в координаты мира через камеру
         const worldCoords = camera.screenToWorld(canvasX, canvasY);
         
-        console.log(`🎯 Клик в камере ${camera.id}:`);
-        console.log(`   Канвас: (${canvasX.toFixed(1)}, ${canvasY.toFixed(1)})`);
-        console.log(`   Мир: (${worldCoords.x.toFixed(1)}, ${worldCoords.y.toFixed(1)}) zoom=${camera.zoom}x`);
+        // Клик в камере (отладка убрана)
         
         // 🎪 Вызываем событие для этой камеры
         this._emitCameraClick(camera, worldCoords, { canvasX, canvasY });

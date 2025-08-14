@@ -4,6 +4,7 @@
       <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга</h1>
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
+      <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер)</p>
       <p>🔲 <strong>Границы мира:</strong> Голубые линии показывают границы мира (1200×900px). Видны на всех камерах с разным зумом!</p>
     </div>
     <div class="canvas-row">
@@ -23,8 +24,6 @@ let game = null;
 onMounted(async () => {
   if (process.client) {
     try {
-      console.log('🚀 Создаем PixiGame по вашей архитектуре...');
-      
       // 🎮 Создаем движок
       game = new PixiGame();
       
@@ -48,14 +47,36 @@ onMounted(async () => {
         backgroundColor: '#333333', // Серый фон незанятых областей
         containerId: 'game-container'  // 🎯 ID DOM элемента куда помещать канвас
       });
-      const myCanvas2 = game.createCanvas({
-        width: 800,
-        height: 600,
-        backgroundColor: '#333333', // Серый фон незанятых областей
-        containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
-      });
-      const myCamera4 = game.createCamera({
-        id: 'main_camera2',
+      // const myCanvas2 = game.createCanvas({
+      //   width: 800,
+      //   height: 600,
+      //   backgroundColor: '#333333', // Серый фон незанятых областей
+      //   containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
+      // });
+      // const myCamera4 = game.createCamera({
+      //   id: 'main_camera2',
+      //   width: 800,           // Половина канваса
+      //   height: 600,          // Вся высота
+      //   x: 0,                 // Левая половина канваса
+      //   y: 0,
+      //   focusX: 0,            // Смотрит на центр мира
+      //   focusY: 0,
+      //   world: myWorld,
+      //   canvas: myCanvas2,
+      //   zoom: 0.7,            // Уменьшаем zoom чтобы видеть больше объектов
+      //   priority: 1,
+      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+      //   style: {
+      //     border: {
+      //       enabled: true,
+      //       width: 3,
+      //       color: 0xFF0080  // Розовый для четвертой камеры
+      //     }
+      //   }
+      // });
+      // 📷 Создаем первую камеру (основная, занимает левую половину)
+      const myCamera1 = game.createCamera({
+        id: 'main_camera',
         width: 800,           // Половина канваса
         height: 600,          // Вся высота
         x: 0,                 // Левая половина канваса
@@ -63,30 +84,8 @@ onMounted(async () => {
         focusX: 0,            // Смотрит на центр мира
         focusY: 0,
         world: myWorld,
-        canvas: myCanvas2,
-        zoom: 0.7,            // Уменьшаем zoom чтобы видеть больше объектов
-        priority: 1,
-        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
-        style: {
-          border: {
-            enabled: true,
-            width: 3,
-            color: 0xFF0080  // Розовый для четвертой камеры
-          }
-        }
-      });
-      // 📷 Создаем первую камеру (основная, занимает левую половину)
-      const myCamera1 = game.createCamera({
-        id: 'main_camera',
-        width: 400,           // Половина канваса
-        height: 600,          // Вся высота
-        x: 0,                 // Левая половина канваса
-        y: 0,
-        focusX: 0,            // Смотрит на центр мира
-        focusY: 0,
-        world: myWorld,
         canvas: myCanvas,
-        zoom: 0.5,            // Уменьшаем zoom чтобы видеть больше объектов
+        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         style: {
           border: {
@@ -98,71 +97,68 @@ onMounted(async () => {
       });
       
       // 📷 Создаем вторую камеру (мини-карта, правый верх) 
-      const myCamera2 = game.createCamera({
-        id: 'mini_camera',
-        width: 200,           // Маленькая камера
-        height: 200,
-        x: 600,              // Правая часть канваса
-        y: 0,                // Верх
-        focusX: 0,           // Тоже смотрит на центр
-        focusY: 0,
-        world: myWorld,      // ТОТ ЖЕ МИР!
-        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 0.2,           // Меньший зум для обзора
-        priority: 2,         // Рисуется поверх
-        // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
-        visibleTypes: ['building', 'unit', 'resource', 'world_border'],  // + границы мира!
-        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
-        style: {
-          border: {
-            enabled: true,
-            width: 1,
-            color: 0x0080FF  // Синий для мини-карты
-          }
-        }
-      });
+      // const myCamera2 = game.createCamera({
+      //   id: 'mini_camera',
+      //   width: 200,           // Маленькая камера
+      //   height: 200,
+      //   x: 600,              // Правая часть канваса
+      //   y: 0,                // Верх
+      //   focusX: 0,           // Тоже смотрит на центр
+      //   focusY: 0,
+      //   world: myWorld,      // ТОТ ЖЕ МИР!
+      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+      //   zoom: 0.2,           // Меньший зум для обзора
+      //   priority: 2,         // Рисуется поверх
+      //   // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
+      //   visibleTypes: ['building', 'unit', 'resource', 'world_border'],  // + границы мира!
+      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+      //   style: {
+      //     border: {
+      //       enabled: true,
+      //       width: 1,
+      //       color: 0x0080FF  // Синий для мини-карты
+      //     }
+      //   }
+      // });
       
       // 📷 Создаем третью камеру (детали, правый низ)
-      const myCamera3 = game.createCamera({
-        id: 'detail_camera',
-        width: 400,
-        height: 300,
-        x: 400,              // Правая часть
-        y: 300,              // Низ
-        focusX: 0,           // 🎯 Тоже смотрит на центр мира
-        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
-        world: myWorld,      // ТОТ ЖЕ МИР!
-        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 2,           // Слегка увеличенный зум (было 2.0)
-        priority: 3,
-        hiddenTypes: ['resource'],    // Скрываем пули, эффекты, частицы
-        style: {
-          border: {
-            enabled: true,
-            width: 2,
-            color: 0xFF8000  // Оранжевый для детальной камеры
-          }
-        }
-      });
+      // const myCamera3 = game.createCamera({
+      //   id: 'detail_camera',
+      //   width: 400,
+      //   height: 300,
+      //   x: 400,              // Правая часть
+      //   y: 300,              // Низ
+      //   focusX: 0,           // 🎯 Тоже смотрит на центр мира
+      //   focusY: 0,           // 🎯 Тоже смотрит на центр мира  
+      //   world: myWorld,      // ТОТ ЖЕ МИР!
+      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+      //   zoom: 2,           // Слегка увеличенный зум (было 2.0)
+      //   priority: 3,
+      //   hiddenTypes: ['resource'],    // Скрываем пули, эффекты, частицы
+      //   style: {
+      //     border: {
+      //       enabled: true,
+      //       width: 2,
+      //       color: 0xFF8000  // Оранжевый для детальной камеры
+      //     }
+      //   }
+      // });
       
       // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
       await game.startCanvas(myCanvas);
-      await game.startCanvas(myCanvas2);
+      //await game.startCanvas(myCanvas2);
       
       // 🖱️ Настраиваем обработчики кликов для тестирования координат
       myCanvas.onCameraClick = (camera, worldCoords, canvasCoords) => {
-        console.log(`🎯 ЛЕВЫЙ КАНВАС - Клик в камере ${camera.id}:`);
-        console.log(`   📍 Мир: (${worldCoords.x.toFixed(2)}, ${worldCoords.y.toFixed(2)})`);
-        console.log(`   🖱️ Канвас: (${canvasCoords.canvasX.toFixed(1)}, ${canvasCoords.canvasY.toFixed(1)})`);
-        console.log(`   🔍 Зум: ${camera.zoom}x`);
+        // Убраны логи для производительности
       };
       
-      myCanvas2.onCameraClick = (camera, worldCoords, canvasCoords) => {
-        console.log(`🎯 ПРАВЫЙ КАНВАС - Клик в камере ${camera.id}:`);
-        console.log(`   📍 Мир: (${worldCoords.x.toFixed(2)}, ${worldCoords.y.toFixed(2)})`);
-        console.log(`   🖱️ Канвас: (${canvasCoords.canvasX.toFixed(1)}, ${canvasCoords.canvasY.toFixed(1)})`);
-        console.log(`   🔍 Зум: ${camera.zoom}x`);
-      };
+      // myCanvas2.onCameraClick = (camera, worldCoords, canvasCoords) => {
+      //   console.log(`🎯 ПРАВЫЙ КАНВАС - Клик в камере ${camera.id}:`);
+      //   console.log(`   📍 Мир: (${worldCoords.x.toFixed(2)}, ${worldCoords.y.toFixed(2)})`);
+      //   console.log(`   🖱️ Канвас: (${canvasCoords.canvasX.toFixed(1)}, ${canvasCoords.canvasY.toFixed(1)})`);
+      //   console.log(`   🔍 Зум: ${camera.zoom}x`);
+      // };
       
       // 🧪 Добавляем тестовые сущности с НОВОЙ ГИБРИДНОЙ СИСТЕМОЙ РЕНДЕРИНГА!
       
@@ -261,12 +257,42 @@ onMounted(async () => {
       }, 3000);
       */
       
-      console.log('✅ PixiGame 2.0 с базовой Graphics системой запущен!');
-      console.log('🔵 Graphics: геометрические фигуры работают');
-      console.log('👤 Sprite: система готова (закомментирована)');
-      console.log('🦴 Skeletal: система готова (закомментирована)');
-      console.log('🌍 1 мир, 2 канваса, 4 камеры в разных областях');
-      console.log('📊 Отладочная информация:', game.getDebugInfo());
+      // 🎯 НОВИНКА: Система выбора камеры для управления
+      
+      // Выбираем основную камеру для демонстрации
+      game.selectCamera(myCamera1);
+      
+      // 🎮 НОВИНКА: Создаем контроллер управления камерой
+      const controller = game.createCameraController({
+        moveSpeed: 30,           // Скорость движения камеры
+        zoomStep: 0.10,          // Шаг зума
+        minZoom: 0.2,            // Минимальный зум
+        maxZoom: 3.0             // Максимальный зум
+      });
+      
+      // Принудительное включение контроллера
+      controller.enable();
+      
+      // 📊 НОВИНКА: Создаем счетчик FPS
+      const fpsCounter = game.createFPSCounter({
+        updateInterval: 500,     // Обновление каждые 500мс (более отзывчивый)
+        style: {
+          top: '10px',
+          left: '10px',
+          backgroundColor: 'rgba(0, 20, 0, 0.8)',
+          color: '#00FF00',
+          fontSize: '16px',
+          padding: '10px 15px',
+          borderRadius: '8px'
+        }
+      });
+      
+
+      
+      game.selectCamera(myCamera1);
+
+      
+      // PixiGame 2.0 запущен успешно
       
     } catch (error) {
       console.error('❌ Ошибка запуска:', error);

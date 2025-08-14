@@ -44,7 +44,6 @@ export class Entity {
     this.name = options.name || `${this.type}_${this.id}`;
     this.data = options.data || {};             // Произвольные данные
     
-    console.log(`🎯 Entity создана: ${this.name} (${this.type}) в (${this.x}, ${this.y}), система=${this.renderSystem}, форма=${this.visual.form}`);
   }
   
   /**
@@ -260,7 +259,6 @@ export class Entity {
         itemSprite.y = attachPoint.y;
         container.addChild(itemSprite);
         
-        console.log(`👕 Экипировка: ${slot} -> ${itemTexture} в (${attachPoint.x}, ${attachPoint.y})`);
       }
     });
   }
@@ -270,7 +268,6 @@ export class Entity {
    */
   _renderSkeletal(container) {
     // TODO: Интеграция с pixi-spine
-    console.log('🦴 Skeletal рендеринг пока не реализован, используем fallback');
     this._renderGraphics(container); // Временный fallback
   }
   
@@ -289,7 +286,6 @@ export class Entity {
     }
     
     this.visual.equippedItems[slot] = itemTexture;
-    console.log(`👕 Экипирован предмет: ${slot} -> ${itemTexture}`);
   }
   
   /**
@@ -300,9 +296,7 @@ export class Entity {
       console.warn('playAnimation() работает только с renderSystem: "skeletal"');
       return;
     }
-    
     this.visual.currentAnimation = animationName;
-    console.log(`🎭 Анимация изменена на: ${animationName}`);
     // TODO: Применить анимацию к skeletal объекту
   }
   
