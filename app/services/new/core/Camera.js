@@ -48,12 +48,21 @@ export class Camera {
     
     // 📦 Создаем контейнер для этой камеры
     this.container = new PIXI.Container();
+    
+    // 📍 ИСПРАВЛЕНИЕ: Позиционируем контейнер в нужном месте канваса
+    this.container.x = this.x;
+    this.container.y = this.y;
+    
     canvas.app.stage.addChild(this.container);
     
-    // ✂️ Создаем маску для ограничения области рендеринга
+    // ✂️ Создаем маску для ограничения области рендеринга  
     this.mask = new PIXI.Graphics();
-    this.mask.rect(this.x, this.y, this.width, this.height);
+    this.mask.rect(0, 0, this.width, this.height); // ← Маска теперь относительно контейнера!
     this.mask.fill({ color: 0xFFFFFF });
+    
+    // 📍 ИСПРАВЛЕНИЕ: Маска позиционируется вместе с контейнером
+    this.mask.x = this.x;
+    this.mask.y = this.y;
     
     this.container.mask = this.mask;
     canvas.app.stage.addChild(this.mask);
@@ -104,11 +113,19 @@ export class Camera {
     this.x = canvasX;
     this.y = canvasY;
     
+    // 🔄 Обновляем позицию контейнера
+    if (this.container) {
+      this.container.x = this.x;
+      this.container.y = this.y;
+    }
+    
     // 🔄 Обновляем маску
     if (this.mask) {
       this.mask.clear();
-      this.mask.rect(this.x, this.y, this.width, this.height);
+      this.mask.rect(0, 0, this.width, this.height); // Относительно контейнера
       this.mask.fill({ color: 0xFFFFFF });
+      this.mask.x = this.x;
+      this.mask.y = this.y;
     }
     
     // 🔄 Обновляем рамку
@@ -207,12 +224,30 @@ export class Camera {
    * 🎨 Рендеринг одной сущности
    */
   _renderEntity(entity) {
-    // 🌍➡️📱 Конвертируем координаты
-    const screenPos = this.worldToScreen(entity.x, entity.y);
+    // 🌍➡️📱 Конвертируем координаты мира в координаты камеры
+    const relativeX = (entity.x - this.focusX) * this.zoom;
+    const relativeY = (entity.y - this.focusY) * this.zoom;
     
-    // 📏 Проверяем, видна ли сущность в этой камере
-    if (screenPos.x < this.x - 20 || screenPos.x > this.x + this.width + 20 ||
-        screenPos.y < this.y - 20 || screenPos.y > this.y + this.height + 20) {
+    // 📍 Позиция в камере (от центра камеры)
+    const cameraX = relativeX + this.width / 2;
+    const cameraY = relativeY + this.height / 2;
+    
+    // 🕵️ ОТЛАДКА: логируем для всех объектов в detail_camera
+    if (this.id === 'detail_camera') {
+      console.log(`🎯 ${this.id}: entity(${entity.x},${entity.y}) type=${entity.type} → focus(${this.focusX},${this.focusY}) → relative(${relativeX.toFixed(1)},${relativeY.toFixed(1)}) → camera(${cameraX.toFixed(1)},${cameraY.toFixed(1)})`);
+    }
+    
+    // 📏 Проверяем, видна ли сущность в области камеры
+    const margin = 200; // Увеличенный запас для отладки
+    const isVisible = !(cameraX < -margin || cameraX > this.width + margin ||
+        cameraY < -margin || cameraY > this.height + margin);
+    
+    // 🕵️ ОТЛАДКА: логируем отсечение объектов в detail_camera
+    if (this.id === 'detail_camera') {
+      console.log(`   → visible=${isVisible} (bounds: ${-margin} < ${cameraX.toFixed(1)} < ${this.width + margin}, ${-margin} < ${cameraY.toFixed(1)} < ${this.height + margin})`);
+    }
+    
+    if (!isVisible) {
       return; // Не видна, пропускаем
     }
     
@@ -242,9 +277,9 @@ export class Camera {
         break;
     }
     
-    // 📍 Устанавливаем позицию (относительно камеры)
-    graphics.x = screenPos.x - this.x;
-    graphics.y = screenPos.y - this.y;
+    // 📍 Устанавливаем позицию В КОНТЕЙНЕРЕ КАМЕРЫ (контейнер уже сдвинут в нужное место канваса)
+    graphics.x = cameraX;
+    graphics.y = cameraY;
     
     // ➕ Добавляем в контейнер камеры
     this.container.addChild(graphics);

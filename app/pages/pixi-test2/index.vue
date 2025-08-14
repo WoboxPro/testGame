@@ -70,9 +70,9 @@ onMounted(async () => {
       const myCamera3 = game.createCamera({
         id: 'detail_camera',
         width: 400,
-        height: 400,
+        height: 300,
         x: 400,              // Правая часть
-        y: 200,              // Низ
+        y: 300,              // Низ
         focusX: 0,           // 🎯 Тоже смотрит на центр мира
         focusY: 0,           // 🎯 Тоже смотрит на центр мира  
         world: myWorld,      // ТОТ ЖЕ МИР!
