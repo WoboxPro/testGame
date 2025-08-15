@@ -9,7 +9,7 @@
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
-      <!-- <div id="game-container2" class="game-area"></div> -->
+      <div id="game-container2" class="game-area"></div>
     </div>
     
   </div>
@@ -47,38 +47,14 @@ onMounted(async () => {
         backgroundColor: '#333333', // Серый фон незанятых областей
         containerId: 'game-container'  //  ID DOM элемента куда помещать канвас
       });
-      // const myCanvas2 = game.createCanvas({
-      //   width: 800,
-      //   height: 600,
-      //   backgroundColor: '#333333', // Серый фон незанятых областей
-      //   containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
-      // });
-      // const myCamera4 = game.createCamera({
-      //   id: 'main_camera2',
-      //   width: 800,           // Половина канваса
-      //   height: 600,          // Вся высота
-      //   x: 0,                 // Левая половина канваса
-      //   y: 0,
-      //   focusX: 0,            // Смотрит на центр мира
-      //   focusY: 0,
-      //   world: myWorld,
-      //   canvas: myCanvas2,
-      //   zoom: 0.7,            // Уменьшаем zoom чтобы видеть больше объектов
-      //   priority: 1,
-      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
-      //   style: {
-      //     border: {
-      //       enabled: true,
-      //       width: 3,
-      //       color: 0xFF0080  // Розовый для четвертой камеры
-      //     }
-      //   }
-      // });
-      //      await game.startCanvas(myCanvas2);
-
-      // 📷 Создаем первую камеру (основная, занимает левую половину)
-      const myCamera1 = game.createCamera({
-        id: 'main_camera',
+      const myCanvas2 = game.createCanvas({
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333', // Серый фон незанятых областей
+        containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
+      });
+      const myCamera4 = game.createCamera({
+        id: 'main_camera2',
         width: 800,           // Половина канваса
         height: 600,          // Вся высота
         x: 0,                 // Левая половина канваса
@@ -86,8 +62,32 @@ onMounted(async () => {
         focusX: 0,            // Смотрит на центр мира
         focusY: 0,
         world: myWorld,
+        canvas: myCanvas2,
+        zoom: 0.7,            // Уменьшаем zoom чтобы видеть больше объектов
+        priority: 1,
+        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 3,
+            color: 0xFF0080  // Розовый для четвертой камеры
+          }
+        }
+      });
+           await game.startCanvas(myCanvas2);
+
+      // 📷 Создаем первую камеру (основная, занимает левую половину)
+      const myCamera1 = game.createCamera({
+        id: 'main_camera',
+        width: 400,           // Половина канваса
+        height: 600,          // Вся высота
+        x: 0,                 // Левая половина канваса
+        y: 0,
+        focusX: 0,            // Смотрит на центр мира
+        focusY: 0,
+        world: myWorld,
         canvas: myCanvas,
-        zoom: 3,            // Уменьшаем zoom чтобы видеть больше объектов
+        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         style: {
           border: {
@@ -99,52 +99,52 @@ onMounted(async () => {
       });
       
       // 📷 Создаем вторую камеру (мини-карта, правый верх) 
-      // const myCamera2 = game.createCamera({
-      //   id: 'mini_camera',
-      //   width: 200,           // Маленькая камера
-      //   height: 200,
-      //   x: 600,              // Правая часть канваса
-      //   y: 0,                // Верх
-      //   focusX: 0,           // Тоже смотрит на центр
-      //   focusY: 0,
-      //   world: myWorld,      // ТОТ ЖЕ МИР!
-      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-      //   zoom: 0.2,           // Меньший зум для обзора
-      //   priority: 2,         // Рисуется поверх
-      //   // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
-      //   visibleTypes: ['building', 'unit', 'resource', 'world_border'],  // + границы мира!
-      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
-      //   style: {
-      //     border: {
-      //       enabled: true,
-      //       width: 1,
-      //       color: 0x0080FF  // Синий для мини-карты
-      //     }
-      //   }
-      // });
+      const myCamera2 = game.createCamera({
+        id: 'mini_camera',
+        width: 200,           // Маленькая камера
+        height: 200,
+        x: 600,              // Правая часть канваса
+        y: 0,                // Верх
+        focusX: 0,           // Тоже смотрит на центр
+        focusY: 0,
+        world: myWorld,      // ТОТ ЖЕ МИР!
+        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+        zoom: 0.2,           // Меньший зум для обзора
+        priority: 2,         // Рисуется поверх
+        // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
+        visibleTypes: ['building', 'unit', 'resource', 'world_border'],  // + границы мира!
+        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 1,
+            color: 0x0080FF  // Синий для мини-карты
+          }
+        }
+      });
       
       // // 📷 Создаем третью камеру (детали, правый низ)
-      // const myCamera3 = game.createCamera({
-      //   id: 'detail_camera',
-      //   width: 400,
-      //   height: 300,
-      //   x: 400,              // Правая часть
-      //   y: 300,              // Низ
-      //   focusX: 0,           // 🎯 Тоже смотрит на центр мира
-      //   focusY: 0,           // 🎯 Тоже смотрит на центр мира  
-      //   world: myWorld,      // ТОТ ЖЕ МИР!
-      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-      //   zoom: 2,           // Слегка увеличенный зум (было 2.0)
-      //   priority: 3,
-      //   hiddenTypes: ['resource'],    // Скрываем пули, эффекты, частицы
-      //   style: {
-      //     border: {
-      //       enabled: true,
-      //       width: 2,
-      //       color: 0xFF8000  // Оранжевый для детальной камеры
-      //     }
-      //   }
-      // });
+      const myCamera3 = game.createCamera({
+        id: 'detail_camera',
+        width: 400,
+        height: 300,
+        x: 400,              // Правая часть
+        y: 300,              // Низ
+        focusX: 0,           // 🎯 Тоже смотрит на центр мира
+        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
+        world: myWorld,      // ТОТ ЖЕ МИР!
+        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+        zoom: 2,           // Слегка увеличенный зум (было 2.0)
+        priority: 3,
+        hiddenTypes: ['resource'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0xFF8000  // Оранжевый для детальной камеры
+          }
+        }
+      });
       
       // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
       await game.startCanvas(myCanvas);
