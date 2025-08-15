@@ -85,6 +85,11 @@ export class Camera {
     this.container.mask = this.mask;
     canvas.app.stage.addChild(this.mask);
 
+    // 🎨 Создаем фон мира (Graphics прямоугольник с цветом мира)
+    this.worldBackground = new PIXI.Graphics();
+    this._drawWorldBackground();
+    this.container.addChild(this.worldBackground);
+    
     // 🌍 Слой мира, который масштабируется зумом
     this.worldLayer = new PIXI.Container();
     this.worldLayer.x = 0 + this.width / 2;
@@ -181,6 +186,32 @@ export class Camera {
    */
   // ВТОРОЙ setZoom был дубликатом — удален, логика объединена выше
   
+  /**
+   * 🎨 Нарисовать фон мира в камере
+   */
+  _drawWorldBackground() {
+    if (!this.worldBackground || !this.world) return;
+    
+    this.worldBackground.clear();
+    
+    // Получаем цвет фона мира
+    let backgroundColor = 0x2c3e50; // Дефолт 
+    if (this.world.backgroundColor) {
+      if (typeof this.world.backgroundColor === 'string') {
+        // Конвертируем '#ff0000' → 0xff0000
+        backgroundColor = parseInt(this.world.backgroundColor.replace('#', ''), 16);
+      } else {
+        backgroundColor = this.world.backgroundColor;
+      }
+    }
+    
+    // Рисуем прямоугольник размером с камеру
+    this.worldBackground.rect(0, 0, this.width, this.height);
+    this.worldBackground.fill(backgroundColor);
+    
+    console.log(`🎨 Камера "${this.id}": фон мира нарисован 0x${backgroundColor.toString(16).toUpperCase()}`);
+  }
+
   /**
    * 🎛️ Проверить должен ли объект отображаться в этой камере
    */
