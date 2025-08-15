@@ -9,6 +9,7 @@ import { World } from './core/World.js';
 import { Canvas } from './core/Canvas.js';
 import { Camera } from './core/Camera.js';
 import { CameraController } from './core/CameraController.js';
+import { EntityController } from './core/EntityController.js';
 import { FPSCounter } from './core/FPSCounter.js';
 
 export class PixiGame {
@@ -27,6 +28,9 @@ export class PixiGame {
     
     // 🎮 Контроллер управления камерой
     this.cameraController = null;
+    
+    // 🎮 Контроллеры управления сущностями
+    this.entityControllers = new Map(); // id -> EntityController
     
     // 📊 Счетчик FPS
     this.fpsCounter = null;
@@ -112,6 +116,11 @@ export class PixiGame {
         this.cameraController._updateFromTicker(ticker);
       }
       
+      // 🎮 Обновляем EntityControllers
+      this.entityControllers.forEach(controller => {
+        controller._updateFromTicker(ticker);
+      });
+      
       // 📊 Обновляем FPS Counter
       if (this.fpsCounter) {
         this.fpsCounter._updateFromTicker(ticker);
@@ -144,6 +153,10 @@ export class PixiGame {
       this.cameraController.destroy();
       this.cameraController = null;
     }
+    
+    // 🧹 Очищаем все EntityControllers
+    this.entityControllers.forEach(controller => controller.destroy());
+    this.entityControllers.clear();
     
     if (this.fpsCounter) {
       this.fpsCounter.destroy();
@@ -234,6 +247,51 @@ export class PixiGame {
   }
   
   /**
+   * 🎮 Создать контроллер для сущности
+   */
+  createEntityController(options = {}) {
+    // 🎮 Создаем новый EntityController
+    const controller = new EntityController(this, options);
+    
+    // 🎯 Генерируем ID если не указан
+    const controllerId = options.id || `entity_controller_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    
+    // 📦 Сохраняем в коллекции
+    this.entityControllers.set(controllerId, controller);
+    
+    console.log(`🎮 EntityController создан: ${controllerId}`);
+    return controller;
+  }
+  
+  /**
+   * 🎮 Получить EntityController по ID
+   */
+  getEntityController(controllerId) {
+    return this.entityControllers.get(controllerId);
+  }
+  
+  /**
+   * 🗑️ Удалить EntityController
+   */
+  removeEntityController(controllerId) {
+    const controller = this.entityControllers.get(controllerId);
+    if (controller) {
+      controller.destroy();
+      this.entityControllers.delete(controllerId);
+      console.log(`🗑️ EntityController удален: ${controllerId}`);
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * 📊 Получить все EntityControllers
+   */
+  getAllEntityControllers() {
+    return Array.from(this.entityControllers.values());
+  }
+  
+  /**
    * 📊 Создать счетчик FPS
    */
   createFPSCounter(options = {}) {
@@ -265,10 +323,12 @@ export class PixiGame {
       worldCount: this.worlds.size,
       canvasCount: this.canvases.size,
       cameraCount: this.cameras.size,
+      entityControllerCount: this.entityControllers.size,
       selectedCamera: this.selectedCamera?.id || null,
       worlds: Array.from(this.worlds.values()).map(w => w.getInfo()),
       canvases: Array.from(this.canvases.values()).map(c => c.getInfo()),
-      cameras: Array.from(this.cameras.values()).map(c => c.getInfo())
+      cameras: Array.from(this.cameras.values()).map(c => c.getInfo()),
+      entityControllers: Array.from(this.entityControllers.values()).map(c => c.getInfo())
     };
   }
 }

@@ -57,6 +57,9 @@ export class World {
       entity = new Entity(options); // Создаем из опций
     }
     
+    // 🌍 Устанавливаем ссылку на мир в сущности
+    entity.world = this;
+    
     // 📦 Добавляем в мир
     this.entities.set(entity.id, entity);
     console.log(`➕ Entity добавлен: ${entity.name} (${entity.type}) в (${entity.x}, ${entity.y})`);

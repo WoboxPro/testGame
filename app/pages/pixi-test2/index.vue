@@ -5,6 +5,7 @@
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер)</p>
+      <p>🏃 <strong>Управление героем (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • Ярко-зеленый солдат слева!</p>
       <p>🔲 <strong>Границы мира:</strong> Голубые линии показывают границы мира (1200×900px). Видны на всех камерах с разным зумом!</p>
     </div>
     <div class="canvas-row">
@@ -173,6 +174,14 @@ onMounted(async () => {
       myWorld.addDecoration(-40, 70, { name: 'Дерево 1', form: 'tree', size: 12, type: 'decoration' });
       myWorld.addDecoration(40, -70, { name: 'Дерево 2', form: 'tree', size: 10, type: 'decoration' });
       
+      // 🎮 НОВИНКА: Управляемая сущность
+      const controlledHero = myWorld.addUnit(-200, 0, { 
+        name: 'Управляемый Герой', 
+        form: 'soldier', 
+        size: 12, 
+        color: 0x00FF80  // Ярко-зеленый для выделения
+      });
+      
       // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
       myWorld.addEntity({ x: -20, y: 10, type: 'bullet', form: 'bullet', size: 3, name: 'Пуля 1', color: 0xFF4500 });
       myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
@@ -264,6 +273,21 @@ onMounted(async () => {
       
       // Принудительное включение контроллера
       controller.enable();
+      
+      // 🎮 НОВИНКА: Создаем контроллер для управления сущностью
+      const entityController = game.createEntityController({
+        moveSpeed: 3,                    // Скорость движения сущности
+        fastSpeedMultiplier: 2.5,        // Ускорение на Shift
+        slowSpeedMultiplier: 0.4,        // Замедление на Ctrl
+        keyLayout: 'wasd',               // Управление WASD
+        useEntityMovementParams: false,  // Пока не используем параметры сущности
+        respectEntityBounds: true        // Учитываем границы мира
+      });
+      
+      // 🔗 Привязываем контроллер к управляемому герою
+      controlledHero.addController(entityController);
+      
+      console.log('🎮 EntityController привязан к герою! Управление: WASD + Shift(ускорение) + Ctrl(замедление)');
       
       // 📊 НОВИНКА: Создаем счетчик FPS
       // const fpsCounter = game.createFPSCounter({

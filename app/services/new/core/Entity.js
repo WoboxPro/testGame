@@ -44,6 +44,12 @@ export class Entity {
     this.name = options.name || `${this.type}_${this.id}`;
     this.data = options.data || {};             // Произвольные данные
     
+    // 🎮 Контроллер для управления сущностью
+    this.controller = null;
+    
+    // 🌍 Ссылка на мир (для проверки границ и т.д.)
+    this.world = null;
+    
   }
   
   /**
@@ -298,6 +304,64 @@ export class Entity {
     }
     this.visual.currentAnimation = animationName;
     // TODO: Применить анимацию к skeletal объекту
+  }
+  
+  /**
+   * 🎮 Добавить контроллер к сущности
+   */
+  addController(controller) {
+    if (!controller) {
+      console.warn('🎮 Попытка добавить пустой контроллер к сущности');
+      return false;
+    }
+    
+    // 🧹 Отключаем старый контроллер если есть
+    if (this.controller) {
+      this.removeController();
+    }
+    
+    // 🔗 Привязываем новый контроллер
+    this.controller = controller;
+    
+    // 🔗 Устанавливаем обратную связь в контроллере
+    if (controller.attachToEntity) {
+      controller.attachToEntity(this);
+    }
+    
+    console.log(`🎮 Контроллер добавлен к сущности: ${this.name} (${this.id})`);
+    return true;
+  }
+  
+  /**
+   * 🚫 Удалить контроллер от сущности
+   */
+  removeController() {
+    if (this.controller) {
+      console.log(`🚫 Контроллер удален от сущности: ${this.name}`);
+      
+      // 🧹 Отвязываем контроллер
+      if (this.controller.detachFromEntity) {
+        this.controller.detachFromEntity();
+      }
+      
+      this.controller = null;
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * 🎮 Получить текущий контроллер
+   */
+  getController() {
+    return this.controller;
+  }
+  
+  /**
+   * 🎮 Проверить есть ли контроллер
+   */
+  hasController() {
+    return this.controller !== null;
   }
   
   /**
