@@ -33,6 +33,10 @@ export class Camera {
     // 🎯 Состояние выбора для управления
     this.isSelected = false;
     
+    // 📹 Система слежения за сущностями
+    this.followedEntity = null;      // Сущность за которой следим
+    this.followOffset = { x: 0, y: 0 }; // Смещение от центра сущности
+    
     // 🎛️ Фильтрация объектов
     this.visibleTypes = options.visibleTypes || 'all'; // 'all' или массив типов ['building', 'unit']
     this.hiddenTypes = options.hiddenTypes || []; // Массив скрытых типов ['bullet', 'effect']
@@ -151,6 +155,85 @@ export class Camera {
     if (this.border) {
       this._updateBorder();
     }
+  }
+  
+  /**
+   * 📹 Следить за сущностью
+   */
+  followEntity(entity, offsetX = 0, offsetY = 0) {
+    if (!entity) {
+      console.warn('📹 Попытка установить слежение за несуществующей сущностью');
+      return false;
+    }
+    
+    // 🎯 Останавливаем предыдущее слежение
+    if (this.followedEntity) {
+      this.stopFollowing();
+    }
+    
+    this.followedEntity = entity;
+    this.followOffset.x = offsetX;
+    this.followOffset.y = offsetY;
+    
+    // 🎯 Сразу центрируем камеру на сущности
+    this._updateFollowing();
+    
+    console.log(`📹 Камера "${this.id}" теперь следит за сущностью: ${entity.name} (${entity.id})`);
+    return true;
+  }
+  
+  /**
+   * 🛑 Прекратить слежение
+   */
+  stopFollowing() {
+    if (this.followedEntity) {
+      console.log(`🛑 Камера "${this.id}" прекратила слежение за: ${this.followedEntity.name}`);
+      this.followedEntity = null;
+      this.followOffset.x = 0;
+      this.followOffset.y = 0;
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * 📹 Установить смещение слежения
+   */
+  setFollowOffset(offsetX, offsetY) {
+    this.followOffset.x = offsetX;
+    this.followOffset.y = offsetY;
+    
+    if (this.followedEntity) {
+      this._updateFollowing();
+      console.log(`📹 Смещение слежения обновлено: (${offsetX}, ${offsetY})`);
+    }
+  }
+  
+  /**
+   * 🔍 Получить сущность за которой следим
+   */
+  getFollowedEntity() {
+    return this.followedEntity;
+  }
+  
+  /**
+   * ❓ Проверить следим ли за сущностью
+   */
+  isFollowing() {
+    return this.followedEntity !== null;
+  }
+  
+  /**
+   * 🎯 Обновить позицию камеры для слежения
+   */
+  _updateFollowing() {
+    if (!this.followedEntity) return;
+    
+    // 🎯 Центрируем камеру на сущности с учетом смещения
+    const targetX = this.followedEntity.x + this.followOffset.x;
+    const targetY = this.followedEntity.y + this.followOffset.y;
+    
+    this.setFocus(targetX, targetY);
   }
   
   /**
@@ -297,6 +380,11 @@ export class Camera {
   render() {
     if (!this.world || !this.container) return;
     
+    // 📹 Автоматически обновляем позицию если следим за сущностью
+    if (this.followedEntity) {
+      this._updateFollowing();
+    }
+    
     // Обновляем масштаб слоя мира
     if (this.worldLayer) {
       this.worldLayer.scale.set(this.zoom);
@@ -380,7 +468,12 @@ export class Camera {
       priority: this.priority,
       hasWorld: !!this.world,
       hasCanvas: !!this.canvas,
-      isInitialized: !!this.container
+      isInitialized: !!this.container,
+      // 📹 Информация о слежении
+      isFollowing: this.isFollowing(),
+      followedEntityId: this.followedEntity?.id || null,
+      followedEntityName: this.followedEntity?.name || null,
+      followOffset: { ...this.followOffset }
     };
   }
 }

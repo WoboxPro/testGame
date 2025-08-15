@@ -4,7 +4,7 @@
       <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга</h1>
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
-      <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер)</p>
+      <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
       <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Зеленый герой + розовый алмаз!</p>
       <p>🔲 <strong>Границы мира:</strong> Голубые линии показывают границы мира (1200×900px). Видны на всех камерах с разным зумом!</p>
     </div>
@@ -269,6 +269,12 @@ onMounted(async () => {
       // Выбираем основную камеру для демонстрации
       game.selectCamera(myCamera1);
       
+      // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
+      myCamera1.followEntity(controlledHero);
+      myCamera3.followEntity(controlledHero2);
+
+      console.log('📹 Основная камера теперь следит за героем! Двигайте героя WASD - камера будет следовать!');
+      
       // 🎮 НОВИНКА: Создаем контроллер управления камерой
       const controller = game.createCameraController({
         moveSpeed: 2,            // 🎯 1 пиксель за шаг (плавно!)
@@ -295,18 +301,26 @@ onMounted(async () => {
       // 🔗 Привязываем контроллер к ДВУМ сущностям!
       controlledHero.addController(entityController);   // Первая сущность (герой)
       controlledHero2.addController(entityController);  // Вторая сущность (пуля)
- 
-      console.log('🎮 EntityController привязан к 2 сущностям!');
-      console.log('🌍 Режим "all": WASD двигает ОБЕ сущности одновременно');
-      console.log('🎮 Управление: WASD + Shift(ускорение) + Ctrl(замедление) + Tab(переключение режимов)');
-      console.log('🎯 Попробуйте сменить controlMode на "single" для переключения между сущностями!');
+      entityController.updateSettings({ controlMode: 'single' });
+
       
       // 🎭 Демонстрация переключения режимов
-      setTimeout(() => {
-        console.log('🔄 Переключаю режим на "single" - теперь Tab переключает между сущностями!');
-        entityController.updateSettings({ controlMode: 'single' });
-        console.log('🎯 Нажмите Tab чтобы переключиться между героем и пулей!');
-      }, 5000);
+      // setTimeout(() => {
+      //   entityController.updateSettings({ controlMode: 'single' });
+      // }, 5000);
+      
+      // 📹 Демонстрация переключения слежения камеры
+      // setTimeout(() => {
+      //   console.log('📹 Переключаю камеру на слежение за розовым алмазом!');
+      //   myCamera1.followEntity(controlledHero2, 20, -15); // С небольшим смещением
+      //   console.log('🎯 Основная камера теперь следит за алмазом с смещением!');
+      // }, 8000);
+      
+      // setTimeout(() => {
+      //   console.log('📹 Возвращаю камеру обратно на героя!');
+      //   myCamera1.followEntity(controlledHero);
+      //   console.log('🔙 Камера снова следит за зеленым героем!');
+      // }, 12000);
       
       // 📊 НОВИНКА: Создаем счетчик FPS
       // const fpsCounter = game.createFPSCounter({

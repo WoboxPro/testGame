@@ -365,6 +365,36 @@ export class Entity {
   }
   
   /**
+   * 📹 Установить камеру для слежения за этой сущностью (синтаксический сахар)
+   */
+  setCameraFocus(camera, offsetX = 0, offsetY = 0) {
+    if (!camera) {
+      console.warn('📹 Попытка установить фокус камеры с пустой камерой');
+      return false;
+    }
+    
+    // 🎯 Просто вызываем метод камеры
+    return camera.followEntity(this, offsetX, offsetY);
+  }
+  
+  /**
+   * 📹 Убрать фокус камеры с этой сущности
+   */
+  removeCameraFocus(camera) {
+    if (!camera) {
+      console.warn('📹 Попытка убрать фокус с пустой камеры');
+      return false;
+    }
+    
+    // 🎯 Проверяем что камера действительно следит за нами
+    if (camera.getFollowedEntity() === this) {
+      return camera.stopFollowing();
+    }
+    
+    return false;
+  }
+  
+  /**
    * 📊 Получить информацию о сущности
    */
   getInfo() {
