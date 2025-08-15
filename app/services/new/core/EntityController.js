@@ -12,8 +12,9 @@ export class EntityController {
     this.game = game;
     this.isEnabled = options.enabled !== false;
     
-    // 🎯 Привязанная сущность
-    this.controlledEntity = null;
+    // 🎯 Привязанные сущности
+    this.controlledEntities = new Map(); // id -> Entity
+    this.activeEntityId = null;          // ID активной сущности для переключения
     
     // ⚙️ Настройки управления
     this.settings = {
@@ -26,6 +27,9 @@ export class EntityController {
       // 🎯 Параметры движения сущности (заготовка)
       useEntityMovementParams: options.useEntityMovementParams || false, // Пока false
       respectEntityBounds: options.respectEntityBounds !== false,        // Учитывать границы мира
+      
+      // 🎮 Режимы управления множественными сущностями
+      controlMode: options.controlMode || 'all',   // 'all' (все сразу) | 'single' (по одной)
       
       // 🎹 Раскладка клавиш
       keyLayout: options.keyLayout || 'wasd',      // 'wasd' | 'arrows' | 'both'
@@ -77,6 +81,9 @@ export class EntityController {
     keyMap['ControlLeft'] = 'speed_slow';
     keyMap['ControlRight'] = 'speed_slow';
     
+    // Переключение между сущностями
+    keyMap['Tab'] = 'switch_entity';
+    
     return keyMap;
   }
   
@@ -89,36 +96,99 @@ export class EntityController {
       return false;
     }
     
-    // 🧹 Отвязываемся от предыдущей сущности
-    if (this.controlledEntity) {
-      this.detachFromEntity();
+    // 🔍 Проверяем не привязана ли уже эта сущность
+    if (this.controlledEntities.has(entity.id)) {
+      console.log(`🎮 Сущность ${entity.name} уже привязана к контроллеру`);
+      return true;
     }
     
-    this.controlledEntity = entity;
+    // ➕ Добавляем сущность в коллекцию
+    this.controlledEntities.set(entity.id, entity);
+    
+    // 🎯 Устанавливаем как активную если первая
+    if (!this.activeEntityId) {
+      this.activeEntityId = entity.id;
+    }
     
     // 🔗 Устанавливаем обратную связь
     if (entity.controller !== this) {
       entity.controller = this;
     }
     
-    console.log(`🎮 EntityController привязан к сущности: ${entity.name} (${entity.id})`);
+    console.log(`🎮 EntityController привязан к сущности: ${entity.name} (${entity.id}). Всего управляемых: ${this.controlledEntities.size}`);
     return true;
   }
   
   /**
-   * 🚫 Отвязать контроллер от сущности
+   * 🚫 Отвязать контроллер от сущности (конкретной или всех)
    */
-  detachFromEntity() {
-    if (this.controlledEntity) {
-      console.log(`🚫 EntityController отвязан от сущности: ${this.controlledEntity.name}`);
-      
-      // 🧹 Очищаем обратную связь
-      if (this.controlledEntity.controller === this) {
-        this.controlledEntity.controller = null;
+  detachFromEntity(entityId = null) {
+    if (entityId) {
+      // 🎯 Отвязываем конкретную сущность
+      const entity = this.controlledEntities.get(entityId);
+      if (entity) {
+        console.log(`🚫 EntityController отвязан от сущности: ${entity.name}`);
+        
+        // 🧹 Очищаем обратную связь
+        if (entity.controller === this) {
+          entity.controller = null;
+        }
+        
+        this.controlledEntities.delete(entityId);
+        
+        // 🎯 Если это была активная сущность, переключаемся на первую доступную
+        if (this.activeEntityId === entityId) {
+          const firstEntity = this.controlledEntities.values().next().value;
+          this.activeEntityId = firstEntity ? firstEntity.id : null;
+        }
+        
+        return true;
       }
+    } else {
+      // 🧹 Отвязываем все сущности
+      this.controlledEntities.forEach(entity => {
+        console.log(`🚫 EntityController отвязан от сущности: ${entity.name}`);
+        if (entity.controller === this) {
+          entity.controller = null;
+        }
+      });
       
-      this.controlledEntity = null;
+      this.controlledEntities.clear();
+      this.activeEntityId = null;
+      return true;
     }
+    
+    return false;
+  }
+  
+  /**
+   * 🎯 Получить активную сущность
+   */
+  getActiveEntity() {
+    return this.activeEntityId ? this.controlledEntities.get(this.activeEntityId) : null;
+  }
+  
+  /**
+   * 🎯 Получить все управляемые сущности
+   */
+  getControlledEntities() {
+    return Array.from(this.controlledEntities.values());
+  }
+  
+  /**
+   * 🔄 Переключиться на следующую сущность
+   */
+  switchToNextEntity() {
+    if (this.controlledEntities.size <= 1) {
+      return; // Нечего переключать
+    }
+    
+    const entitiesArray = Array.from(this.controlledEntities.values());
+    const currentIndex = entitiesArray.findIndex(entity => entity.id === this.activeEntityId);
+    const nextIndex = (currentIndex + 1) % entitiesArray.length;
+    
+    this.activeEntityId = entitiesArray[nextIndex].id;
+    console.log(`🔄 Переключение на сущность: ${entitiesArray[nextIndex].name}`);
   }
   
   /**
@@ -203,6 +273,10 @@ export class EntityController {
       this.pressedKeys.add(action);
       this._updateSpeed();
     }
+    // 🔄 Переключение сущностей
+    else if (action === 'switch_entity') {
+      this.switchToNextEntity();
+    }
   }
   
   /**
@@ -242,39 +316,65 @@ export class EntityController {
    * ⚡ Выполнить действие
    */
   _executeAction(action) {
-    if (!this.controlledEntity) {
-      return; // Нет привязанной сущности
+    if (this.controlledEntities.size === 0) {
+      return; // Нет привязанных сущностей
     }
     
     switch (action) {
       case 'move_up':
-        this._moveEntity(0, -this.currentSpeed);
+        this._moveEntities(0, -this.currentSpeed);
         break;
       case 'move_down':
-        this._moveEntity(0, this.currentSpeed);
+        this._moveEntities(0, this.currentSpeed);
         break;
       case 'move_left':
-        this._moveEntity(-this.currentSpeed, 0);
+        this._moveEntities(-this.currentSpeed, 0);
         break;
       case 'move_right':
-        this._moveEntity(this.currentSpeed, 0);
+        this._moveEntities(this.currentSpeed, 0);
         break;
     }
   }
   
   /**
-   * 📍 Двигать сущность
+   * 📍 Двигать сущности (в зависимости от режима управления)
    */
-  _moveEntity(deltaX, deltaY) {
-    if (!this.controlledEntity) return;
+  _moveEntities(deltaX, deltaY) {
+    if (this.controlledEntities.size === 0) return;
+    
+    // 🎯 Определяем какие сущности двигать
+    let entitiesToMove = [];
+    
+    if (this.settings.controlMode === 'all') {
+      // 🌍 Двигаем все управляемые сущности
+      entitiesToMove = Array.from(this.controlledEntities.values());
+    } else if (this.settings.controlMode === 'single') {
+      // 🎯 Двигаем только активную сущность
+      const activeEntity = this.getActiveEntity();
+      if (activeEntity) {
+        entitiesToMove = [activeEntity];
+      }
+    }
+    
+    // 📍 Перемещаем выбранные сущности
+    entitiesToMove.forEach(entity => {
+      this._moveEntity(entity, deltaX, deltaY);
+    });
+  }
+  
+  /**
+   * 📍 Двигать конкретную сущность
+   */
+  _moveEntity(entity, deltaX, deltaY) {
+    if (!entity) return;
     
     // 🎯 Получаем текущую позицию
-    let newX = this.controlledEntity.x + deltaX;
-    let newY = this.controlledEntity.y + deltaY;
+    let newX = entity.x + deltaX;
+    let newY = entity.y + deltaY;
     
     // 🎯 Проверяем границы мира если включено
-    if (this.settings.respectEntityBounds && this.controlledEntity.world) {
-      const world = this.controlledEntity.world;
+    if (this.settings.respectEntityBounds && entity.world) {
+      const world = entity.world;
       if (world.bounds) {
         newX = Math.max(world.bounds.left, Math.min(world.bounds.right, newX));
         newY = Math.max(world.bounds.top, Math.min(world.bounds.bottom, newY));
@@ -292,16 +392,19 @@ export class EntityController {
     }
     
     // 📍 Устанавливаем новую позицию
-    this.controlledEntity.setPosition(newX, newY);
+    entity.setPosition(newX, newY);
     
-    console.log(`📍 Сущность ${this.controlledEntity.name} перемещена в (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+    // 📍 Логируем только для активной сущности чтобы не спамить
+    if (this.settings.controlMode === 'single' || entity.id === this.activeEntityId) {
+      console.log(`📍 ${entity.name} перемещена в (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+    }
   }
   
   /**
    * 🎯 Обновление через PIXI ticker
    */
   _updateFromTicker(ticker) {
-    if (!this.isEnabled || !this.controlledEntity) return;
+    if (!this.isEnabled || this.controlledEntities.size === 0) return;
     
     const currentTime = ticker.lastTime;
     
@@ -345,7 +448,10 @@ export class EntityController {
   getInfo() {
     return {
       enabled: this.isEnabled,
-      controlledEntity: this.controlledEntity?.id || null,
+      controlledEntitiesCount: this.controlledEntities.size,
+      controlledEntityIds: Array.from(this.controlledEntities.keys()),
+      activeEntityId: this.activeEntityId,
+      activeEntityName: this.getActiveEntity()?.name || null,
       currentSpeed: this.currentSpeed,
       pressedKeys: Array.from(this.pressedKeys),
       settings: this.settings,
@@ -359,7 +465,7 @@ export class EntityController {
   destroy() {
     console.log('🧹 Уничтожение EntityController...');
     this.disable();
-    this.detachFromEntity();
+    this.detachFromEntity(); // Отвязываем все сущности
     this.game = null;
     console.log('✅ EntityController уничтожен');
   }

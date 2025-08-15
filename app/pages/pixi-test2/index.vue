@@ -5,7 +5,7 @@
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер)</p>
-      <p>🏃 <strong>Управление героем (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • Ярко-зеленый солдат слева!</p>
+      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Зеленый герой + розовый алмаз!</p>
       <p>🔲 <strong>Границы мира:</strong> Голубые линии показывают границы мира (1200×900px). Видны на всех камерах с разным зумом!</p>
     </div>
     <div class="canvas-row">
@@ -183,7 +183,14 @@ onMounted(async () => {
       });
       
       // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
-      myWorld.addEntity({ x: -20, y: 10, type: 'bullet', form: 'bullet', size: 3, name: 'Пуля 1', color: 0xFF4500 });
+      const controlledHero2 = myWorld.addEntity({ 
+        x: -20, y: 10, 
+        type: 'unit',        // 🎯 Меняем тип чтобы была видна в мини-карте
+        form: 'diamond',     // 🎯 Уникальная форма для отличия
+        size: 8,             // 🎯 Увеличиваем размер
+        name: 'Управляемый Алмаз', 
+        color: 0xFF00FF      // 🎯 Ярко-розовый цвет для выделения
+      });
       myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
       myWorld.addEntity({ x: 30, y: 20, type: 'bullet', form: 'circle', size: 2, name: 'Пуля 3', color: 0xDC143C });
       
@@ -274,20 +281,32 @@ onMounted(async () => {
       // Принудительное включение контроллера
       controller.enable();
       
-      // 🎮 НОВИНКА: Создаем контроллер для управления сущностью
+            // 🎮 НОВИНКА: Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         moveSpeed: 3,                    // Скорость движения сущности
         fastSpeedMultiplier: 2.5,        // Ускорение на Shift
         slowSpeedMultiplier: 0.4,        // Замедление на Ctrl
         keyLayout: 'wasd',               // Управление WASD
+        controlMode: 'all',              // 🌍 'all' = двигаем все сразу, 'single' = по одной с Tab
         useEntityMovementParams: false,  // Пока не используем параметры сущности
         respectEntityBounds: true        // Учитываем границы мира
       });
       
-      // 🔗 Привязываем контроллер к управляемому герою
-      controlledHero.addController(entityController);
+      // 🔗 Привязываем контроллер к ДВУМ сущностям!
+      controlledHero.addController(entityController);   // Первая сущность (герой)
+      controlledHero2.addController(entityController);  // Вторая сущность (пуля)
+ 
+      console.log('🎮 EntityController привязан к 2 сущностям!');
+      console.log('🌍 Режим "all": WASD двигает ОБЕ сущности одновременно');
+      console.log('🎮 Управление: WASD + Shift(ускорение) + Ctrl(замедление) + Tab(переключение режимов)');
+      console.log('🎯 Попробуйте сменить controlMode на "single" для переключения между сущностями!');
       
-      console.log('🎮 EntityController привязан к герою! Управление: WASD + Shift(ускорение) + Ctrl(замедление)');
+      // 🎭 Демонстрация переключения режимов
+      setTimeout(() => {
+        console.log('🔄 Переключаю режим на "single" - теперь Tab переключает между сущностями!');
+        entityController.updateSettings({ controlMode: 'single' });
+        console.log('🎯 Нажмите Tab чтобы переключиться между героем и пулей!');
+      }, 5000);
       
       // 📊 НОВИНКА: Создаем счетчик FPS
       // const fpsCounter = game.createFPSCounter({
