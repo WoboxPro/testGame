@@ -336,13 +336,8 @@ onMounted(async () => {
       //   }
       // });
       
-
-      
       game.selectCamera(myCamera1);
 
-      
-      // PixiGame 2.0 запущен успешно
-      
     } catch (error) {
       console.error('❌ Ошибка запуска:', error);
     }
