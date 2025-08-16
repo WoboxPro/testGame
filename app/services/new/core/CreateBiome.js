@@ -71,7 +71,7 @@ export class CreateBiome {
    */
   applyEffects(entity) {
     // TODO: Реализовать применение эффектов
-    // console.log(`🌍 Применяем эффекты биома ${this.displayName} к ${entity.name}`);
+    console.log(`🌍 Применяем эффекты биома ${this.displayName} к ${entity.name}`);
   }
   
   /**

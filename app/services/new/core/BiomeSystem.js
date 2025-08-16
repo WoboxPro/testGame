@@ -97,9 +97,9 @@ export class BiomeSystem {
    */
   handleBiomeChange(entity, fromBiome, toBiome) {
     if (fromBiome && toBiome) {
-      //console.log(`🌍 ${entity.name} перешел из биома "${fromBiome.displayName}" в "${toBiome.displayName}"`);
+      console.log(`🌍 ${entity.name} перешел из биома "${fromBiome.displayName}" в "${toBiome.displayName}"`);
     } else if (toBiome) {
-      //console.log(`🌍 ${entity.name} вошел в биом "${toBiome.displayName}"`);
+      console.log(`🌍 ${entity.name} вошел в биом "${toBiome.displayName}"`);
     }
     
     // TODO: Применить эффекты нового биома

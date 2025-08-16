@@ -1,13 +1,14 @@
 <template>
   <div class="container">
     <div class="info">
-      <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга + Биомы</h1>
+      <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга + Биомы + Зоны</h1>
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
       <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Зеленый герой + розовый алмаз!</p>
       <p>🌍 <strong>Границы мира:</strong> Голубые линии = границы мира (1200×900px). 🎯 Камера не покажет область за границами! Герой может подойти к краю, но камера остановится!</p>
-      <p>🌿 <strong>Биомы:</strong> Дефолтный биом "Луга" + "Пустыня" (справа) + "Болото" (слева). 🔲 Цветные рамки = границы биомов! Смотрите консоль при смене биомов!</p>
+      <p>🌿 <strong>Биомы:</strong> Дефолтный биом "Луга" + "Пустыня" (справа) + "Болото" (слева). 🔲 Сплошные цветные рамки = границы биомов!</p>
+      <p>🏛️ <strong>Зоны:</strong> "PvP Арена" + "Безопасная Зона" + "Запретная Зона". 🔲 Пунктирные цветные рамки = границы зон! Смотрите консоль при смене!</p>
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
@@ -21,6 +22,7 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { PixiGame } from '~/services/new/pixiGame.js';
 import { CreateBiome } from '~/services/new/core/CreateBiome.js';
+import { CreateZone } from '~/services/new/core/CreateZone.js';
 
 let game = null;
 
@@ -98,12 +100,88 @@ onMounted(async () => {
         width: 200, height: 150   // Размер болота
       });
       
+      // 🏛️ НОВИНКА: Создаем зоны для демонстрации
+      
+      // Создаем типы зон (без координат)
+      const pvpZone = new CreateZone('pvp_arena', {
+        displayName: 'PvP Арена',
+        rules: {
+          pvpEnabled: true,
+          buildingAllowed: false,
+          movementRestricted: false
+        },
+        borders: {                // 🔲 Пунктирные границы для отличия от биомов
+          enabled: true,
+          width: 2,
+          color: 0xFF0000,        // Красный цвет для PvP зоны
+          style: 'dashed',
+          alpha: 0.9
+        }
+      });
+      
+      const safeZone = new CreateZone('safe_haven', {
+        displayName: 'Безопасная Зона',
+        rules: {
+          pvpEnabled: false,
+          buildingAllowed: true,
+          movementRestricted: false
+        },
+        borders: {                // 🔲 Пунктирные границы
+          enabled: true,
+          width: 3,
+          color: 0x00FF00,        // Зеленый цвет для безопасной зоны
+          style: 'dashed',
+          alpha: 0.8
+        }
+      });
+      
+      const restrictedZone = new CreateZone('no_entry', {
+        displayName: 'Запретная Зона',
+        rules: {
+          pvpEnabled: false,
+          buildingAllowed: false,
+          movementRestricted: true
+        },
+        restrictions: {
+          blockedTypes: ['unit', 'player'],
+          allowedTypes: ['admin']
+        },
+        borders: {                // 🔲 Пунктирные границы
+          enabled: true,
+          width: 2,
+          color: 0xFFFF00,        // Желтый цвет для запретной зоны
+          style: 'dashed',
+          alpha: 0.7
+        }
+      });
+      
+      // Добавляем зоны в разных частях мира
+      myWorld.addZone(pvpZone, {
+        x: 150, y: -200,          // Позиция PvP арены
+        width: 200, height: 120   // Размер PvP арены
+      });
+      
+      myWorld.addZone(safeZone, {
+        x: -200, y: 150,          // Позиция безопасной зоны
+        width: 180, height: 100   // Размер безопасной зоны
+      });
+      
+      myWorld.addZone(restrictedZone, {
+        x: 250, y: 100,           // Позиция запретной зоны
+        width: 120, height: 80    // Размер запретной зоны
+      });
+      
       console.log('🌍 Биомы созданы:');
       console.log('  • Дефолтный: Луга (весь мир)');
-      console.log('  • Пустыня в области (400,200) размером 300×200 - ОРАНЖЕВАЯ рамка');
-      console.log('  • Болото в области (-350,-100) размером 200×150 - ЗЕЛЕНАЯ рамка');
-      console.log('🔲 Цветные рамки показывают границы биомов - очень удобно для тестирования!');
-      console.log('🏃 Двигайте героя между биомами чтобы увидеть смену в консоли!');
+      console.log('  • Пустыня в области (400,200) размером 300×200 - ОРАНЖЕВАЯ сплошная рамка');
+      console.log('  • Болото в области (-350,-100) размером 200×150 - ЗЕЛЕНАЯ сплошная рамка');
+      console.log('🏛️ Зоны созданы:');
+      console.log('  • PvP Арена в области (150,-200) размером 200×120 - КРАСНАЯ пунктирная рамка');
+      console.log('  • Безопасная Зона в области (-200,150) размером 180×100 - ЗЕЛЕНАЯ пунктирная рамка');
+      console.log('  • Запретная Зона в области (250,100) размером 120×80 - ЖЕЛТАЯ пунктирная рамка');
+      console.log('🔲 Сплошные рамки = биомы, пунктирные рамки = зоны!');
+      console.log('🏃 Двигайте героя между биомами и зонами чтобы увидеть смену в консоли!');
+      console.log('📋 ЛОГИ ВКЛЮЧЕНЫ: консоль покажет входы/выходы из биомов и зон!');
       
       // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
       const myCanvas = game.createCanvas({

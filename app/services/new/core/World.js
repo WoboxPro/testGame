@@ -6,6 +6,7 @@
 
 import { Entity, EntityForms, EntityFactory } from './Entity.js';
 import { BiomeSystem } from './BiomeSystem.js';
+import { ZoneSystem } from './ZoneSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -40,6 +41,9 @@ export class World {
     
     // 🌍 Система биомов
     this.biomeSystem = new BiomeSystem(this);
+    
+    // 🏛️ Система зон
+    this.zoneSystem = new ZoneSystem(this);
     
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     
@@ -113,7 +117,7 @@ export class World {
   removeEntity(id) {
     const removed = this.entities.delete(id);
     if (removed) {
-      console.log(`🗑️ Entity удален: ID=${id}`);
+      //console.log(`🗑️ Entity удален: ID=${id}`);
     }
     return removed;
   }
@@ -123,7 +127,7 @@ export class World {
    */
   addDefaultBiome(biomeType) {
     this.biomeSystem.setDefaultBiome(biomeType);
-    console.log(`🌍 Дефолтный биом мира установлен: ${biomeType.displayName}`);
+    //console.log(`🌍 Дефолтный биом мира установлен: ${biomeType.displayName}`);
   }
   
   /**
@@ -146,6 +150,44 @@ export class World {
   updateEntityPosition(entity, newX, newY) {
     // Обновляем позицию в системе биомов
     this.biomeSystem.updateEntityPosition(entity, newX, newY);
+    
+    // Обновляем позицию в системе зон
+    this.zoneSystem.updateEntityPosition(entity, newX, newY);
+  }
+  
+  /**
+   * 🏛️ Добавить зону в конкретное место
+   */
+  addZone(zoneType, bounds) {
+    return this.zoneSystem.addZone(zoneType, bounds);
+  }
+  
+  /**
+   * 🔍 Получить зоны в указанных координатах
+   */
+  getZonesAt(x, y) {
+    return this.zoneSystem.getZonesAt(x, y);
+  }
+  
+  /**
+   * 🗑️ Удалить зону по ID
+   */
+  removeZone(zoneId) {
+    return this.zoneSystem.removeZone(zoneId);
+  }
+  
+  /**
+   * 📊 Получить все зоны
+   */
+  getAllZones() {
+    return this.zoneSystem.getAllZones();
+  }
+  
+  /**
+   * 🔍 Получить активные зоны для сущности
+   */
+  getEntityZones(entityId) {
+    return this.zoneSystem.getEntityZones(entityId);
   }
   
   /**
@@ -174,8 +216,8 @@ export class World {
       name: 'Обводка мира'
     });
     
-    console.log(`🔲 Обводка мира создана: толщина=${borderWidth}px, цвет=0x${borderColor.toString(16)}`);
-    console.log(`📐 Размеры мира: ${this.width}×${this.height}, границы: [${this.bounds.left}, ${this.bounds.right}] × [${this.bounds.top}, ${this.bounds.bottom}]`);
+    //console.log(`🔲 Обводка мира создана: толщина=${borderWidth}px, цвет=0x${borderColor.toString(16)}`);
+    //console.log(`📐 Размеры мира: ${this.width}×${this.height}, границы: [${this.bounds.left}, ${this.bounds.right}] × [${this.bounds.top}, ${this.bounds.bottom}]`);
   }
   
   /**

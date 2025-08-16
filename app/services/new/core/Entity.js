@@ -243,6 +243,18 @@ export class Entity {
         container.addChild(graphics);
         return; // Не применяем fill - только stroke
         
+      case 'zone_boundary':
+        // Граница зоны - ПУНКТИРНАЯ прямоугольная рамка
+        const zoneBounds = this.visual.zoneBounds || { x: 0, y: 0, width: 100, height: 100 };
+        const zoneStrokeWidth = this.size || 2;
+        const zoneAlpha = this.visual.borderAlpha || 1.0;
+        const zoneColor = this.color || 0x00FFFF; // Голубой по умолчанию
+        
+        // 🔲 Создаем пунктирную границу зоны
+        this._drawDashedRect(graphics, zoneBounds, zoneColor, zoneStrokeWidth, zoneAlpha);
+        container.addChild(graphics);
+        return; // Не применяем fill - только stroke
+        
       case 'border_line':
         // Граница мира - прямая линия (устаревшая, для совместимости)
         const length = this.visual.length || 100;
@@ -423,6 +435,58 @@ export class Entity {
   }
   
   /**
+   * 🔲 Нарисовать пунктирный прямоугольник
+   */
+  _drawDashedRect(graphics, bounds, color, strokeWidth, alpha) {
+    const width = bounds.width;
+    const height = bounds.height;
+    const x = -width / 2;
+    const y = -height / 2;
+    
+    // Параметры пунктира
+    const dashLength = 8;  // Длина штриха
+    const gapLength = 4;   // Длина пропуска
+    
+    // Рисуем каждую сторону пунктиром
+    this._drawDashedLine(graphics, x, y, x + width, y, dashLength, gapLength, color, strokeWidth, alpha); // Верх
+    this._drawDashedLine(graphics, x + width, y, x + width, y + height, dashLength, gapLength, color, strokeWidth, alpha); // Право
+    this._drawDashedLine(graphics, x + width, y + height, x, y + height, dashLength, gapLength, color, strokeWidth, alpha); // Низ
+    this._drawDashedLine(graphics, x, y + height, x, y, dashLength, gapLength, color, strokeWidth, alpha); // Лево
+  }
+  
+  /**
+   * 📏 Нарисовать пунктирную линию
+   */
+  _drawDashedLine(graphics, x1, y1, x2, y2, dashLength, gapLength, color, strokeWidth, alpha) {
+    const totalLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const stepLength = dashLength + gapLength;
+    const steps = Math.floor(totalLength / stepLength);
+    
+    const deltaX = (x2 - x1) / totalLength;
+    const deltaY = (y2 - y1) / totalLength;
+    
+    for (let i = 0; i <= steps; i++) {
+      const startDistance = i * stepLength;
+      const endDistance = Math.min(startDistance + dashLength, totalLength);
+      
+      if (startDistance >= totalLength) break;
+      
+      const startX = x1 + deltaX * startDistance;
+      const startY = y1 + deltaY * startDistance;
+      const endX = x1 + deltaX * endDistance;
+      const endY = y1 + deltaY * endDistance;
+      
+      graphics.moveTo(startX, startY);
+      graphics.lineTo(endX, endY);
+      graphics.stroke({
+        color: color,
+        width: strokeWidth,
+        alpha: alpha
+      });
+    }
+  }
+  
+  /**
    * 📊 Получить информацию о сущности
    */
   getInfo() {
@@ -470,6 +534,7 @@ export const EntityForms = {
   // 🗺️ Системные элементы
   WORLD_OUTLINE: 'world_outline', // Обводка всего мира
   BIOME_OUTLINE: 'biome_outline', // Обводка биома
+  ZONE_BOUNDARY: 'zone_boundary', // Граница зоны (пунктирная)
   BORDER_LINE: 'border_line'      // Граница мира (устаревшая)
 };
 
