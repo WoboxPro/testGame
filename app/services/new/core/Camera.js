@@ -36,6 +36,7 @@ export class Camera {
     // 📹 Система слежения за сущностями
     this.followedEntity = null;      // Сущность за которой следим
     this.followOffset = { x: 0, y: 0 }; // Смещение от центра сущности
+    this.respectWorldBounds = options.respectWorldBounds || false; // Учитывать границы мира при слежении (по умолчанию выключено)
     
     // 🎛️ Фильтрация объектов
     this.visibleTypes = options.visibleTypes || 'all'; // 'all' или массив типов ['building', 'unit']
@@ -224,16 +225,66 @@ export class Camera {
   }
   
   /**
+   * 🌍 Включить/выключить учет границ мира
+   */
+  setRespectWorldBounds(enabled) {
+    this.respectWorldBounds = enabled;
+    console.log(`🌍 Камера "${this.id}": учет границ мира ${enabled ? 'включен' : 'выключен'}`);
+  }
+  
+  /**
+   * 🌍 Получить статус учета границ мира
+   */
+  getRespectWorldBounds() {
+    return this.respectWorldBounds;
+  }
+  
+  /**
    * 🎯 Обновить позицию камеры для слежения
    */
   _updateFollowing() {
     if (!this.followedEntity) return;
     
-    // 🎯 Центрируем камеру на сущности с учетом смещения
-    const targetX = this.followedEntity.x + this.followOffset.x;
-    const targetY = this.followedEntity.y + this.followOffset.y;
+    // 🎯 Вычисляем желаемую позицию фокуса
+    let targetX = this.followedEntity.x + this.followOffset.x;
+    let targetY = this.followedEntity.y + this.followOffset.y;
+    
+    // 🌍 Ограничиваем фокус границами мира если включено
+    if (this.respectWorldBounds && this.world && this.world.bounds) {
+      const clampedFocus = this._clampFocusToWorldBounds(targetX, targetY);
+      targetX = clampedFocus.x;
+      targetY = clampedFocus.y;
+    }
     
     this.setFocus(targetX, targetY);
+  }
+  
+  /**
+   * 🌍 Ограничить фокус камеры границами мира
+   */
+  _clampFocusToWorldBounds(targetFocusX, targetFocusY) {
+    if (!this.world || !this.world.bounds) {
+      return { x: targetFocusX, y: targetFocusY };
+    }
+    
+    // 📐 Вычисляем половину видимой области камеры
+    const halfVisibleWidth = (this.width / 2) / this.zoom;
+    const halfVisibleHeight = (this.height / 2) / this.zoom;
+    
+    // 🌍 Границы мира
+    const worldBounds = this.world.bounds;
+    
+    // 📏 Вычисляем минимальные и максимальные позиции фокуса
+    const minFocusX = worldBounds.left + halfVisibleWidth;
+    const maxFocusX = worldBounds.right - halfVisibleWidth;
+    const minFocusY = worldBounds.top + halfVisibleHeight;
+    const maxFocusY = worldBounds.bottom - halfVisibleHeight;
+    
+    // 🎯 Ограничиваем фокус
+    const clampedX = Math.max(minFocusX, Math.min(maxFocusX, targetFocusX));
+    const clampedY = Math.max(minFocusY, Math.min(maxFocusY, targetFocusY));
+    
+    return { x: clampedX, y: clampedY };
   }
   
   /**
@@ -473,7 +524,8 @@ export class Camera {
       isFollowing: this.isFollowing(),
       followedEntityId: this.followedEntity?.id || null,
       followedEntityName: this.followedEntity?.name || null,
-      followOffset: { ...this.followOffset }
+      followOffset: { ...this.followOffset },
+      respectWorldBounds: this.respectWorldBounds
     };
   }
 }
