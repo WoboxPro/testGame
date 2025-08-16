@@ -257,7 +257,7 @@ onMounted(async () => {
         priority: 2,         // Рисуется поверх
         respectWorldBounds: false,  // 🌍 Тоже ограничиваем границами
         // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
-        visibleTypes: ['building', 'unit', 'resource', 'world_border'],  // + границы мира!
+        visibleTypes: ['building', 'world_border', 'biome_outline', 'zone_boundary'],  // + границы мира!
         hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
         style: {
           border: {
