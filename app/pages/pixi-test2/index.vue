@@ -257,7 +257,7 @@ onMounted(async () => {
         priority: 2,         // Рисуется поверх
         respectWorldBounds: false,  // 🌍 Тоже ограничиваем границами
         // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
-        visibleTypes: ['building', 'world_border', 'biome_outline', 'zone_boundary'],  // + границы мира!
+        visibleTypes: ['building', 'unit', 'world_border', 'biome_border', 'zone_border'],  // + границы мира, биомов и зон!
         hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
         style: {
           border: {
@@ -282,7 +282,7 @@ onMounted(async () => {
         zoom: 2,           // Слегка увеличенный зум (было 2.0)
         priority: 3,
         respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
-        hiddenTypes: ['resource'],    // Скрываем пули, эффекты, частицы
+        hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border'],    // Скрываем пули, эффекты, частицы
         style: {
           border: {
             enabled: true,
