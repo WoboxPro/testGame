@@ -5,6 +5,7 @@
  */
 
 import { Entity, EntityForms, EntityFactory } from './Entity.js';
+import { BiomeSystem } from './BiomeSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -37,6 +38,9 @@ export class World {
     this.entities = new Map();
     this._entityIdCounter = 1;
     
+    // 🌍 Система биомов
+    this.biomeSystem = new BiomeSystem(this);
+    
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     
     // 🔲 Создаем визуальные границы мира если включены
@@ -62,7 +66,6 @@ export class World {
     
     // 📦 Добавляем в мир
     this.entities.set(entity.id, entity);
-    console.log(`➕ Entity добавлен: ${entity.name} (${entity.type}) в (${entity.x}, ${entity.y})`);
     return entity;
   }
   
@@ -116,6 +119,36 @@ export class World {
   }
   
   /**
+   * 🌍 Установить дефолтный биом (покрывает весь мир)
+   */
+  addDefaultBiome(biomeType) {
+    this.biomeSystem.setDefaultBiome(biomeType);
+    console.log(`🌍 Дефолтный биом мира установлен: ${biomeType.displayName}`);
+  }
+  
+  /**
+   * ➕ Добавить биом в конкретное место
+   */
+  addBiome(biomeType, bounds) {
+    return this.biomeSystem.addBiome(biomeType, bounds);
+  }
+  
+  /**
+   * 🔍 Получить биом в указанных координатах
+   */
+  getBiomeAt(x, y) {
+    return this.biomeSystem.getBiomeAt(x, y);
+  }
+  
+  /**
+   * 📍 Обновить позицию сущности с проверкой биома
+   */
+  updateEntityPosition(entity, newX, newY) {
+    // Обновляем позицию в системе биомов
+    this.biomeSystem.updateEntityPosition(entity, newX, newY);
+  }
+  
+  /**
    * 🔲 Создать визуальные границы мира (одна обводка)
    */
   _createWorldBorders() {
@@ -135,6 +168,8 @@ export class World {
       visual: {
         worldWidth: this.width,   // ← Правильно через visual!
         worldHeight: this.height, // ← Правильно через visual!
+        color: borderColor,       // ← Цвет тоже передаем через visual
+        size: borderWidth         // ← Размер тоже передаем через visual
       },
       name: 'Обводка мира'
     });

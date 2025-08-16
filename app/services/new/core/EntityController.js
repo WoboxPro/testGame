@@ -45,7 +45,7 @@ export class EntityController {
     // 📋 Карта клавиш
     this.keyMap = this._createKeyMap();
     
-    console.log('🎮 EntityController создан');
+    //console.log('🎮 EntityController создан');
     
     // 🎯 Запуск если включен
     if (this.isEnabled) {
@@ -98,7 +98,7 @@ export class EntityController {
     
     // 🔍 Проверяем не привязана ли уже эта сущность
     if (this.controlledEntities.has(entity.id)) {
-      console.log(`🎮 Сущность ${entity.name} уже привязана к контроллеру`);
+      //console.log(`🎮 Сущность ${entity.name} уже привязана к контроллеру`);
       return true;
     }
     
@@ -115,7 +115,7 @@ export class EntityController {
       entity.controller = this;
     }
     
-    console.log(`🎮 EntityController привязан к сущности: ${entity.name} (${entity.id}). Всего управляемых: ${this.controlledEntities.size}`);
+    //console.log(`🎮 EntityController привязан к сущности: ${entity.name} (${entity.id}). Всего управляемых: ${this.controlledEntities.size}`);
     return true;
   }
   
@@ -127,7 +127,7 @@ export class EntityController {
       // 🎯 Отвязываем конкретную сущность
       const entity = this.controlledEntities.get(entityId);
       if (entity) {
-        console.log(`🚫 EntityController отвязан от сущности: ${entity.name}`);
+        //console.log(`🚫 EntityController отвязан от сущности: ${entity.name}`);
         
         // 🧹 Очищаем обратную связь
         if (entity.controller === this) {
@@ -147,7 +147,7 @@ export class EntityController {
     } else {
       // 🧹 Отвязываем все сущности
       this.controlledEntities.forEach(entity => {
-        console.log(`🚫 EntityController отвязан от сущности: ${entity.name}`);
+        //console.log(`🚫 EntityController отвязан от сущности: ${entity.name}`);
         if (entity.controller === this) {
           entity.controller = null;
         }
@@ -188,7 +188,7 @@ export class EntityController {
     const nextIndex = (currentIndex + 1) % entitiesArray.length;
     
     this.activeEntityId = entitiesArray[nextIndex].id;
-    console.log(`🔄 Переключение на сущность: ${entitiesArray[nextIndex].name}`);
+    //console.log(`🔄 Переключение на сущность: ${entitiesArray[nextIndex].name}`);
   }
   
   /**
@@ -201,7 +201,7 @@ export class EntityController {
     
     this.isEnabled = true;
     this._addEventListeners();
-    console.log('✅ EntityController включен');
+    //console.log('✅ EntityController включен');
   }
   
   /**
@@ -214,7 +214,7 @@ export class EntityController {
     this._removeEventListeners();
     this.pressedKeys.clear();
     this.currentSpeed = this.settings.moveSpeed;
-    console.log('❌ EntityController выключен');
+    //console.log('❌ EntityController выключен');
   }
   
   /**
@@ -388,16 +388,21 @@ export class EntityController {
       // - entity.movementType (walk, fly, swim)
       // - entity.movementRestrictions
       // - entity.stamina/energy для движения
-      console.log('🔮 Использование параметров движения сущности (пока не реализовано)');
+      //console.log('🔮 Использование параметров движения сущности (пока не реализовано)');
     }
     
     // 📍 Устанавливаем новую позицию
     entity.setPosition(newX, newY);
     
-    // 📍 Логируем только для активной сущности чтобы не спамить
-    if (this.settings.controlMode === 'single' || entity.id === this.activeEntityId) {
-      console.log(`📍 ${entity.name} перемещена в (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+    // 🌍 Обновляем позицию в системе биомов
+    if (entity.world && entity.world.biomeSystem) {
+      entity.world.updateEntityPosition(entity, newX, newY);
     }
+    
+    // 📍 Убираем логи движения - слишком много спама
+    // if (this.settings.controlMode === 'single' || entity.id === this.activeEntityId) {
+    //   console.log(`📍 ${entity.name} перемещена в (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+    // }
   }
   
   /**
@@ -439,7 +444,7 @@ export class EntityController {
       this.keyMap = this._createKeyMap();
     }
     
-    console.log('⚙️ EntityController настройки обновлены:', newSettings);
+    //console.log('⚙️ EntityController настройки обновлены:', newSettings);
   }
   
   /**
@@ -463,10 +468,10 @@ export class EntityController {
    * 🧹 Уничтожить контроллер
    */
   destroy() {
-    console.log('🧹 Уничтожение EntityController...');
+    //console.log('🧹 Уничтожение EntityController...');
     this.disable();
     this.detachFromEntity(); // Отвязываем все сущности
     this.game = null;
-    console.log('✅ EntityController уничтожен');
+    //console.log('✅ EntityController уничтожен');
   }
 }

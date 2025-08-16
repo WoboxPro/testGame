@@ -42,7 +42,7 @@ export class FPSCounter {
     this.updateTimer = null;
     this.animationFrame = null;
     
-    console.log('📊 FPS Counter создан');
+    //console.log('📊 FPS Counter создан');
     
     // 🚀 Автозапуск если включен
     if (this.isEnabled) {
@@ -55,15 +55,15 @@ export class FPSCounter {
    */
   start() {
     if (this.isEnabled && this.element) {
-      console.log('⚠️ FPS Counter уже запущен');
+      //console.log('⚠️ FPS Counter уже запущен');
       return;
     }
     
-    console.log('🚀 Запуск FPS Counter...');
+   // console.log('🚀 Запуск FPS Counter...');
     this.isEnabled = true;
     this._createDOM();
     // 🎯 НЕ запускаем _startCounting - будет работать через ticker!
-    console.log('✅ FPS Counter запущен (через ticker)');
+   // console.log('✅ FPS Counter запущен (через ticker)');
   }
   
   /**
@@ -71,11 +71,11 @@ export class FPSCounter {
    */
   stop() {
     if (!this.isEnabled) {
-      console.log('⚠️ FPS Counter уже остановлен');
+      //console.log('⚠️ FPS Counter уже остановлен');
       return;
     }
     
-    console.log('🛑 Остановка FPS Counter...');
+   // console.log('🛑 Остановка FPS Counter...');
     this.isEnabled = false;
     // 🎯 УДАЛЕНО: _stopCounting - нет больше таймеров
     this._removeDOM();
@@ -90,7 +90,7 @@ export class FPSCounter {
       this.updateTimer = null;
     }
     
-    console.log('✅ FPS Counter остановлен');
+   // console.log('✅ FPS Counter остановлен');
   }
   
   /**
@@ -122,7 +122,7 @@ export class FPSCounter {
     // ➕ Добавляем в DOM
     document.body.appendChild(this.element);
     
-    console.log('🎨 FPS Counter DOM элемент создан');
+   // console.log('🎨 FPS Counter DOM элемент создан');
   }
   
   /**
@@ -132,7 +132,7 @@ export class FPSCounter {
     if (this.element) {
       this.element.remove();
       this.element = null;
-      console.log('🧹 FPS Counter DOM элемент удален');
+    //  console.log('🧹 FPS Counter DOM элемент удален');
     }
   }
   
@@ -191,7 +191,7 @@ export class FPSCounter {
       // Теперь все работает через ticker автоматически
     }
     
-    console.log('⚙️ FPS Counter настройки обновлены:', newSettings);
+   // console.log('⚙️ FPS Counter настройки обновлены:', newSettings);
   }
   
   /**
@@ -236,7 +236,7 @@ export class FPSCounter {
    * 🧹 Уничтожить счетчик
    */
   destroy() {
-    console.log('🧹 Уничтожение FPS Counter...');
+   // console.log('🧹 Уничтожение FPS Counter...');
     this.stop();
     this._removeDOM();
     
@@ -245,6 +245,6 @@ export class FPSCounter {
     this.updateTimer = null;
     this.animationFrame = null;
     
-    console.log('✅ FPS Counter уничтожен');
+   // console.log('✅ FPS Counter уничтожен');
   }
 }

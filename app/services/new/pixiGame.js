@@ -259,7 +259,7 @@ export class PixiGame {
     // 📦 Сохраняем в коллекции
     this.entityControllers.set(controllerId, controller);
     
-    console.log(`🎮 EntityController создан: ${controllerId}`);
+    //console.log(`🎮 EntityController создан: ${controllerId}`);
     return controller;
   }
   
@@ -278,7 +278,7 @@ export class PixiGame {
     if (controller) {
       controller.destroy();
       this.entityControllers.delete(controllerId);
-      console.log(`🗑️ EntityController удален: ${controllerId}`);
+      //console.log(`🗑️ EntityController удален: ${controllerId}`);
       return true;
     }
     return false;

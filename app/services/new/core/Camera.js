@@ -179,7 +179,7 @@ export class Camera {
     // 🎯 Сразу центрируем камеру на сущности
     this._updateFollowing();
     
-    console.log(`📹 Камера "${this.id}" теперь следит за сущностью: ${entity.name} (${entity.id})`);
+    //console.log(`📹 Камера "${this.id}" теперь следит за сущностью: ${entity.name} (${entity.id})`);
     return true;
   }
   
@@ -188,7 +188,7 @@ export class Camera {
    */
   stopFollowing() {
     if (this.followedEntity) {
-      console.log(`🛑 Камера "${this.id}" прекратила слежение за: ${this.followedEntity.name}`);
+      //console.log(`🛑 Камера "${this.id}" прекратила слежение за: ${this.followedEntity.name}`);
       this.followedEntity = null;
       this.followOffset.x = 0;
       this.followOffset.y = 0;
@@ -206,7 +206,7 @@ export class Camera {
     
     if (this.followedEntity) {
       this._updateFollowing();
-      console.log(`📹 Смещение слежения обновлено: (${offsetX}, ${offsetY})`);
+      //console.log(`📹 Смещение слежения обновлено: (${offsetX}, ${offsetY})`);
     }
   }
   
@@ -229,7 +229,7 @@ export class Camera {
    */
   setRespectWorldBounds(enabled) {
     this.respectWorldBounds = enabled;
-    console.log(`🌍 Камера "${this.id}": учет границ мира ${enabled ? 'включен' : 'выключен'}`);
+    //console.log(`🌍 Камера "${this.id}": учет границ мира ${enabled ? 'включен' : 'выключен'}`);
   }
   
   /**
@@ -343,7 +343,7 @@ export class Camera {
     this.worldBackground.rect(0, 0, this.width, this.height);
     this.worldBackground.fill(backgroundColor);
     
-    console.log(`🎨 Камера "${this.id}": фон мира нарисован 0x${backgroundColor.toString(16).toUpperCase()}`);
+    //console.log(`🎨 Камера "${this.id}": фон мира нарисован 0x${backgroundColor.toString(16).toUpperCase()}`);
   }
 
   /**

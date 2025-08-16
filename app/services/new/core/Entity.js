@@ -21,11 +21,14 @@ export class Entity {
     this.renderSystem = options.renderSystem || 'graphics'; // 'graphics' | 'sprite' | 'skeletal'
     
     // 🎨 Визуальное представление
+    this.color = options.color || 0x888888;    // Основной цвет сущности
+    this.size = options.size || 5;              // Основной размер сущности
+    
     this.visual = {
       // Для graphics системы (текущая)
       form: options.form || 'circle',           // Форма: circle, rect, diamond, star, etc.
-      size: options.size || 5,                  // Основной размер
-      color: options.color || 0x888888,         // Цвет
+      size: this.size,                          // Основной размер
+      color: this.color,                        // Цвет
       
       // Для sprite системы
       sprite: options.sprite || null,           // Путь к базовому спрайту
@@ -199,7 +202,8 @@ export class Entity {
         // Обводка всего мира - прямоугольная рамка
         const worldWidth = this.visual.worldWidth || 100;
         const worldHeight = this.visual.worldHeight || 100;
-        const strokeWidth = this.visual.size;
+        const strokeWidth = this.visual.size || 2;
+        const worldColor = this.visual.color || this.color || 0x00FFFF; // Голубой по умолчанию
         
         // Рисуем ТОЛЬКО обводку (без заливки)
         graphics.rect(
@@ -209,8 +213,32 @@ export class Entity {
           worldHeight
         );
         graphics.stroke({ 
-          color: this.visual.color, 
+          color: worldColor, 
           width: strokeWidth 
+        });
+        container.addChild(graphics);
+        return; // Не применяем fill - только stroke
+        
+      case 'biome_outline':
+        // Обводка биома - прямоугольная рамка
+        const biomeBounds = this.visual.biomeBounds || { x: 0, y: 0, width: 100, height: 100 };
+        const biomeStrokeWidth = this.size || 2;
+        const biomeAlpha = this.visual.borderAlpha || 1.0;
+        const biomeColor = this.color || 0xFF00FF; // Розовый по умолчанию если цвет не указан
+        
+        // Отладочные логи убраны - проблема решена!
+        
+        // Рисуем ТОЛЬКО обводку биома (без заливки)
+        graphics.rect(
+          -biomeBounds.width/2, 
+          -biomeBounds.height/2, 
+          biomeBounds.width, 
+          biomeBounds.height
+        );
+        graphics.stroke({ 
+          color: biomeColor, 
+          width: biomeStrokeWidth,
+          alpha: biomeAlpha
         });
         container.addChild(graphics);
         return; // Не применяем fill - только stroke
@@ -328,7 +356,7 @@ export class Entity {
       controller.attachToEntity(this);
     }
     
-    console.log(`🎮 Контроллер добавлен к сущности: ${this.name} (${this.id})`);
+    //console.log(`🎮 Контроллер добавлен к сущности: ${this.name} (${this.id})`);
     return true;
   }
   
@@ -337,7 +365,7 @@ export class Entity {
    */
   removeController() {
     if (this.controller) {
-      console.log(`🚫 Контроллер удален от сущности: ${this.name}`);
+      //console.log(`🚫 Контроллер удален от сущности: ${this.name}`);
       
       // 🧹 Отвязываем контроллер
       if (this.controller.detachFromEntity) {
@@ -441,6 +469,7 @@ export const EntityForms = {
   
   // 🗺️ Системные элементы
   WORLD_OUTLINE: 'world_outline', // Обводка всего мира
+  BIOME_OUTLINE: 'biome_outline', // Обводка биома
   BORDER_LINE: 'border_line'      // Граница мира (устаревшая)
 };
 

@@ -1,12 +1,13 @@
 <template>
   <div class="container">
     <div class="info">
-      <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга</h1>
+      <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга + Биомы</h1>
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
       <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Зеленый герой + розовый алмаз!</p>
       <p>🌍 <strong>Границы мира:</strong> Голубые линии = границы мира (1200×900px). 🎯 Камера не покажет область за границами! Герой может подойти к краю, но камера остановится!</p>
+      <p>🌿 <strong>Биомы:</strong> Дефолтный биом "Луга" + "Пустыня" (справа) + "Болото" (слева). 🔲 Цветные рамки = границы биомов! Смотрите консоль при смене биомов!</p>
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
@@ -19,6 +20,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 import { PixiGame } from '~/services/new/pixiGame.js';
+import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 
 let game = null;
 
@@ -40,6 +42,68 @@ onMounted(async () => {
           style: 'solid'       // Сплошная линия
         }
       });
+      
+      // 🌍 НОВИНКА: Создаем биомы для демонстрации
+      
+      // Создаем типы биомов (без координат)
+      const grasslandBiome = new CreateBiome('grassland', {
+        displayName: 'Луга',
+        temperature: 'moderate',
+        humidity: 'normal',
+        tint: 0x90EE90,           // Светло-зеленый оттенок
+        speedMultiplier: 1.0
+      });
+      
+      const desertBiome = new CreateBiome('desert', {
+        displayName: 'Пустыня',
+        temperature: 'hot',
+        humidity: 'low',
+        tint: 0xF4A460,           // Песочный оттенок  
+        speedMultiplier: 0.8,     // Медленнее в песке
+        borders: {                // 🔲 Визуальные границы для тестирования
+          enabled: true,
+          width: 3,
+          color: 0xFF8C00,        // Оранжевый цвет для пустыни
+          style: 'solid',
+          alpha: 0.8
+        }
+      });
+      
+      const swampBiome = new CreateBiome('swamp', {
+        displayName: 'Болото',
+        temperature: 'moderate',
+        humidity: 'high',
+        tint: 0x556B2F,           // Темно-оливковый оттенок
+        speedMultiplier: 0.6,     // Очень медленно в болоте
+        borders: {                // 🔲 Визуальные границы для тестирования
+          enabled: true,
+          width: 2,
+          color: 0x8FBC8F,        // Темно-серо-зеленый
+          style: 'solid',
+          alpha: 0.7
+        }
+      });
+      
+      // Устанавливаем дефолтный биом (покрывает весь мир)
+      myWorld.addDefaultBiome(grasslandBiome);
+      
+      // Добавляем специальные биомы в разных частях мира
+      myWorld.addBiome(desertBiome, {
+        x: 400, y: 200,           // Позиция пустыни
+        width: 300, height: 200   // Размер пустыни
+      });
+      
+      myWorld.addBiome(swampBiome, {
+        x: -350, y: -100,         // Позиция болота (левая часть)
+        width: 200, height: 150   // Размер болота
+      });
+      
+      console.log('🌍 Биомы созданы:');
+      console.log('  • Дефолтный: Луга (весь мир)');
+      console.log('  • Пустыня в области (400,200) размером 300×200 - ОРАНЖЕВАЯ рамка');
+      console.log('  • Болото в области (-350,-100) размером 200×150 - ЗЕЛЕНАЯ рамка');
+      console.log('🔲 Цветные рамки показывают границы биомов - очень удобно для тестирования!');
+      console.log('🏃 Двигайте героя между биомами чтобы увидеть смену в консоли!');
       
       // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
       const myCanvas = game.createCanvas({
