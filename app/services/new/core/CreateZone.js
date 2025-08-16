@@ -76,7 +76,7 @@ export class CreateZone {
    */
   applyRules(entity) {
     // TODO: Реализовать применение правил зоны
-    console.log(`🏛️ Применяем правила зоны ${this.displayName} к ${entity.name}`);
+    // console.log(`🏛️ Применяем правила зоны ${this.displayName} к ${entity.name}`);
   }
   
   /**
@@ -85,7 +85,7 @@ export class CreateZone {
   triggerEnterEvent(entity) {
     if (this.events.onEnter) {
       // TODO: Вызов пользовательского события
-      console.log(`🎯 Триггер входа в зону ${this.displayName}: ${entity.name}`);
+      // console.log(`🎯 Триггер входа в зону ${this.displayName}: ${entity.name}`);
     }
   }
   
@@ -95,7 +95,7 @@ export class CreateZone {
   triggerExitEvent(entity) {
     if (this.events.onExit) {
       // TODO: Вызов пользовательского события
-      console.log(`🚪 Триггер выхода из зоны ${this.displayName}: ${entity.name}`);
+      // console.log(`🚪 Триггер выхода из зоны ${this.displayName}: ${entity.name}`);
     }
   }
   

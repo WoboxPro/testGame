@@ -8,9 +8,11 @@ import { Entity, EntityForms, EntityFactory } from './Entity.js';
 import { BiomeSystem } from './BiomeSystem.js';
 import { ZoneSystem } from './ZoneSystem.js';
 import { FactionSystem } from './FactionSystem.js';
+import { SimpleEventEmitter, GAME_EVENTS } from '~/utils/EventEmitter.js';
 
-export class World {
+export class World extends SimpleEventEmitter {
   constructor(options = {}) {
+    super(); // Инициализируем EventEmitter
     this.id = options.id || `world_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     this.width = options.width || 2000;
     this.height = options.height || 1500;
@@ -50,6 +52,14 @@ export class World {
     this.factionSystem = new FactionSystem(this);
     
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
+    
+    // 📡 Уведомляем о создании мира
+    this.emit(GAME_EVENTS.WORLD_CREATED, {
+      world: this,
+      width: this.width,
+      height: this.height,
+      bounds: this.bounds
+    });
     
     // 🔲 Создаем визуальные границы мира если включены
     if (this.borders.enabled) {

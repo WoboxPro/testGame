@@ -102,7 +102,15 @@ export class BiomeSystem {
       console.log(`🌍 ${entity.name} вошел в биом "${toBiome.displayName}"`);
     }
     
-    // TODO: Применить эффекты нового биома
+    // 📡 Генерируем события
+    if (fromBiome) {
+      this.world.emit('biome_exit', { entity, biome: fromBiome, newBiome: toBiome });
+    }
+    if (toBiome) {
+      this.world.emit('biome_enter', { entity, biome: toBiome, previousBiome: fromBiome });
+    }
+    
+    // Применить эффекты нового биома
     if (toBiome) {
       toBiome.applyEffects(entity);
     }

@@ -111,6 +111,9 @@ export class ZoneSystem {
   handleZoneEnter(entity, zone) {
     console.log(`🏛️ ${entity.name} вошел в зону "${zone.displayName}"`);
     
+    // 📡 Генерируем событие входа в зону
+    this.world.emit('zone_enter', { entity, zone });
+    
     // Добавляем сущность к активным в зоне
     const zoneInstance = this.zoneInstances.find(zi => zi.type === zone);
     if (zoneInstance) {
@@ -127,6 +130,9 @@ export class ZoneSystem {
    */
   handleZoneExit(entity, zone) {
     console.log(`🏛️ ${entity.name} вышел из зоны "${zone.displayName}"`);
+    
+    // 📡 Генерируем событие выхода из зоны
+    this.world.emit('zone_exit', { entity, zone });
     
     // Удаляем сущность из активных в зоне
     const zoneInstance = this.zoneInstances.find(zi => zi.type === zone);
@@ -237,6 +243,7 @@ export class ZoneSystem {
     return {
       zoneCount: this.zoneInstances.length,
       trackedEntities: this.entityZones.size,
+      activeEntitiesInZones: this.zoneInstances.reduce((total, zi) => total + zi.activeEntities.size, 0),
       zones: this.getAllZones()
     };
   }
