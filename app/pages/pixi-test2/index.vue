@@ -173,20 +173,8 @@ onMounted(async () => {
         width: 120, height: 80    // Размер запретной зоны
       });
       
-      // console.log('🌍 Биомы созданы:');
-      // console.log('  • Дефолтный: Луга (весь мир)');
-      // console.log('  • Пустыня в области (400,200) размером 300×200 - ОРАНЖЕВАЯ сплошная рамка');
-      // console.log('  • Болото в области (-350,-100) размером 200×150 - ЗЕЛЕНАЯ сплошная рамка');
-      // console.log('🏛️ Зоны созданы:');
-      // console.log('  • PvP Арена в области (150,-200) размером 200×120 - КРАСНАЯ пунктирная рамка');
-      // console.log('  • Безопасная Зона в области (-200,150) размером 180×100 - ЗЕЛЕНАЯ пунктирная рамка');
-      // console.log('  • Запретная Зона в области (250,100) размером 120×80 - ЖЕЛТАЯ пунктирная рамка');
-      // console.log('🔲 Сплошные рамки = биомы, пунктирные рамки = зоны!');
-      // console.log('🏃 Двигайте героя между биомами и зонами чтобы увидеть смену в консоли!');
-      // console.log('📋 ЛОГИ ВКЛЮЧЕНЫ: консоль покажет входы/выходы из биомов и зон!');
       
-      // 📡 ДЕМОНСТРАЦИЯ EventEmitter системы
-      
+     
       // События биомов (только enter - без спама)
       myWorld.on('biome_enter', ({entity, biome, previousBiome}) => {
         console.log(`🌿 СОБЫТИЕ: ${entity.name} вошел в биом ${biome.displayName}!`);
@@ -330,8 +318,8 @@ onMounted(async () => {
       // 🔵 GRAPHICS СИСТЕМА (геометрические фигуры - как раньше)
       
       // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
-      myWorld.addStructure(-100, -80, { name: 'База 1 (Graphics)', form: 'building', size: 25 });
-      myWorld.addStructure(100, 80, { name: 'База 2 (Graphics)', form: 'building', size: 20 });
+      myWorld.addStructure(-100, -80, { name: 'База 1 (Graphics)', form: 'building', size: 50 });
+      myWorld.addStructure(100, 80, { name: 'База 2 (Graphics)', form: 'building', size: 40 });
       myWorld.addStructure(0, 0, { name: 'Центр (Graphics)', form: 'building', size: 30, color: 0xFF6B35 });
       myWorld.addStructure(-60, 60, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
       
@@ -349,7 +337,8 @@ onMounted(async () => {
       
       // 🎮 НОВИНКА: Управляемая сущность
       const controlledHero = myWorld.addUnit(-200, 0, { 
-        name: 'Управляемый Герой', 
+        name: 'Управляемый Герой',
+        type: 'unit',
         form: 'soldier', 
         size: 12, 
         color: 0x00FF80  // Ярко-зеленый для выделения
@@ -582,21 +571,6 @@ onMounted(async () => {
       const trader1 = myWorld.addUnit(300, -200, { name: 'Торговец 1', form: 'diamond', size: 10, faction: traderFaction });
       const trader2 = myWorld.addUnit(-300, 250, { name: 'Торговец 2', form: 'diamond', size: 10, faction: traderFaction });
       
-      // console.log('🏛️ Упрощенная система фракций создана!');
-      // console.log('  • Игроки (синие) - быстрые, управляемые игроком');
-      // console.log('  • Орки (красные) - медленные но сильные, агрессивные');
-      // console.log('  • Эльфы (зеленые) - быстрые но слабые, дипломатичные');
-      // console.log('  • Торговцы (желтые) - пацифисты, их нельзя атаковать!');
-      // console.log('🔗 Отношения (упрощенные):');
-      // console.log('  ⚔️ Игроки ↔ Орки: война (взаимная)');
-      // console.log('  🤝 Игроки ↔ Эльфы: мир (взаимный)');
-      // console.log('  😐 Остальные отношения: нейтралы');
-      // console.log('🛡️ Торговцы: canFight = false (пацифисты)');
-      // console.log('🔲 НОВИНКА: Обводки фракций!');
-      // console.log('  • Оригинальные цвета юнитов сохранены');
-      // console.log('  • Вокруг юнитов обводка цветом фракции');
-      // console.log('  • Синяя обводка = игроки, красная = орки, зеленая = эльфы, желтая = торговцы');
-      // console.log('🧪 Проверьте в консоли:');
       // console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, trader1) // false');
       // console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, orcWarrior1) // true');
 
