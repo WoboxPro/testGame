@@ -7,6 +7,7 @@
 import { Entity, EntityForms, EntityFactory } from './Entity.js';
 import { BiomeSystem } from './BiomeSystem.js';
 import { ZoneSystem } from './ZoneSystem.js';
+import { FactionSystem } from './FactionSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -45,6 +46,9 @@ export class World {
     // 🏛️ Система зон
     this.zoneSystem = new ZoneSystem(this);
     
+    // 🏛️ Система фракций
+    this.factionSystem = new FactionSystem(this);
+    
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     
     // 🔲 Создаем визуальные границы мира если включены
@@ -78,7 +82,14 @@ export class World {
    */
   addStructure(x, y, options = {}) {
     const entity = EntityFactory.createStructure(x, y, options);
-    return this.addEntity(entity);
+    const addedEntity = this.addEntity(entity);
+    
+    // Если указана фракция - привязываем к ней
+    if (options.faction) {
+      this.factionSystem.assignEntityToFaction(addedEntity, options.faction);
+    }
+    
+    return addedEntity;
   }
   
   /**
@@ -86,7 +97,14 @@ export class World {
    */
   addUnit(x, y, options = {}) {
     const entity = EntityFactory.createUnit(x, y, options);
-    return this.addEntity(entity);
+    const addedEntity = this.addEntity(entity);
+    
+    // Если указана фракция - привязываем к ней
+    if (options.faction) {
+      this.factionSystem.assignEntityToFaction(addedEntity, options.faction);
+    }
+    
+    return addedEntity;
   }
   
   /**
@@ -231,5 +249,47 @@ export class World {
       bounds: { ...this.bounds },
       entityCount: this.entities.size
     };
+  }
+  
+  /**
+   * 🏛️ Добавить фракцию в систему
+   */
+  addFaction(faction) {
+    return this.factionSystem.addFaction(faction);
+  }
+  
+  /**
+   * 🔗 Установить отношение одной фракции к другой (асимметричное)
+   */
+  setFactionRelation(fromFaction, toFaction, relationType) {
+    return this.factionSystem.setRelation(fromFaction, toFaction, relationType);
+  }
+  
+  /**
+   * 🔗 Установить взаимные отношения между фракциями
+   */
+  setMutualFactionRelation(faction1, faction2, relationType) {
+    return this.factionSystem.setMutualRelation(faction1, faction2, relationType);
+  }
+  
+  /**
+   * 🎯 Привязать сущность к фракции
+   */
+  assignEntityToFaction(entity, faction) {
+    return this.factionSystem.assignEntityToFaction(entity, faction);
+  }
+  
+  /**
+   * ⚔️ Проверить могут ли сущности атаковать друг друга
+   */
+  canEntitiesAttack(entity1, entity2) {
+    return this.factionSystem.canEntitiesAttack(entity1, entity2);
+  }
+  
+  /**
+   * 📊 Получить информацию о фракциях
+   */
+  getFactionInfo() {
+    return this.factionSystem.getInfo();
   }
 }

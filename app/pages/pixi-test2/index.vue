@@ -1,11 +1,12 @@
 <template>
   <div class="container">
     <div class="info">
-      <h1>🎮 PixiGame 2.0 - Гибридная система рендеринга + Биомы + Зоны</h1>
+      <h1>🎮 PixiGame 2.0 - Гибридная система + Биомы + Зоны + Фракции</h1>
       <p>🎯 <strong>Три системы рендеринга:</strong> 🔵 Graphics (геометрия) • 👤 Sprite (Terraria-стиль) • 🦴 Skeletal (анимация)</p>
       <p>🖱️ <strong>Кликайте по канвасам!</strong> Координаты мира выводятся в консоль. На одном объекте разные камеры должны показать одинаковые мировые координаты!</p>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
-      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Зеленый герой + розовый алмаз!</p>
+      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Синий герой + синий алмаз!</p>
+      <p>🏛️ <strong>Фракции:</strong> Синие = игроки, Красные = орки, Зеленые = эльфы, Желтые = торговцы. Обводка вокруг юнитов = цвет фракции!</p>
       <p>🌍 <strong>Границы мира:</strong> Голубые линии = границы мира (1200×900px). 🎯 Камера не покажет область за границами! Герой может подойти к краю, но камера остановится!</p>
       <p>🌿 <strong>Биомы:</strong> Дефолтный биом "Луга" + "Пустыня" (справа) + "Болото" (слева). 🔲 Сплошные цветные рамки = границы биомов!</p>
       <p>🏛️ <strong>Зоны:</strong> "PvP Арена" + "Безопасная Зона" + "Запретная Зона". 🔲 Пунктирные цветные рамки = границы зон! Смотрите консоль при смене!</p>
@@ -23,6 +24,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { PixiGame } from '~/services/new/pixiGame.js';
 import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 import { CreateZone } from '~/services/new/core/CreateZone.js';
+import { CreateFaction } from '~/services/new/core/CreateFaction.js';
 
 let game = null;
 
@@ -448,6 +450,129 @@ onMounted(async () => {
       controlledHero.addController(entityController);   // Первая сущность (герой)
       controlledHero2.addController(entityController);  // Вторая сущность (пуля)
       entityController.updateSettings({ controlMode: 'single' });
+      
+      // 🏛️ НОВИНКА: Система фракций!
+      
+      // Создаем фракции
+      const playerFaction = new CreateFaction('player', {
+        name: 'Игроки',
+        displayName: 'Синие Игроки',
+        color: 0x0080FF,           // Синий цвет
+        unitColor: 0x00AAFF,      // Светло-синий для юнитов
+        description: 'Фракция игроков',
+        isPlayerControlled: true,
+        modifiers: {
+          moveSpeed: 1.2,         // +20% к скорости
+          attackDamage: 1.0
+        }
+      });
+      
+      const orcFaction = new CreateFaction('orcs', {
+        name: 'Орки',
+        displayName: 'Красные Орки',
+        color: 0xFF0000,          // Красный цвет
+        unitColor: 0xFF4444,      // Светло-красный для юнитов
+        description: 'Агрессивные орки',
+        behavior: {
+          aggressive: true,
+          expansionist: true
+        },
+        modifiers: {
+          moveSpeed: 0.9,         // -10% к скорости
+          attackDamage: 1.3       // +30% к урону
+        }
+      });
+      
+      const elfFaction = new CreateFaction('elves', {
+        name: 'Эльфы',
+        displayName: 'Зеленые Эльфы',
+        color: 0x00FF00,          // Зеленый цвет
+        unitColor: 0x44FF44,      // Светло-зеленый для юнитов
+        description: 'Мудрые эльфы',
+        behavior: {
+          diplomatic: true,
+          aggressive: false
+        },
+        modifiers: {
+          moveSpeed: 1.1,         // +10% к скорости
+          attackDamage: 0.9       // -10% к урону
+        }
+      });
+      
+      // 💰 НОВИНКА: Фракция торговцев (пацифисты)
+      const traderFaction = new CreateFaction('traders', {
+        name: 'Торговцы',
+        displayName: 'Желтые Торговцы',
+        color: 0xFFD700,          // Золотой цвет
+        unitColor: 0xFFFF44,      // Светло-желтый для юнитов
+        description: 'Мирные торговцы',
+        canFight: false,          // 🛡️ НЕ МОГУТ ВОЕВАТЬ!
+        behavior: {
+          diplomatic: true,
+          aggressive: false,
+          tradeFriendly: true
+        },
+        modifiers: {
+          moveSpeed: 0.8,         // Медленные
+          resourceGain: 2.0       // +100% к ресурсам
+        }
+      });
+      
+      // Добавляем фракции в мир
+      myWorld.addFaction(playerFaction);
+      myWorld.addFaction(orcFaction);
+      myWorld.addFaction(elfFaction);
+      myWorld.addFaction(traderFaction);
+      
+      // 🔗 УПРОЩЕННАЯ СИСТЕМА: только мир и война!
+      
+      // Игроки воюют с орками, в мире с эльфами, нейтральны к торговцам
+      myWorld.setFactionRelation(playerFaction, orcFaction, 'war');
+      myWorld.setFactionRelation(playerFaction, elfFaction, 'peace');
+      // С торговцами автоматически нейтральны
+      
+      // Орки тоже воюют с игроками, нейтральны к остальным
+      myWorld.setFactionRelation(orcFaction, playerFaction, 'war');
+      // С эльфами и торговцами автоматически нейтральны
+      
+      // Эльфы в мире с игроками, нейтральны к остальным  
+      myWorld.setFactionRelation(elfFaction, playerFaction, 'peace');
+      // С орками и торговцами автоматически нейтральны
+      
+      // Торговцы ни с кем не воюют (canFight: false)
+      
+      // 🎯 Привязываем существующих сущностей к фракциям
+      myWorld.assignEntityToFaction(controlledHero, playerFaction);        // Герой = игрок
+      myWorld.assignEntityToFaction(controlledHero2, playerFaction);       // Алмаз = игрок
+      
+      // Добавляем врагов разных фракций
+      const orcWarrior1 = myWorld.addUnit(200, -100, { name: 'Орк-воин 1', form: 'soldier', faction: orcFaction });
+      const orcWarrior2 = myWorld.addUnit(-250, 150, { name: 'Орк-воин 2', form: 'tank', size: 12, faction: orcFaction });
+      
+      const elfArcher1 = myWorld.addUnit(150, 200, { name: 'Эльф-лучник 1', form: 'soldier', faction: elfFaction });
+      const elfArcher2 = myWorld.addUnit(-180, -50, { name: 'Эльф-лучник 2', form: 'soldier', faction: elfFaction });
+      
+      // 💰 Торговцы (их нельзя атаковать!)
+      const trader1 = myWorld.addUnit(300, -200, { name: 'Торговец 1', form: 'diamond', size: 10, faction: traderFaction });
+      const trader2 = myWorld.addUnit(-300, 250, { name: 'Торговец 2', form: 'diamond', size: 10, faction: traderFaction });
+      
+      console.log('🏛️ Упрощенная система фракций создана!');
+      console.log('  • Игроки (синие) - быстрые, управляемые игроком');
+      console.log('  • Орки (красные) - медленные но сильные, агрессивные');
+      console.log('  • Эльфы (зеленые) - быстрые но слабые, дипломатичные');
+      console.log('  • Торговцы (желтые) - пацифисты, их нельзя атаковать!');
+      console.log('🔗 Отношения (упрощенные):');
+      console.log('  ⚔️ Игроки ↔ Орки: война (взаимная)');
+      console.log('  🤝 Игроки ↔ Эльфы: мир (взаимный)');
+      console.log('  😐 Остальные отношения: нейтралы');
+      console.log('🛡️ Торговцы: canFight = false (пацифисты)');
+      console.log('🔲 НОВИНКА: Обводки фракций!');
+      console.log('  • Оригинальные цвета юнитов сохранены');
+      console.log('  • Вокруг юнитов обводка цветом фракции');
+      console.log('  • Синяя обводка = игроки, красная = орки, зеленая = эльфы, желтая = торговцы');
+      console.log('🧪 Проверьте в консоли:');
+      console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, trader1) // false');
+      console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, orcWarrior1) // true');
 
       
       // 🎭 Демонстрация переключения режимов

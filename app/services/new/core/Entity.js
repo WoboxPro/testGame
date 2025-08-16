@@ -50,6 +50,10 @@ export class Entity {
     // 🎮 Контроллер для управления сущностью
     this.controller = null;
     
+    // 🏛️ Фракция сущности (устанавливается через FactionSystem)
+    this.faction = options.faction || null;
+    this.factionId = options.factionId || null;
+    
     // 🌍 Ссылка на мир (для проверки границ и т.д.)
     this.world = null;
     
@@ -277,6 +281,16 @@ export class Entity {
     
     // 🎨 Применяем цвет (кроме сложных форм типа tree)
     graphics.fill({ color: this.visual.color });
+    
+    // 🔲 НОВОЕ: Добавляем обводку фракции если есть
+    if (this.visual.factionOutline && this.visual.factionOutline.enabled) {
+      const outline = this.visual.factionOutline;
+      graphics.stroke({ 
+        color: outline.color, 
+        width: outline.width,
+        alpha: outline.alpha
+      });
+    }
     
     // ➕ Добавляем в контейнер
     container.addChild(graphics);
