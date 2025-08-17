@@ -107,11 +107,6 @@ export class CameraController {
     
     document.addEventListener('keydown', this.keyDownHandler);
     document.addEventListener('keyup', this.keyUpHandler);
-    
-    // Обработчики событий подключены
-    
-    // 🎯 УДАЛЕНО: updateHandler и _startUpdateLoop
-    // Теперь используем PIXI ticker
   }
   
   /**
@@ -120,7 +115,6 @@ export class CameraController {
   _removeEventListeners() {
     document.removeEventListener('keydown', this.keyDownHandler);
     document.removeEventListener('keyup', this.keyUpHandler);
-    // 🎯 УДАЛЕНО: _stopUpdateLoop - больше нет таймеров
   }
   
   /**
@@ -344,7 +338,6 @@ export class CameraController {
 
   destroy() {
     this.disable();
-    // 🎯 НЕ нужно останавливать таймеры - их больше нет!
     this.game = null;        // 🔧 ФИКС: очищаем ссылки!
     // CameraController уничтожен
   }

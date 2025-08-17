@@ -315,11 +315,7 @@ export class Camera {
     }
   }
   
-  /**
-   * 🔍 Установить зум
-   */
-  // ВТОРОЙ setZoom был дубликатом — удален, логика объединена выше
-  
+ 
   /**
    * 🎨 Нарисовать фон мира в камере
    */
@@ -475,18 +471,12 @@ export class Camera {
     const cameraY = relativeY;
     
     // DEBUG: Логируем позиции для центрального объекта
-    // Центр объект отладка убрана
     
     // 📏 ВРЕМЕННО ОТКЛЮЧЕН: Проверяем, видна ли сущность в области камеры
     const margin = 200; // Увеличенный запас для отладки
     const isVisible = !(cameraX < -margin || cameraX > this.width + margin ||
         cameraY < -margin || cameraY > this.height + margin);
     
-    // DEBUG: Показываем все объекты для диагностики
-    // if (!isVisible) {
-    //   Объект скрыт (отладка убрана)
-    //   return; // Не видна, пропускаем
-    // }
     
     // ⚡ Переиспользуем или создаем контейнер сущности
     let entityContainer = this._entityDisplayObjects.get(entity.id);
