@@ -587,19 +587,7 @@ onMounted(async () => {
       //   console.log('🔙 Камера снова следит за зеленым героем!');
       // }, 12000);
       
-      // 📊 НОВИНКА: Создаем счетчик FPS
-      // const fpsCounter = game.createFPSCounter({
-      //   updateInterval: 500,     // Обновление каждые 500мс (более отзывчивый)
-      //   style: {
-      //     top: '10px',
-      //     left: '10px',
-      //     backgroundColor: 'rgba(0, 20, 0, 0.8)',
-      //     color: '#00FF00',
-      //     fontSize: '16px',
-      //     padding: '10px 15px',
-      //     borderRadius: '8px'
-      //   }
-      // });
+
       
       game.selectCamera(myCamera1);
 

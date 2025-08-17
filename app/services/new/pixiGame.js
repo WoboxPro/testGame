@@ -10,7 +10,7 @@ import { Canvas } from './core/Canvas.js';
 import { Camera } from './core/Camera.js';
 import { CameraController } from './core/CameraController.js';
 import { EntityController } from './core/EntityController.js';
-import { FPSCounter } from './core/FPSCounter.js';
+
 
 export class PixiGame {
   constructor() {
@@ -32,8 +32,7 @@ export class PixiGame {
     // 🎮 Контроллеры управления сущностями
     this.entityControllers = new Map(); // id -> EntityController
     
-    // 📊 Счетчик FPS
-    this.fpsCounter = null;
+
     
     // PixiGame 2.0 создан
   }
@@ -121,10 +120,7 @@ export class PixiGame {
         controller._updateFromTicker(ticker);
       });
       
-      // 📊 Обновляем FPS Counter
-      if (this.fpsCounter) {
-        this.fpsCounter._updateFromTicker(ticker);
-      }
+
       
       // 🎨 Рендерим все канвасы
       this.canvases.forEach(canvas => {
@@ -158,10 +154,7 @@ export class PixiGame {
     this.entityControllers.forEach(controller => controller.destroy());
     this.entityControllers.clear();
     
-    if (this.fpsCounter) {
-      this.fpsCounter.destroy();
-      this.fpsCounter = null;
-    }
+
     
     this.canvases.forEach(canvas => canvas.destroy());
     this.canvases.clear();
@@ -291,28 +284,7 @@ export class PixiGame {
     return Array.from(this.entityControllers.values());
   }
   
-  /**
-   * 📊 Создать счетчик FPS
-   */
-  createFPSCounter(options = {}) {
-    // 🧹 Удаляем старый счетчик если есть
-    if (this.fpsCounter) {
-      this.fpsCounter.destroy();
-    }
-    
-    // 📊 Создаем новый счетчик
-    this.fpsCounter = new FPSCounter(options);
-    
-    // FPS Counter создан
-    return this.fpsCounter;
-  }
-  
-  /**
-   * 📊 Получить счетчик FPS
-   */
-  getFPSCounter() {
-    return this.fpsCounter;
-  }
+
   
   /**
    * 📊 Отладочная информация
