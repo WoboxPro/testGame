@@ -83,9 +83,14 @@ export class CollisionSystem {
     const collA = entityA.collision;
     const collB = entityB.collision;
     
-    // Пока поддерживаем только circle-circle
+    // 🎯 НОВИНКА: Поддержка разных форм коллизий
     if (collA.form === 'circle' && collB.form === 'circle') {
       return this._circleCircleCollision(entityA, entityB);
+    } else if (collA.form === 'rect' && collB.form === 'rect') {
+      return this._rectRectCollision(entityA, entityB);
+    } else if ((collA.form === 'circle' && collB.form === 'rect') || 
+               (collA.form === 'rect' && collB.form === 'circle')) {
+      return this._circleRectCollision(entityA, entityB);
     }
     
     return false;
@@ -106,6 +111,54 @@ export class CollisionSystem {
   }
   
   /**
+   * 🔲 Коллизия прямоугольник-прямоугольник
+   */
+  _rectRectCollision(entityA, entityB) {
+    const rectA = this._getEntityRect(entityA);
+    const rectB = this._getEntityRect(entityB);
+    
+    // Проверяем пересечение по оси X
+    const leftA = entityA.x - rectA.width / 2;
+    const rightA = entityA.x + rectA.width / 2;
+    const leftB = entityB.x - rectB.width / 2;
+    const rightB = entityB.x + rectB.width / 2;
+    
+    // Проверяем пересечение по оси Y
+    const topA = entityA.y - rectA.height / 2;
+    const bottomA = entityA.y + rectA.height / 2;
+    const topB = entityB.y - rectB.height / 2;
+    const bottomB = entityB.y + rectB.height / 2;
+    
+    // Прямоугольники пересекаются если пересекаются по обеим осям
+    return !(rightA < leftB || leftA > rightB || bottomA < topB || topA > bottomB);
+  }
+  
+  /**
+   * ⭕🔲 Коллизия круг-прямоугольник
+   */
+  _circleRectCollision(entityA, entityB) {
+    // Определяем что есть круг, а что прямоугольник
+    const circleEntity = entityA.collision.form === 'circle' ? entityA : entityB;
+    const rectEntity = entityA.collision.form === 'rect' ? entityA : entityB;
+    
+    const circleRadius = this._getEntityRadius(circleEntity);
+    const rect = this._getEntityRect(rectEntity);
+    
+    // Находим ближайшую точку на прямоугольнике к центру круга
+    const closestX = Math.max(rectEntity.x - rect.width / 2, 
+                             Math.min(circleEntity.x, rectEntity.x + rect.width / 2));
+    const closestY = Math.max(rectEntity.y - rect.height / 2, 
+                             Math.min(circleEntity.y, rectEntity.y + rect.height / 2));
+    
+    // Вычисляем расстояние от центра круга до ближайшей точки
+    const distanceX = circleEntity.x - closestX;
+    const distanceY = circleEntity.y - closestY;
+    const distanceSquared = distanceX * distanceX + distanceY * distanceY;
+    
+    return distanceSquared < (circleRadius * circleRadius);
+  }
+  
+  /**
    * 📏 Получить радиус сущности (с поддержкой autoSize)
    */
   _getEntityRadius(entity) {
@@ -121,6 +174,25 @@ export class CollisionSystem {
     
     // Обычный режим - используем заданный радиус
     return collision.radius || entity.size || 10;
+  }
+  
+  /**
+   * 🔲 Получить размеры прямоугольника сущности
+   */
+  _getEntityRect(entity) {
+    const collision = entity.collision;
+    if (!collision) {
+      // Если нет коллизии, используем размеры сущности
+      return {
+        width: entity.width || entity.size || 20,
+        height: entity.height || entity.size || 20
+      };
+    }
+    
+    return {
+      width: collision.width || entity.width || entity.size || 20,
+      height: collision.height || entity.height || entity.size || 20
+    };
   }
   
   /**

@@ -22,7 +22,11 @@ export class Entity {
     
     // 🎨 Визуальное представление
     this.color = options.color || 0x888888;    // Основной цвет сущности
-    this.size = options.size || 5;              // Основной размер сущности
+    this.size = options.size || 5;              // Основной размер сущности (для кругов)
+    
+    // 🎯 НОВИНКА: Поддержка прямоугольных размеров
+    this.width = options.width || null;         // Ширина прямоугольника
+    this.height = options.height || null;       // Высота прямоугольника
     
     this.visual = {
       // Для graphics системы (текущая)
@@ -162,8 +166,16 @@ export class Entity {
         
       case 'rect':
       case 'building':
-        const half = this.visual.size / 2;
-        graphics.rect(-half, -half, this.visual.size, this.visual.size);
+      case 'rectangle':
+        // 🎯 НОВИНКА: Поддержка width/height для прямоугольников
+        if (this.width && this.height) {
+          // Используем заданные размеры
+          graphics.rect(-this.width/2, -this.height/2, this.width, this.height);
+        } else {
+          // Используем size как квадрат (как раньше)
+          const half = this.visual.size / 2;
+          graphics.rect(-half, -half, this.visual.size, this.visual.size);
+        }
         break;
         
       case 'diamond':

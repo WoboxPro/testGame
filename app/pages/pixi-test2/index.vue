@@ -3,7 +3,7 @@
     <div class="info">
       <h1>🎮 PixiGame 2.0 - Гибридная система + Биомы + Зоны + Фракции + Коллизии</h1>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
-      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • 🎯 <strong>КОЛЛИЗИИ:</strong> 🚫 БЛОК (юниты) + 📡 ТРИГГЕР (подарки)!</p>
+      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • 🎯 <strong>НОВИНКА:</strong> Прямоугольные коллизии!</p>
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
@@ -213,6 +213,7 @@ onMounted(async () => {
       // Добавляем правила коллизий
       myWorld.collisionSystem.addRule('unit', 'unit', 'unit_collision');     // 🚫 Блокирующие
       myWorld.collisionSystem.addRule('unit', 'pickup', 'pickup_collision'); // 📡 Триггерные
+      myWorld.collisionSystem.addRule('unit', 'building', 'unit_building');  // 🏗️ Юнит ↔ Здание
       
       // 🚫 Событие блокировки движения между юнитами (block + block)
       myWorld.on('unit_collision_enter', ({entityA, entityB, distance}) => {
@@ -239,6 +240,24 @@ onMounted(async () => {
       
       myWorld.on('pickup_collision_exit', ({entityA, entityB}) => {
         console.log(`📤 ТРИГГЕР: ${entityA.name} покинул зону ${entityB.name}`);
+      });
+      
+      // 🏗️ НОВИНКА: Событие коллизии с прямоугольной сущностью
+      myWorld.on('unit_building_enter', ({entityA, entityB, distance}) => {
+        console.log(`🏗️ ЗДАНИЕ: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)})`);
+        
+        if (entityB.collision.form === 'rect') {
+          console.log(`  📐 Прямоугольная коллизия: ${entityB.collision.width}×${entityB.collision.height}`);
+        } else {
+          console.log(`  ⭕ Круглая коллизия: радиус ${entityB.collision.radius}`);
+        }
+        
+        // Останавливаем движение
+        entityA.stopMovement();
+      });
+      
+      myWorld.on('unit_building_exit', ({entityA, entityB}) => {
+        console.log(`🚪 ЗДАНИЕ: ${entityA.name} отошел от ${entityB.name}`);
       });
       
       // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
@@ -414,6 +433,48 @@ onMounted(async () => {
         color: 0xFF1493,
         type: 'decoration',
         collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
+      });
+      
+      // 🎯 НОВИНКА: Прямоугольная сущность с width/height!
+      myWorld.addEntity({
+        x: 0, y: 100,
+        name: 'Прямоугольный Тест',
+        form: 'rectangle',
+        width: 40,    // 🎯 Ширина 40 пикселей
+        height: 25,   // 🎯 Высота 25 пикселей
+        color: 0xFF4500, // Оранжево-красный
+        type: 'decoration',
+        collision: {
+          enabled: true,
+          name: 'building',
+          form: 'rect',           // 🎯 Прямоугольная коллизия!
+          width: 40,              // 🎯 Ширина = размеру сущности
+          height: 25,             // 🎯 Высота = размеру сущности
+          collisionType: 'block', // 🚫 Блокирующая
+          isSolid: true,
+          layer: 'buildings'
+        }
+      });
+      
+      // 🎯 НОВИНКА: Вторая прямоугольная сущность для тестирования
+      myWorld.addEntity({
+        x: 80, y: 100,
+        name: 'Прямоугольный Тест 2',
+        form: 'rectangle',
+        width: 30,    // 🎯 Ширина 30 пикселей
+        height: 40,   // 🎯 Высота 40 пикселей
+        color: 0x8B4513, // Коричневый
+        type: 'decoration',
+        collision: {
+          enabled: true,
+          name: 'building',
+          form: 'rect',           // 🎯 Прямоугольная коллизия!
+          width: 30,              // 🎯 Ширина = размеру сущности
+          height: 40,             // 🎯 Высота = размеру сущности
+          collisionType: 'block', // 🚫 Блокирующая
+          isSolid: true,
+          layer: 'buildings'
+        }
       });
       
       // 🎮 НОВИНКА: Управляемая сущность
