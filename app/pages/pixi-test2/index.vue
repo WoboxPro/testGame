@@ -3,7 +3,7 @@
     <div class="info">
       <h1>🎮 PixiGame 2.0 - Гибридная система + Биомы + Зоны + Фракции + Коллизии</h1>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
-      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • 🎯 <strong>НОВИНКА: Коллизии!</strong> Юниты не проходят друг сквозь друга!</p>
+      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • 🎯 <strong>КОЛЛИЗИИ:</strong> 🚫 БЛОК (юниты) + 📡 ТРИГГЕР (подарки)!</p>
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
@@ -19,7 +19,7 @@ import { PixiGame } from '~/services/new/pixiGame.js';
 import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 import { CreateZone } from '~/services/new/core/CreateZone.js';
 import { CreateFaction } from '~/services/new/core/CreateFaction.js';
-import { createUnitCollision } from '~/services/new/core/CreateCollision.js';
+import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } from '~/services/new/core/CreateCollision.js';
 
 let game = null;
 
@@ -196,15 +196,27 @@ onMounted(async () => {
       
       // 🎯 НОВИНКА: Настройка системы коллизий!
       
-      // Создаем тип коллизии для юнитов
+      // Создаем тип коллизии для юнитов (фиксированный радиус)
       const unitCollisionType = createUnitCollision({ radius: 12 });
       
-      // Добавляем правило: юнит + юнит = блокировка
-      myWorld.collisionSystem.addRule('unit', 'unit', 'unit_collision');
+      // 🎯 НОВИНКА: Автоматические коллизии (размер от entity.size)
+      const autoCollisionType = createAutoUnitCollision({ 
+        sizeMultiplier: 1.2 // На 20% больше чем размер сущности
+      });
       
-      // Событие блокировки движения между юнитами
+      // 📡 НОВИНКА: Триггерные коллизии (только события, не блокируют)
+      const triggerCollisionType = createTriggerCollision({ 
+        name: 'pickup',
+        radius: 15 
+      });
+      
+      // Добавляем правила коллизий
+      myWorld.collisionSystem.addRule('unit', 'unit', 'unit_collision');     // 🚫 Блокирующие
+      myWorld.collisionSystem.addRule('unit', 'pickup', 'pickup_collision'); // 📡 Триггерные
+      
+      // 🚫 Событие блокировки движения между юнитами (block + block)
       myWorld.on('unit_collision_enter', ({entityA, entityB, distance}) => {
-        console.log(`🚫 КОЛЛИЗИЯ: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)}) - движение заблокировано!`);
+        console.log(`🚫 БЛОК: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)}) - движение заблокировано!`);
         
         // Останавливаем движение обеих сущностей
         entityA.stopMovement();
@@ -212,7 +224,21 @@ onMounted(async () => {
       });
       
       myWorld.on('unit_collision_exit', ({entityA, entityB}) => {
-        console.log(`✅ КОЛЛИЗИЯ: ${entityA.name} отошел от ${entityB.name}`);
+        console.log(`✅ БЛОК: ${entityA.name} отошел от ${entityB.name}`);
+      });
+      
+      // 📡 Событие триггерных коллизий (trigger - только события, не блокирует)
+      myWorld.on('pickup_collision_enter', ({entityA, entityB, distance}) => {
+        console.log(`📡 ТРИГГЕР: ${entityA.name} активировал ${entityB.name} (расстояние: ${distance.toFixed(1)}) - движение НЕ блокировано!`);
+        
+        // Можем делать что угодно, но движение НЕ блокируется
+        if (entityB.name.includes('Подарок')) {
+          console.log('  🎁 Получен подарок!');
+        }
+      });
+      
+      myWorld.on('pickup_collision_exit', ({entityA, entityB}) => {
+        console.log(`📤 ТРИГГЕР: ${entityA.name} покинул зону ${entityB.name}`);
       });
       
       // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
@@ -335,17 +361,60 @@ onMounted(async () => {
       myWorld.addStructure(0, 0, { name: 'Центр (Graphics)', form: 'building', size: 30, color: 0xFF6B35 });
       myWorld.addStructure(-60, 60, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
       
-      // 👥 ЮНИТЫ (будут видны в мини-карте)
-      myWorld.addUnit(-50, -30, { name: 'Солдат 1 (Graphics)', form: 'soldier', size: 8 });
-      myWorld.addUnit(50, 30, { name: 'Солдат 2 (Graphics)', form: 'soldier', size: 8 });
-      myWorld.addUnit(0, -60, { name: 'Командир (Graphics)', form: 'soldier', size: 10, color: 0x0000FF });
-      myWorld.addUnit(70, -20, { name: 'Танк (Graphics)', form: 'tank', size: 12, color: 0x228B22 });
+      // 👥 ЮНИТЫ (будут видны в мини-карте) + АВТОМАТИЧЕСКИЕ КОЛЛИЗИИ!
+      myWorld.addUnit(-50, -30, { 
+        name: 'Солдат 1 (Auto)', 
+        form: 'soldier', 
+        size: 8,
+        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
+      });
+      myWorld.addUnit(50, 30, { 
+        name: 'Солдат 2 (Auto)', 
+        form: 'soldier', 
+        size: 8,
+        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
+      });
+      myWorld.addUnit(0, -60, { 
+        name: 'Командир (Auto)', 
+        form: 'soldier', 
+        size: 15, // 🎯 Больше размер!
+        color: 0x0000FF,
+        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 15 * 1.2 = 18
+      });
+      myWorld.addUnit(70, -20, { 
+        name: 'Танк (Auto)', 
+        form: 'tank', 
+        size: 20, // 🎯 Очень большой!
+        color: 0x228B22,
+        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 20 * 1.2 = 24
+      });
       
       // 🌿 ДЕКОРАЦИИ/РЕСУРСЫ (будут видны в мини-карте, но скрыты в detail)
       myWorld.addDecoration(-80, 0, { name: 'Руда', form: 'diamond', size: 8, color: 0xFFD700, type: 'resource' });
       myWorld.addDecoration(80, 0, { name: 'Кристаллы', form: 'diamond', size: 6, color: 0x9370DB, type: 'resource' });
       myWorld.addDecoration(-40, 70, { name: 'Дерево 1', form: 'tree', size: 12, type: 'decoration' });
       myWorld.addDecoration(40, -70, { name: 'Дерево 2', form: 'tree', size: 10, type: 'decoration' });
+      
+      // 🎁 НОВИНКА: Триггерные объекты (НЕ блокируют движение, только события!)
+      myWorld.addEntity({
+        x: -120, y: 50,
+        name: 'Подарок 1 (Trigger)',
+        form: 'star',
+        size: 12,
+        color: 0xFF69B4,
+        type: 'decoration',
+        collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
+      });
+      
+      myWorld.addEntity({
+        x: 120, y: -50,
+        name: 'Подарок 2 (Trigger)',
+        form: 'star',
+        size: 10,
+        color: 0xFF1493,
+        type: 'decoration',
+        collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
+      });
       
       // 🎮 НОВИНКА: Управляемая сущность
       const controlledHero = myWorld.addUnit(-200, 0, { 

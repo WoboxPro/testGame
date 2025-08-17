@@ -18,11 +18,14 @@ export class CreateCollision {
       this.height = options.height || options.size || 20;
     }
     
+    // 🎯 НОВИНКА: Тип коллизии для поведения
+    this.collisionType = options.collisionType || 'block'; // 'block' | 'trigger'
+    
     // Дополнительные параметры
-    this.isSolid = options.isSolid !== false; // блокирует движение
+    this.isSolid = options.isSolid !== false; // УСТАРЕЛО: используем collisionType
     this.layer = options.layer || 'default';
     
-    console.log(`🎯 Создан тип коллизии: ${name} (${this.form})`);
+    console.log(`🎯 Создан тип коллизии: ${name} (${this.form}, ${this.collisionType})`);
   }
   
   /**
@@ -36,8 +39,11 @@ export class CreateCollision {
       radius: this.radius,
       width: this.width,
       height: this.height,
-      isSolid: this.isSolid,
+      collisionType: this.collisionType, // 🎯 НОВИНКА: 'block' | 'trigger'
+      isSolid: this.isSolid, // Сохраняем для совместимости
       layer: this.layer,
+      autoSize: false, // 🎯 НОВИНКА: автоматический размер от entity
+      sizeMultiplier: 1.0, // 🎯 Множитель для автоматического размера
       ...overrides
     };
   }
@@ -73,13 +79,50 @@ export class CreateCollision {
  * 🏭 Фабричные методы для популярных типов коллизий
  */
 
-// 👥 Коллизия для юнитов
+// 👥 Коллизия для юнитов (блокирующая)
 export const createUnitCollision = (options = {}) => {
   return new CreateCollision('unit', {
     form: 'circle',
     radius: options.radius || options.size || 8,
+    collisionType: 'block', // 🚫 Блокирует движение
     isSolid: true,
     layer: 'units',
+    ...options
+  });
+};
+
+// 🎯 НОВИНКА: Автоматическая коллизия для юнитов (размер от entity.size)
+export const createAutoUnitCollision = (options = {}) => {
+  const collision = new CreateCollision('unit', {
+    form: 'circle',
+    radius: 8, // Значение по умолчанию если autoSize не сработает
+    collisionType: options.collisionType || 'block', // 🚫 По умолчанию блокирующая
+    isSolid: true,
+    layer: 'units',
+    ...options
+  });
+  
+  // Переопределяем метод для автоматического размера
+  const originalCreate = collision.createEntityCollision.bind(collision);
+  collision.createEntityCollision = function(overrides = {}) {
+    return originalCreate({
+      autoSize: true,
+      sizeMultiplier: options.sizeMultiplier || 1.0,
+      ...overrides
+    });
+  };
+  
+  return collision;
+};
+
+// 🎯 НОВИНКА: Триггерная коллизия (только события, не блокирует)
+export const createTriggerCollision = (options = {}) => {
+  return new CreateCollision(options.name || 'trigger', {
+    form: 'circle',
+    radius: options.radius || options.size || 10,
+    collisionType: 'trigger', // 📡 Только события, не блокирует движение
+    isSolid: false,
+    layer: options.layer || 'triggers',
     ...options
   });
 };

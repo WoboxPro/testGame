@@ -99,10 +99,28 @@ export class CollisionSystem {
     const dy = entityA.y - entityB.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    const radiusA = entityA.collision.radius || entityA.size || 10;
-    const radiusB = entityB.collision.radius || entityB.size || 10;
+    const radiusA = this._getEntityRadius(entityA);
+    const radiusB = this._getEntityRadius(entityB);
     
     return distance < (radiusA + radiusB);
+  }
+  
+  /**
+   * 📏 Получить радиус сущности (с поддержкой autoSize)
+   */
+  _getEntityRadius(entity) {
+    const collision = entity.collision;
+    if (!collision) return entity.size || 10;
+    
+    // 🎯 НОВИНКА: Автоматический размер от entity.size
+    if (collision.autoSize) {
+      const baseSize = entity.size || entity.visual?.size || 10;
+      const multiplier = collision.sizeMultiplier || 1.0;
+      return baseSize * multiplier;
+    }
+    
+    // Обычный режим - используем заданный радиус
+    return collision.radius || entity.size || 10;
   }
   
   /**

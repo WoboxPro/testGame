@@ -470,7 +470,7 @@ export class EntityController {
   }
   
   /**
-   * 🎯 Проверить коллизии для сущности в текущей позиции
+   * 🎯 Проверить блокирующие коллизии для сущности в текущей позиции
    */
   _checkEntityCollisions(entity) {
     if (!entity?.collision?.enabled || !entity.world?.collisionSystem) {
@@ -490,11 +490,18 @@ export class EntityController {
       const hasRule = collisionSystem.collisionRules.has(ruleKey);
       
       if (hasRule && collisionSystem._detectCollision(entity, otherEntity)) {
-        return true; // Найдена коллизия
+        // 🎯 НОВИНКА: Проверяем тип коллизии - блокируем только 'block'
+        const entityCollisionType = entity.collision.collisionType || 'block';
+        const otherCollisionType = otherEntity.collision.collisionType || 'block';
+        
+        // Блокируем только если хотя бы одна коллизия типа 'block'
+        if (entityCollisionType === 'block' || otherCollisionType === 'block') {
+          return true; // Найдена блокирующая коллизия
+        }
       }
     }
     
-    return false; // Коллизий нет
+    return false; // Блокирующих коллизий нет
   }
   
   /**
