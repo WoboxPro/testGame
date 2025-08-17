@@ -305,11 +305,7 @@ onMounted(async () => {
       // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
       await game.startCanvas(myCanvas);
       
-
       
-      // 🧪 Добавляем тестовые сущности с НОВОЙ ГИБРИДНОЙ СИСТЕМОЙ РЕНДЕРИНГА!
-      
-      // 🔵 GRAPHICS СИСТЕМА (геометрические фигуры - как раньше)
       
       // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
       myWorld.addStructure(-100, -80, { name: 'База 1 (Graphics)', form: 'building', size: 50 });
@@ -533,8 +529,7 @@ onMounted(async () => {
       myWorld.addFaction(elfFaction);
       myWorld.addFaction(traderFaction);
       
-      // 🔗 УПРОЩЕННАЯ СИСТЕМА: только мир и война!
-      
+     
       // Игроки воюют с орками, в мире с эльфами, нейтральны к торговцам
       myWorld.setFactionRelation(playerFaction, orcFaction, 'war');
       myWorld.setFactionRelation(playerFaction, elfFaction, 'peace');
@@ -548,7 +543,6 @@ onMounted(async () => {
       myWorld.setFactionRelation(elfFaction, playerFaction, 'peace');
       // С орками и торговцами автоматически нейтральны
       
-      // Торговцы ни с кем не воюют (canFight: false)
       
       // 🎯 Привязываем существующих сущностей к фракциям
       myWorld.assignEntityToFaction(controlledHero, playerFaction);        // Герой = игрок
