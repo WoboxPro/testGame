@@ -8,6 +8,7 @@ import { Entity, EntityForms, EntityFactory } from './Entity.js';
 import { BiomeSystem } from './BiomeSystem.js';
 import { ZoneSystem } from './ZoneSystem.js';
 import { FactionSystem } from './FactionSystem.js';
+import { CollisionSystem } from './CollisionSystem.js';
 import { SimpleEventEmitter, GAME_EVENTS } from '~/utils/EventEmitter.js';
 
 export class World extends SimpleEventEmitter {
@@ -50,6 +51,9 @@ export class World extends SimpleEventEmitter {
     
     // 🏛️ Система фракций
     this.factionSystem = new FactionSystem(this);
+    
+    // 🎯 Система коллизий
+    this.collisionSystem = new CollisionSystem(this);
     
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     
@@ -170,6 +174,14 @@ export class World extends SimpleEventEmitter {
    */
   getBiomeAt(x, y) {
     return this.biomeSystem.getBiomeAt(x, y);
+  }
+  
+  /**
+   * 🔄 Обновить мир (вызывается каждый кадр)
+   */
+  update() {
+    // 🎯 Проверяем коллизии каждый кадр
+    this.collisionSystem.checkCollisions();
   }
   
   /**
@@ -301,5 +313,34 @@ export class World extends SimpleEventEmitter {
    */
   getFactionInfo() {
     return this.factionSystem.getInfo();
+  }
+  
+  /**
+   * 🧹 Уничтожить мир и все системы
+   */
+  destroy() {
+    console.log('🧹 Уничтожение World...');
+    
+    // Очищаем все системы
+    if (this.biomeSystem) {
+      this.biomeSystem.destroy?.();
+    }
+    if (this.zoneSystem) {
+      this.zoneSystem.destroy?.();
+    }
+    if (this.factionSystem) {
+      this.factionSystem.destroy?.();
+    }
+    if (this.collisionSystem) {
+      this.collisionSystem.destroy();
+    }
+    
+    // Очищаем сущности
+    this.entities.clear();
+    
+    // Очищаем события
+    this.removeAllListeners();
+    
+    console.log('✅ World уничтожен');
   }
 }

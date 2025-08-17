@@ -122,6 +122,11 @@ export class PixiGame {
       
 
       
+      // 🌍 Обновляем все миры
+      this.worlds.forEach(world => {
+        world.update();
+      });
+      
       // 🎨 Рендерим все канвасы
       this.canvases.forEach(canvas => {
         canvas.render();

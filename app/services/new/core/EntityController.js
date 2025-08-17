@@ -368,9 +368,31 @@ export class EntityController {
   _moveEntity(entity, deltaX, deltaY) {
     if (!entity) return;
     
-    // 🎯 Получаем текущую позицию
+    // 🎯 Получаем предполагаемую новую позицию
     let newX = entity.x + deltaX;
     let newY = entity.y + deltaY;
+    
+    // 🎯 НОВИНКА: Проверяем коллизии заранее
+    if (entity.collision?.enabled && entity.world?.collisionSystem) {
+      // Временно устанавливаем новую позицию для проверки
+      const oldX = entity.x;
+      const oldY = entity.y;
+      entity.x = newX;
+      entity.y = newY;
+      
+      // Проверяем будут ли коллизии
+      const wouldCollide = this._checkEntityCollisions(entity);
+      
+      // Возвращаем старую позицию
+      entity.x = oldX;
+      entity.y = oldY;
+      
+      // Если будет коллизия - блокируем движение
+      if (wouldCollide) {
+        console.log(`🚫 EntityController: Движение заблокировано для ${entity.name} - коллизия впереди`);
+        return;
+      }
+    }
     
     // 🎯 Проверяем границы мира если включено
     if (this.settings.respectEntityBounds && entity.world) {
@@ -445,6 +467,34 @@ export class EntityController {
     }
     
     //console.log('⚙️ EntityController настройки обновлены:', newSettings);
+  }
+  
+  /**
+   * 🎯 Проверить коллизии для сущности в текущей позиции
+   */
+  _checkEntityCollisions(entity) {
+    if (!entity?.collision?.enabled || !entity.world?.collisionSystem) {
+      return false;
+    }
+    
+    const collisionSystem = entity.world.collisionSystem;
+    const entities = entity.world.getAllEntities();
+    const entitiesWithCollision = entities.filter(e => 
+      e.collision?.enabled && 
+      e.id !== entity.id // Исключаем саму сущность
+    );
+    
+    // Проверяем коллизии с другими сущностями
+    for (const otherEntity of entitiesWithCollision) {
+      const ruleKey = collisionSystem._getRuleKey(entity.collision.name, otherEntity.collision.name);
+      const hasRule = collisionSystem.collisionRules.has(ruleKey);
+      
+      if (hasRule && collisionSystem._detectCollision(entity, otherEntity)) {
+        return true; // Найдена коллизия
+      }
+    }
+    
+    return false; // Коллизий нет
   }
   
   /**

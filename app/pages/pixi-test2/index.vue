@@ -1,9 +1,9 @@
 <template>
   <div class="container">
     <div class="info">
-      <h1>🎮 PixiGame 2.0 - Гибридная система + Биомы + Зоны + Фракции</h1>
+      <h1>🎮 PixiGame 2.0 - Гибридная система + Биомы + Зоны + Фракции + Коллизии</h1>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
-      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • Синий герой + синий алмаз!</p>
+      <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • 🎯 <strong>НОВИНКА: Коллизии!</strong> Юниты не проходят друг сквозь друга!</p>
     </div>
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
@@ -19,6 +19,7 @@ import { PixiGame } from '~/services/new/pixiGame.js';
 import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 import { CreateZone } from '~/services/new/core/CreateZone.js';
 import { CreateFaction } from '~/services/new/core/CreateFaction.js';
+import { createUnitCollision } from '~/services/new/core/CreateCollision.js';
 
 let game = null;
 
@@ -193,6 +194,27 @@ onMounted(async () => {
         console.log(`🚪 СОБЫТИЕ: ${entity.name} покинул зону ${zone.displayName}!`);
       });
       
+      // 🎯 НОВИНКА: Настройка системы коллизий!
+      
+      // Создаем тип коллизии для юнитов
+      const unitCollisionType = createUnitCollision({ radius: 12 });
+      
+      // Добавляем правило: юнит + юнит = блокировка
+      myWorld.collisionSystem.addRule('unit', 'unit', 'unit_collision');
+      
+      // Событие блокировки движения между юнитами
+      myWorld.on('unit_collision_enter', ({entityA, entityB, distance}) => {
+        console.log(`🚫 КОЛЛИЗИЯ: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)}) - движение заблокировано!`);
+        
+        // Останавливаем движение обеих сущностей
+        entityA.stopMovement();
+        entityB.stopMovement();
+      });
+      
+      myWorld.on('unit_collision_exit', ({entityA, entityB}) => {
+        console.log(`✅ КОЛЛИЗИЯ: ${entityA.name} отошел от ${entityB.name}`);
+      });
+      
       // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
       const myCanvas = game.createCanvas({
         width: 800,
@@ -331,7 +353,8 @@ onMounted(async () => {
         type: 'unit',
         form: 'soldier', 
         size: 12, 
-        color: 0x00FF80  // Ярко-зеленый для выделения
+        color: 0x00FF80,  // Ярко-зеленый для выделения
+        collision: unitCollisionType.createEntityCollision() // 🎯 Добавляем коллизии!
       });
       
       // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
@@ -341,7 +364,8 @@ onMounted(async () => {
         form: 'diamond',     // 🎯 Уникальная форма для отличия
         size: 8,             // 🎯 Увеличиваем размер
         name: 'Управляемый Алмаз', 
-        color: 0xFF00FF      // 🎯 Ярко-розовый цвет для выделения
+        color: 0xFF00FF,     // 🎯 Ярко-розовый цвет для выделения
+        collision: unitCollisionType.createEntityCollision({ radius: 10 }) // 🎯 Добавляем коллизии!
       });
       myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
       myWorld.addEntity({ x: 30, y: 20, type: 'bullet', form: 'circle', size: 2, name: 'Пуля 3', color: 0xDC143C });
@@ -549,15 +573,48 @@ onMounted(async () => {
       myWorld.assignEntityToFaction(controlledHero2, playerFaction);       // Алмаз = игрок
       
       // Добавляем врагов разных фракций
-      const orcWarrior1 = myWorld.addUnit(200, -100, { name: 'Орк-воин 1', form: 'soldier', faction: orcFaction });
-      const orcWarrior2 = myWorld.addUnit(-250, 150, { name: 'Орк-воин 2', form: 'tank', size: 12, faction: orcFaction });
+      const orcWarrior1 = myWorld.addUnit(200, -100, { 
+        name: 'Орк-воин 1', 
+        form: 'soldier', 
+        faction: orcFaction,
+        collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для орков
+      });
+      const orcWarrior2 = myWorld.addUnit(-250, 150, { 
+        name: 'Орк-воин 2', 
+        form: 'tank', 
+        size: 12, 
+        faction: orcFaction,
+        collision: unitCollisionType.createEntityCollision({ radius: 14 }) // 🎯 Больше радиус для танка
+      });
       
-      const elfArcher1 = myWorld.addUnit(150, 200, { name: 'Эльф-лучник 1', form: 'soldier', faction: elfFaction });
-      const elfArcher2 = myWorld.addUnit(-180, -50, { name: 'Эльф-лучник 2', form: 'soldier', faction: elfFaction });
+      const elfArcher1 = myWorld.addUnit(150, 200, { 
+        name: 'Эльф-лучник 1', 
+        form: 'soldier', 
+        faction: elfFaction,
+        collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для эльфов
+      });
+      const elfArcher2 = myWorld.addUnit(-180, -50, { 
+        name: 'Эльф-лучник 2', 
+        form: 'soldier', 
+        faction: elfFaction,
+        collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для эльфов
+      });
       
       // 💰 Торговцы (их нельзя атаковать!)
-      const trader1 = myWorld.addUnit(300, -200, { name: 'Торговец 1', form: 'diamond', size: 10, faction: traderFaction });
-      const trader2 = myWorld.addUnit(-300, 250, { name: 'Торговец 2', form: 'diamond', size: 10, faction: traderFaction });
+      const trader1 = myWorld.addUnit(300, -200, { 
+        name: 'Торговец 1', 
+        form: 'diamond', 
+        size: 10, 
+        faction: traderFaction,
+        collision: unitCollisionType.createEntityCollision({ radius: 12 }) // 🎯 Коллизии для торговцев
+      });
+      const trader2 = myWorld.addUnit(-300, 250, { 
+        name: 'Торговец 2', 
+        form: 'diamond', 
+        size: 10, 
+        faction: traderFaction,
+        collision: unitCollisionType.createEntityCollision({ radius: 12 }) // 🎯 Коллизии для торговцев
+      });
       
       // console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, trader1) // false');
       // console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, orcWarrior1) // true');

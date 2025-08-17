@@ -57,6 +57,14 @@ export class Entity {
     // 🌍 Ссылка на мир (для проверки границ и т.д.)
     this.world = null;
     
+    // 🎯 Параметры коллизий
+    this.collision = options.collision || null;
+    
+    // 🏃 Параметры движения
+    this.velocity = { x: 0, y: 0 };
+    this.previousPosition = { x: this.x, y: this.y };
+    this.isMovementBlocked = false;
+    
   }
   
   /**
@@ -75,8 +83,35 @@ export class Entity {
    * 📍 Установить позицию
    */
   setPosition(x, y) {
+    this.previousPosition.x = this.x;
+    this.previousPosition.y = this.y;
     this.x = x;
     this.y = y;
+  }
+  
+  /**
+   * 🛑 Остановить движение (откат к предыдущей позиции)
+   */
+  stopMovement() {
+    if (this.isMovementBlocked) return; // Уже заблокировано
+    
+    this.isMovementBlocked = true;
+    this.x = this.previousPosition.x;
+    this.y = this.previousPosition.y;
+    this.velocity.x = 0;
+    this.velocity.y = 0;
+    
+    // Снимаем блокировку в следующем кадре
+    setTimeout(() => {
+      this.isMovementBlocked = false;
+    }, 16); // ~1 кадр при 60 FPS
+  }
+  
+  /**
+   * 🏃 Проверить можно ли двигаться
+   */
+  canMove() {
+    return !this.isMovementBlocked;
   }
   
   /**
