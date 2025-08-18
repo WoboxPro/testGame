@@ -26,10 +26,10 @@ let game = null;
 onMounted(async () => {
   if (process.client) {
     try {
-      // 🎮 Создаем движок
+// GAME -----------------------------------------------------------------------------------------------------------------
       game = new PixiGame();
       
-      // 🌍 Создаем мир с размерами, фоном и границами
+// WORLD -----------------------------------------------------------------------------------------------------------------
       const myWorld = game.createWorld({
         width: 1200,
         height: 900,
@@ -41,8 +41,109 @@ onMounted(async () => {
           style: 'solid'       // Сплошная линия
         }
       });
+
+// CANVAS -----------------------------------------------------------------------------------------------------------------
+      const myCanvas = game.createCanvas({
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333', // Серый фон незанятых областей
+        containerId: 'game-container'  //  ID DOM элемента куда помещать канвас
+      });
+
+      await game.startCanvas(myCanvas);
+
+// CAMERA -----------------------------------------------------------------------------------------------------------------
+      // 📷 Создаем первую камеру (основная, занимает левую половину)
+      const myCamera1 = game.createCamera({
+        id: 'main_camera',
+        width: 400,           // Половина канваса
+        height: 600,          // Вся высота
+        x: 0,                 // Левая половина канваса
+        y: 0,
+        focusX: 0,            // Смотрит на центр мира
+        focusY: 0,
+        world: myWorld,
+        canvas: myCanvas,
+        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
+        priority: 1,
+        respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0x00FF00  // Зеленый для основной камеры
+          }
+        }
+      });
       
-      // 🌍 НОВИНКА: Создаем биомы для демонстрации
+      // 📷 Создаем вторую камеру (мини-карта, правый верх) 
+      // const myCamera2 = game.createCamera({
+      //   id: 'mini_camera',
+      //   width: 200,           // Маленькая камера
+      //   height: 200,
+      //   x: 600,              // Правая часть канваса
+      //   y: 0,                // Верх
+      //   focusX: 0,           // Тоже смотрит на центр
+      //   focusY: 0,
+      //   world: myWorld,      // ТОТ ЖЕ МИР!
+      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+      //   zoom: 0.2,           // Меньший зум для обзора
+      //   priority: 2,         // Рисуется поверх
+      //   respectWorldBounds: false,  // 🌍 Тоже ограничиваем границами
+      //   // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
+      //   visibleTypes: ['building', 'unit', 'world_border', 'biome_border', 'zone_border'],  // + границы мира, биомов и зон!
+      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+      //   style: {
+      //     border: {
+      //       enabled: true,
+      //       width: 1,
+      //       color: 0x0080FF  // Синий для мини-карты
+      //     }
+      //   }
+      // });
+      
+      // // // 📷 Создаем третью камеру (детали, правый низ)
+      const myCamera3 = game.createCamera({
+        id: 'detail_camera',
+        width: 400,
+        height: 600,
+        x: 400,              // Правая часть
+        y: 0,              // Низ
+        focusX: 0,           // 🎯 Тоже смотрит на центр мира
+        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
+        world: myWorld,      // ТОТ ЖЕ МИР!
+        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+        zoom: 2,           // Слегка увеличенный зум (было 2.0)
+        priority: 3,
+        respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
+        hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0xFF8000  // Оранжевый для детальной камеры
+          }
+        }
+      });
+
+      // Создаем контроллер управления камерой
+      const controller = game.createCameraController({
+        moveSpeed: 2,            // 🎯  пикселей за шаг (плавно!)
+       // smoothMove: true,        // 🎯 плавное движение включено :: НЕ РЕАЛИЗОВАНО
+        zoomStep: 0.02,          // Более плавный зум
+        minZoom: 0.2,            // Минимальный зум
+        maxZoom: 3.0             // Максимальный зум
+      });
+      
+      // Принудительное включение контроллера
+      controller.enable();
+
+      // Выбираем основную камеру для демонстрации
+      game.selectCamera(myCamera1);
+
+// END: CAMERA -----------------------------------------------------------------------------------------------------------------
+
+// BIOME -----------------------------------------------------------------------------------------------------------------
       
       // Создаем типы биомов (без координат)
       const grasslandBiome = new CreateBiome('grassland', {
@@ -96,8 +197,27 @@ onMounted(async () => {
         x: -350, y: -100,         // Позиция болота (левая часть)
         width: 200, height: 150   // Размер болота
       });
-      
-      // 🏛️ НОВИНКА: Создаем зоны для демонстрации
+
+
+      // События биомов (только enter - без спама)
+      myWorld.on('biome_enter', ({entity, biome, previousBiome}) => {
+        console.log(`🌿 СОБЫТИЕ: ${entity.name} вошел в биом ${biome.displayName}!`);
+        if (biome.name === 'desert') {
+          console.log('  🔥 Эффект пустыни: жара снижает скорость!');
+        } else if (biome.name === 'swamp') {
+          console.log('  🐸 Эффект болота: трясина замедляет движение!');
+        }
+      });
+      myWorld.on('biome_exit', ({entity, biome, previousBiome}) => {
+        console.log(`🌿 СОБЫТИЕ: ${entity.name} покинул биом ${biome.displayName}!`);
+        if (biome.name === 'desert') {
+          console.log('  🔥Конец эффекта пустыни: жара снижает скорость!');
+        } else if (biome.name === 'swamp') {
+          console.log('  🐸 Конец эффекта болота: трясина замедляет движение!');
+        }
+      });
+// END: BIOME -----------------------------------------------------------------------------------------------------------------
+// ZONE -----------------------------------------------------------------------------------------------------------------
       
       // Создаем типы зон (без координат)
       const pvpZone = new CreateZone('pvp_arena', {
@@ -151,7 +271,6 @@ onMounted(async () => {
           alpha: 0.7
         }
       });
-      
       // Добавляем зоны в разных частях мира
       myWorld.addZone(pvpZone, {
         x: 150, y: -200,          // Позиция PvP арены
@@ -162,24 +281,11 @@ onMounted(async () => {
         x: -200, y: 150,          // Позиция безопасной зоны
         width: 180, height: 100   // Размер безопасной зоны
       });
-      
       myWorld.addZone(restrictedZone, {
         x: 250, y: 100,           // Позиция запретной зоны
         width: 120, height: 80    // Размер запретной зоны
       });
-      
-      
-     
-      // События биомов (только enter - без спама)
-      myWorld.on('biome_enter', ({entity, biome, previousBiome}) => {
-        console.log(`🌿 СОБЫТИЕ: ${entity.name} вошел в биом ${biome.displayName}!`);
-        if (biome.name === 'desert') {
-          console.log('  🔥 Эффект пустыни: жара снижает скорость!');
-        } else if (biome.name === 'swamp') {
-          console.log('  🐸 Эффект болота: трясина замедляет движение!');
-        }
-      });
-      
+
       // События зон (только enter/exit - без спама)
       myWorld.on('zone_enter', ({entity, zone}) => {
         console.log(`🏛️ СОБЫТИЕ: ${entity.name} вошел в зону ${zone.displayName}!`);
@@ -193,7 +299,43 @@ onMounted(async () => {
       myWorld.on('zone_exit', ({entity, zone}) => {
         console.log(`🚪 СОБЫТИЕ: ${entity.name} покинул зону ${zone.displayName}!`);
       });
+//END: ZONE -----------------------------------------------------------------------------------------------------------------
+// FRACTION -----------------------------------------------------------------------------------------------------------------
+    //  Система фракций!
       
+      // Создаем фракции
+      const playerFaction = new CreateFaction('player', {
+        name: 'Команда1',
+        displayName: 'Синие Игроки',
+        color: 0x0080FF,           // Синий цвет
+        unitColor: 0x00AAFF,      // Светло-синий для юнитов
+        description: 'Фракция игроков',
+        isPlayerControlled: true,
+      });
+      
+      const orcFaction = new CreateFaction('orcs', {
+        name: 'Команда2',
+        displayName: 'Красные Игроки',
+        color: 0xFF0000,          // Красный цвет
+        unitColor: 0xFF4444,      // Светло-красный для юнитов
+        description: 'Агрессивные орки',
+        behavior: {
+          aggressive: true,
+          expansionist: true
+        },
+      });
+      
+      // Добавляем фракции в мир
+      myWorld.addFaction(playerFaction);
+      myWorld.addFaction(orcFaction);
+     
+     // Отношения между фракциями
+      myWorld.setFactionRelation(playerFaction, orcFaction, 'war');
+      myWorld.setFactionRelation(orcFaction, playerFaction, 'war');
+
+// END: FRACTION -----------------------------------------------------------------------------------------------------------------
+// COLLISION -----------------------------------------------------------------------------------------------------------------
+
       // 🎯 НОВИНКА: Настройка системы коллизий!
       
       // Создаем тип коллизии для юнитов (фиксированный радиус)
@@ -245,139 +387,21 @@ onMounted(async () => {
       // 🏗️ НОВИНКА: Событие коллизии с прямоугольной сущностью
       myWorld.on('unit_building_enter', ({entityA, entityB, distance}) => {
         console.log(`🏗️ ЗДАНИЕ: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)})`);
-        
         if (entityB.collision.form === 'rect') {
           console.log(`  📐 Прямоугольная коллизия: ${entityB.collision.width}×${entityB.collision.height}`);
         } else {
           console.log(`  ⭕ Круглая коллизия: радиус ${entityB.collision.radius}`);
         }
-        
-        // Останавливаем движение
         entityA.stopMovement();
       });
       
       myWorld.on('unit_building_exit', ({entityA, entityB}) => {
         console.log(`🚪 ЗДАНИЕ: ${entityA.name} отошел от ${entityB.name}`);
       });
-      
-      // 🖼️ Создаем канвас с размерами и цветом фона для незанятых областей
-      const myCanvas = game.createCanvas({
-        width: 800,
-        height: 600,
-        backgroundColor: '#333333', // Серый фон незанятых областей
-        containerId: 'game-container'  //  ID DOM элемента куда помещать канвас
-      });
-      // const myCanvas2 = game.createCanvas({
-      //   width: 800,
-      //   height: 600,
-      //   backgroundColor: '#333333', // Серый фон незанятых областей
-      //   containerId: 'game-container2'  // 🎯 ID DOM элемента куда помещать канвас
-      // });
-      // const myCamera4 = game.createCamera({
-      //   id: 'main_camera2',
-      //   width: 800,           // Половина канваса
-      //   height: 600,          // Вся высота
-      //   x: 0,                 // Левая половина канваса
-      //   y: 0,
-      //   focusX: 0,            // Смотрит на центр мира
-      //   focusY: 0,
-      //   world: myWorld,
-      //   canvas: myCanvas2,
-      //   zoom: 0.7,            // Уменьшаем zoom чтобы видеть больше объектов
-      //   priority: 1,
-      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
-      //   style: {
-      //     border: {
-      //       enabled: true,
-      //       width: 3,
-      //       color: 0xFF0080  // Розовый для четвертой камеры
-      //     }
-      //   }
-      // });
-      // await game.startCanvas(myCanvas2);
-
-      // 📷 Создаем первую камеру (основная, занимает левую половину)
-      const myCamera1 = game.createCamera({
-        id: 'main_camera',
-        width: 400,           // Половина канваса
-        height: 600,          // Вся высота
-        x: 0,                 // Левая половина канваса
-        y: 0,
-        focusX: 0,            // Смотрит на центр мира
-        focusY: 0,
-        world: myWorld,
-        canvas: myCanvas,
-        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
-        priority: 1,
-        respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
-        style: {
-          border: {
-            enabled: true,
-            width: 2,
-            color: 0x00FF00  // Зеленый для основной камеры
-          }
-        }
-      });
-      
-      // 📷 Создаем вторую камеру (мини-карта, правый верх) 
-      const myCamera2 = game.createCamera({
-        id: 'mini_camera',
-        width: 200,           // Маленькая камера
-        height: 200,
-        x: 600,              // Правая часть канваса
-        y: 0,                // Верх
-        focusX: 0,           // Тоже смотрит на центр
-        focusY: 0,
-        world: myWorld,      // ТОТ ЖЕ МИР!
-        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 0.2,           // Меньший зум для обзора
-        priority: 2,         // Рисуется поверх
-        respectWorldBounds: false,  // 🌍 Тоже ограничиваем границами
-        // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
-        visibleTypes: ['building', 'unit', 'world_border', 'biome_border', 'zone_border'],  // + границы мира, биомов и зон!
-        hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
-        style: {
-          border: {
-            enabled: true,
-            width: 1,
-            color: 0x0080FF  // Синий для мини-карты
-          }
-        }
-      });
-      
-      // // // 📷 Создаем третью камеру (детали, правый низ)
-      const myCamera3 = game.createCamera({
-        id: 'detail_camera',
-        width: 400,
-        height: 300,
-        x: 400,              // Правая часть
-        y: 300,              // Низ
-        focusX: 0,           // 🎯 Тоже смотрит на центр мира
-        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
-        world: myWorld,      // ТОТ ЖЕ МИР!
-        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 2,           // Слегка увеличенный зум (было 2.0)
-        priority: 3,
-        respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
-        hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border'],    // Скрываем пули, эффекты, частицы
-        style: {
-          border: {
-            enabled: true,
-            width: 2,
-            color: 0xFF8000  // Оранжевый для детальной камеры
-          }
-        }
-      });
-      
-      // 🚀 Запускаем оба канваса (каждый найдет свой контейнер по ID)
-      await game.startCanvas(myCanvas);
-      
-      
+// END: COLLISION -----------------------------------------------------------------------------------------------------------------
       
       // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
-      myWorld.addStructure(-100, -80, { name: 'База 1 (Graphics)', form: 'building', size: 50 });
-      myWorld.addStructure(100, 80, { name: 'База 2 (Graphics)', form: 'building', size: 40 });
-      myWorld.addStructure(0, 0, { name: 'Центр (Graphics)', form: 'building', size: 30, color: 0xFF6B35 });
+      myWorld.addStructure(-100, -150, { name: 'База 1 (Graphics)', form: 'building', size: 50, color: 0x0000FF  });
       myWorld.addStructure(-60, 60, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
       
       // 👥 ЮНИТЫ (будут видны в мини-карте) + АВТОМАТИЧЕСКИЕ КОЛЛИЗИИ!
@@ -387,33 +411,14 @@ onMounted(async () => {
         size: 8,
         collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
       });
-      myWorld.addUnit(50, 30, { 
-        name: 'Солдат 2 (Auto)', 
-        form: 'soldier', 
-        size: 8,
-        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
-      });
-      myWorld.addUnit(0, -60, { 
-        name: 'Командир (Auto)', 
-        form: 'soldier', 
-        size: 15, // 🎯 Больше размер!
-        color: 0x0000FF,
-        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 15 * 1.2 = 18
-      });
+
       myWorld.addUnit(70, -20, { 
         name: 'Танк (Auto)', 
         form: 'tank', 
         size: 20, // 🎯 Очень большой!
         color: 0x228B22,
-        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 20 * 1.2 = 24
+        collision: autoCollisionType.createEntityCollision() 
       });
-      
-      // 🌿 ДЕКОРАЦИИ/РЕСУРСЫ (будут видны в мини-карте, но скрыты в detail)
-      myWorld.addDecoration(-80, 0, { name: 'Руда', form: 'diamond', size: 8, color: 0xFFD700, type: 'resource' });
-      myWorld.addDecoration(80, 0, { name: 'Кристаллы', form: 'diamond', size: 6, color: 0x9370DB, type: 'resource' });
-      myWorld.addDecoration(-40, 70, { name: 'Дерево 1', form: 'tree', size: 12, type: 'decoration' });
-      myWorld.addDecoration(40, -70, { name: 'Дерево 2', form: 'tree', size: 10, type: 'decoration' });
-      
       // 🎁 НОВИНКА: Триггерные объекты (НЕ блокируют движение, только события!)
       myWorld.addEntity({
         x: -120, y: 50,
@@ -425,59 +430,30 @@ onMounted(async () => {
         collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
       });
       
-      myWorld.addEntity({
-        x: 120, y: -50,
-        name: 'Подарок 2 (Trigger)',
-        form: 'star',
-        size: 10,
-        color: 0xFF1493,
-        type: 'decoration',
-        collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
-      });
       
       // 🎯 НОВИНКА: Прямоугольная сущность с width/height!
       myWorld.addEntity({
         x: 0, y: 100,
         name: 'Прямоугольный Тест',
         form: 'rectangle',
-        width: 40,    // 🎯 Ширина 40 пикселей
-        height: 25,   // 🎯 Высота 25 пикселей
+        width: 40,    
+        height: 25,   
         color: 0xFF4500, // Оранжево-красный
         type: 'decoration',
         collision: {
           enabled: true,
           name: 'building',
-          form: 'rect',           // 🎯 Прямоугольная коллизия!
-          width: 40,              // 🎯 Ширина = размеру сущности
-          height: 25,             // 🎯 Высота = размеру сущности
+          form: 'rect',          
+          width: 40,             
+          height: 25,            
           collisionType: 'block', // 🚫 Блокирующая
           isSolid: true,
           layer: 'buildings'
         }
       });
       
-      // 🎯 НОВИНКА: Вторая прямоугольная сущность для тестирования
-      myWorld.addEntity({
-        x: 80, y: 100,
-        name: 'Прямоугольный Тест 2',
-        form: 'rectangle',
-        width: 30,    // 🎯 Ширина 30 пикселей
-        height: 40,   // 🎯 Высота 40 пикселей
-        color: 0x8B4513, // Коричневый
-        type: 'decoration',
-        collision: {
-          enabled: true,
-          name: 'building',
-          form: 'rect',           // 🎯 Прямоугольная коллизия!
-          width: 30,              // 🎯 Ширина = размеру сущности
-          height: 40,             // 🎯 Высота = размеру сущности
-          collisionType: 'block', // 🚫 Блокирующая
-          isSolid: true,
-          layer: 'buildings'
-        }
-      });
       
-      // 🎮 НОВИНКА: Управляемая сущность
+// PLAYER -----------------------------------------------------------------------------------------------------------------
       const controlledHero = myWorld.addUnit(-200, 0, { 
         name: 'Управляемый Герой',
         type: 'unit',
@@ -497,104 +473,10 @@ onMounted(async () => {
         color: 0xFF00FF,     // 🎯 Ярко-розовый цвет для выделения
         collision: unitCollisionType.createEntityCollision({ radius: 10 }) // 🎯 Добавляем коллизии!
       });
-      myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
-      myWorld.addEntity({ x: 30, y: 20, type: 'bullet', form: 'circle', size: 2, name: 'Пуля 3', color: 0xDC143C });
-      
-      // ✨ ЭФФЕКТЫ (НЕ будут видны в мини-карте)
-      myWorld.addEntity({ x: -30, y: 40, type: 'effect', form: 'explosion', size: 8, name: 'Взрыв 1', color: 0xFF4500 });
-      myWorld.addEntity({ x: 40, y: -30, type: 'effect', form: 'star', size: 6, name: 'Дым', color: 0x696969 });
-      
-      // 🌟 ЧАСТИЦЫ (НЕ будут видны в мини-карте)
-      myWorld.addEntity({ x: -10, y: -20, type: 'particle', form: 'circle', size: 1, name: 'Искра 1', color: 0xFFFFFF });
-      myWorld.addEntity({ x: 10, y: 50, type: 'particle', form: 'circle', size: 1, name: 'Искра 2', color: 0xFFFACD });
-      
-      // 👤 НОВИНКА: SPRITE СИСТЕМА (Terraria-стиль) - ВРЕМЕННО ЗАКОММЕНТИРОВАНО
-      /*
-      // Импортируем EntityFactory для доступа к новым методам
-      const { EntityFactory } = await import('~/services/new/core/Entity.js');
-      
-      // 🎮 Создаем sprite персонажей с экипировкой
-      const spriteHero = EntityFactory.createSpriteCharacter(-150, 0, {
-        name: 'Герой (Sprite)',
-        sprite: 'hero_base.png', // Базовый спрайт (файл пока не существует, но система готова!)
-        equippedItems: {
-          'head': 'iron_helmet.png',
-          'chest': 'chainmail_armor.png',
-          'hand_right': 'steel_sword.png',
-          'hand_left': 'wooden_shield.png'
-        }
-      });
-      myWorld.addEntity(spriteHero);
-      
-      const spriteWizard = EntityFactory.createSpriteCharacter(150, 0, {
-        name: 'Маг (Sprite)',
-        sprite: 'wizard_base.png',
-        equippedItems: {
-          'head': 'wizard_hat.png',
-          'chest': 'magic_robe.png',
-          'hand_right': 'magic_staff.png'
-        }
-      });
-      myWorld.addEntity(spriteWizard);
-      
-      // 🦴 НОВИНКА: SKELETAL СИСТЕМА (продвинутая анимация)
-      
-      // 🤺 Skeletal персонажи с анимациями
-      const skeletalWarrior = EntityFactory.createSkeletalCharacter(0, 150, {
-        name: 'Воин (Skeletal)',
-        skeleton: 'warrior_skeleton.json', // Файл пока не существует, но система готова!
-        currentAnimation: 'idle'
-      });
-      myWorld.addEntity(skeletalWarrior);
-      
-      const skeletalDragon = EntityFactory.createSkeletalCreature(0, -150, {
-        name: 'Дракон (Skeletal)',
-        skeleton: 'dragon_skeleton.json',
-        currentAnimation: 'idle'
-      });
-      myWorld.addEntity(skeletalDragon);
-      
-      // 🎭 Демонстрация возможностей
-      setTimeout(() => {
-        console.log('🎭 Демонстрация гибридной системы рендеринга:');
-        
-        // Меняем экипировку sprite персонажа
-        spriteHero.equipItem('hand_right', 'magic_bow.png');
-        spriteHero.equipItem('head', 'dragon_helmet.png');
-        console.log('⚔️ Герой сменил меч на лук и надел драконий шлем!');
-        
-        // Меняем анимацию skeletal персонажа
-        skeletalWarrior.playAnimation('attack');
-        skeletalDragon.playAnimation('move');
-        console.log('🎬 Воин атакует, дракон двигается!');
-      }, 3000);
-      */
-      
-      // 🎯 НОВИНКА: Система выбора камеры для управления
-      
-      // Выбираем основную камеру для демонстрации
-      game.selectCamera(myCamera1);
-      
       // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
       myCamera3.followEntity(controlledHero2);
-
-      console.log('📹 Основная камера теперь следит за героем! Двигайте героя WASD - камера будет следовать!');
-      console.log('🌍 НОВИНКА: Камера ограничена границами мира! Подойдите к краю - камера остановится, но герой может идти дальше!');
-      
-      // 🎮 НОВИНКА: Создаем контроллер управления камерой
-      const controller = game.createCameraController({
-        moveSpeed: 2,            // 🎯 1 пиксель за шаг (плавно!)
-       // smoothMove: true,        // 🎯 плавное движение включено
-        zoomStep: 0.02,          // Более плавный зум
-        minZoom: 0.2,            // Минимальный зум
-        maxZoom: 3.0             // Максимальный зум
-      });
-      
-      // Принудительное включение контроллера
-      controller.enable();
-      
-            // 🎮 НОВИНКА: Создаем контроллер для управления множественными сущностями
+      // 🎮 НОВИНКА: Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         moveSpeed: 3,                    // Скорость движения сущности
         fastSpeedMultiplier: 2.5,        // Ускорение на Shift
@@ -609,98 +491,13 @@ onMounted(async () => {
       controlledHero.addController(entityController);   // Первая сущность (герой)
       controlledHero2.addController(entityController);  // Вторая сущность (пуля)
       entityController.updateSettings({ controlMode: 'single' });
-      
-      // 🏛️ НОВИНКА: Система фракций!
-      
-      // Создаем фракции
-      const playerFaction = new CreateFaction('player', {
-        name: 'Игроки',
-        displayName: 'Синие Игроки',
-        color: 0x0080FF,           // Синий цвет
-        unitColor: 0x00AAFF,      // Светло-синий для юнитов
-        description: 'Фракция игроков',
-        isPlayerControlled: true,
-        modifiers: {
-          moveSpeed: 1.2,         // +20% к скорости
-          attackDamage: 1.0
-        }
-      });
-      
-      const orcFaction = new CreateFaction('orcs', {
-        name: 'Орки',
-        displayName: 'Красные Орки',
-        color: 0xFF0000,          // Красный цвет
-        unitColor: 0xFF4444,      // Светло-красный для юнитов
-        description: 'Агрессивные орки',
-        behavior: {
-          aggressive: true,
-          expansionist: true
-        },
-        modifiers: {
-          moveSpeed: 0.9,         // -10% к скорости
-          attackDamage: 1.3       // +30% к урону
-        }
-      });
-      
-      const elfFaction = new CreateFaction('elves', {
-        name: 'Эльфы',
-        displayName: 'Зеленые Эльфы',
-        color: 0x00FF00,          // Зеленый цвет
-        unitColor: 0x44FF44,      // Светло-зеленый для юнитов
-        description: 'Мудрые эльфы',
-        behavior: {
-          diplomatic: true,
-          aggressive: false
-        },
-        modifiers: {
-          moveSpeed: 1.1,         // +10% к скорости
-          attackDamage: 0.9       // -10% к урону
-        }
-      });
-      
-      // 💰 НОВИНКА: Фракция торговцев (пацифисты)
-      const traderFaction = new CreateFaction('traders', {
-        name: 'Торговцы',
-        displayName: 'Желтые Торговцы',
-        color: 0xFFD700,          // Золотой цвет
-        unitColor: 0xFFFF44,      // Светло-желтый для юнитов
-        description: 'Мирные торговцы',
-        canFight: false,          // 🛡️ НЕ МОГУТ ВОЕВАТЬ!
-        behavior: {
-          diplomatic: true,
-          aggressive: false,
-          tradeFriendly: true
-        },
-        modifiers: {
-          moveSpeed: 0.8,         // Медленные
-          resourceGain: 2.0       // +100% к ресурсам
-        }
-      });
-      
-      // Добавляем фракции в мир
-      myWorld.addFaction(playerFaction);
-      myWorld.addFaction(orcFaction);
-      myWorld.addFaction(elfFaction);
-      myWorld.addFaction(traderFaction);
-      
-     
-      // Игроки воюют с орками, в мире с эльфами, нейтральны к торговцам
-      myWorld.setFactionRelation(playerFaction, orcFaction, 'war');
-      myWorld.setFactionRelation(playerFaction, elfFaction, 'peace');
-      // С торговцами автоматически нейтральны
-      
-      // Орки тоже воюют с игроками, нейтральны к остальным
-      myWorld.setFactionRelation(orcFaction, playerFaction, 'war');
-      // С эльфами и торговцами автоматически нейтральны
-      
-      // Эльфы в мире с игроками, нейтральны к остальным  
-      myWorld.setFactionRelation(elfFaction, playerFaction, 'peace');
-      // С орками и торговцами автоматически нейтральны
-      
-      
-      // 🎯 Привязываем существующих сущностей к фракциям
-      myWorld.assignEntityToFaction(controlledHero, playerFaction);        // Герой = игрок
-      myWorld.assignEntityToFaction(controlledHero2, playerFaction);       // Алмаз = игрок
+            
+      myWorld.assignEntityToFaction(controlledHero, playerFaction);      
+      myWorld.assignEntityToFaction(controlledHero2, playerFaction);      
+
+// END: PLAYER -----------------------------------------------------------------------------------------------------------------
+
+      myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
       
       // Добавляем врагов разных фракций
       const orcWarrior1 = myWorld.addUnit(200, -100, { 
@@ -709,69 +506,9 @@ onMounted(async () => {
         faction: orcFaction,
         collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для орков
       });
-      const orcWarrior2 = myWorld.addUnit(-250, 150, { 
-        name: 'Орк-воин 2', 
-        form: 'tank', 
-        size: 12, 
-        faction: orcFaction,
-        collision: unitCollisionType.createEntityCollision({ radius: 14 }) // 🎯 Больше радиус для танка
-      });
-      
-      const elfArcher1 = myWorld.addUnit(150, 200, { 
-        name: 'Эльф-лучник 1', 
-        form: 'soldier', 
-        faction: elfFaction,
-        collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для эльфов
-      });
-      const elfArcher2 = myWorld.addUnit(-180, -50, { 
-        name: 'Эльф-лучник 2', 
-        form: 'soldier', 
-        faction: elfFaction,
-        collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для эльфов
-      });
-      
-      // 💰 Торговцы (их нельзя атаковать!)
-      const trader1 = myWorld.addUnit(300, -200, { 
-        name: 'Торговец 1', 
-        form: 'diamond', 
-        size: 10, 
-        faction: traderFaction,
-        collision: unitCollisionType.createEntityCollision({ radius: 12 }) // 🎯 Коллизии для торговцев
-      });
-      const trader2 = myWorld.addUnit(-300, 250, { 
-        name: 'Торговец 2', 
-        form: 'diamond', 
-        size: 10, 
-        faction: traderFaction,
-        collision: unitCollisionType.createEntityCollision({ radius: 12 }) // 🎯 Коллизии для торговцев
-      });
-      
-      // console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, trader1) // false');
-      // console.log('  myWorld.factionSystem.canEntityAttack(controlledHero, orcWarrior1) // true');
-
-      
-      // 🎭 Демонстрация переключения режимов
-      // setTimeout(() => {
-      //   entityController.updateSettings({ controlMode: 'single' });
-      // }, 5000);
-      
-      // 📹 Демонстрация переключения слежения камеры
-      // setTimeout(() => {
-      //   console.log('📹 Переключаю камеру на слежение за розовым алмазом!');
-      //   myCamera1.followEntity(controlledHero2, 20, -15); // С небольшим смещением
-      //   console.log('🎯 Основная камера теперь следит за алмазом с смещением!');
-      // }, 8000);
-      
-      // setTimeout(() => {
-      //   console.log('📹 Возвращаю камеру обратно на героя!');
-      //   myCamera1.followEntity(controlledHero);
-      //   console.log('🔙 Камера снова следит за зеленым героем!');
-      // }, 12000);
       
 
       
-      game.selectCamera(myCamera1);
-
     } catch (error) {
       console.error('❌ Ошибка запуска:', error);
     }
