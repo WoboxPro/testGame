@@ -76,7 +76,33 @@ onMounted(async () => {
         }
       });
       
-      //  📷 Создаем третью камеру (детали, правый низ)
+      // 📷 Создаем вторую камеру (мини-карта, правый верх) 
+      // const myCamera2 = game.createCamera({
+      //   id: 'mini_camera',
+      //   width: 200,           // Маленькая камера
+      //   height: 200,
+      //   x: 600,              // Правая часть канваса
+      //   y: 0,                // Верх
+      //   focusX: 0,           // Тоже смотрит на центр
+      //   focusY: 0,
+      //   world: myWorld,      // ТОТ ЖЕ МИР!
+      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+      //   zoom: 0.2,           // Меньший зум для обзора
+      //   priority: 2,         // Рисуется поверх
+      //   respectWorldBounds: false,  // 🌍 Тоже ограничиваем границами
+      //   // 🎛️ ФИЛЬТРАЦИЯ: мини-карта показывает только важные объекты
+      //   visibleTypes: ['building', 'unit', 'world_border', 'biome_border', 'zone_border'],  // + границы мира, биомов и зон!
+      //   hiddenTypes: ['bullet', 'effect', 'particle'],    // Скрываем пули, эффекты, частицы
+      //   style: {
+      //     border: {
+      //       enabled: true,
+      //       width: 1,
+      //       color: 0x0080FF  // Синий для мини-карты
+      //     }
+      //   }
+      // });
+      
+      // // // 📷 Создаем третью камеру (детали, правый низ)
       const myCamera3 = game.createCamera({
         id: 'detail_camera',
         width: 400,
@@ -480,6 +506,7 @@ onMounted(async () => {
         faction: orcFaction,
         collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для орков
       });
+      
 
       
     } catch (error) {

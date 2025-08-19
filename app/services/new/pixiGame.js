@@ -32,9 +32,6 @@ export class PixiGame {
     // 🎮 Контроллеры управления сущностями
     this.entityControllers = new Map(); // id -> EntityController
     
-
-    
-    // PixiGame 2.0 создан
   }
   
   /**
@@ -120,8 +117,6 @@ export class PixiGame {
         controller._updateFromTicker(ticker);
       });
       
-
-      
       // 🌍 Обновляем все миры
       this.worlds.forEach(world => {
         world.update();
@@ -158,7 +153,6 @@ export class PixiGame {
     // 🧹 Очищаем все EntityControllers
     this.entityControllers.forEach(controller => controller.destroy());
     this.entityControllers.clear();
-    
 
     
     this.canvases.forEach(canvas => canvas.destroy());
