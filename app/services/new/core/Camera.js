@@ -362,6 +362,49 @@ export class Camera {
   }
   
   /**
+   * 📐 Получить реальные границы сущности для culling
+   */
+  _getEntityBounds(entity) {
+    let halfWidth = 10; // Дефолт
+    let halfHeight = 10;
+    
+    // 🎯 Проверяем разные источники размеров по приоритету
+    if (entity.visual?.zoneBounds) {
+      // Границы зон - используем полный размер зоны
+      halfWidth = entity.visual.zoneBounds.width / 2;
+      halfHeight = entity.visual.zoneBounds.height / 2;
+    } else if (entity.visual?.biomeBounds) {
+      // Границы биомов - используем полный размер биома
+      halfWidth = entity.visual.biomeBounds.width / 2;
+      halfHeight = entity.visual.biomeBounds.height / 2;
+    } else if (entity.visual?.radius) {
+      // Визуальный радиус (круглые объекты)
+      halfWidth = halfHeight = entity.visual.radius;
+    } else if (entity.visual?.width && entity.visual?.height) {
+      // Визуальные размеры (прямоугольники)
+      halfWidth = entity.visual.width / 2;
+      halfHeight = entity.visual.height / 2;
+    } else if (entity.width && entity.height) {
+      // Размеры сущности
+      halfWidth = entity.width / 2;
+      halfHeight = entity.height / 2;
+    } else if (entity.size) {
+      // Универсальный размер
+      halfWidth = halfHeight = entity.size;
+    } else if (entity.collision) {
+      // Размеры коллизии как fallback
+      if (entity.collision.radius) {
+        halfWidth = halfHeight = entity.collision.radius;
+      } else if (entity.collision.width && entity.collision.height) {
+        halfWidth = entity.collision.width / 2;
+        halfHeight = entity.collision.height / 2;
+      }
+    }
+    
+    return { halfWidth, halfHeight };
+  }
+  
+  /**
    * 🔲 Обновить рамку камеры
    */
   _updateBorder() {
@@ -472,11 +515,28 @@ export class Camera {
     
     // DEBUG: Логируем позиции для центрального объекта
     
-    // 📏 ВРЕМЕННО ОТКЛЮЧЕН: Проверяем, видна ли сущность в области камеры
-    const margin = 200; // Увеличенный запас для отладки
-    const isVisible = !(cameraX < -margin || cameraX > this.width + margin ||
-        cameraY < -margin || cameraY > this.height + margin);
+    // 📏 Умный culling: учитываем реальные размеры объекта
+    const entityBounds = this._getEntityBounds(entity);
+    const margin = 50; // Базовый запас
     
+    // Проверяем пересечение AABB (Axis-Aligned Bounding Box)
+    const entityLeft = cameraX - entityBounds.halfWidth - margin;
+    const entityRight = cameraX + entityBounds.halfWidth + margin;
+    const entityTop = cameraY - entityBounds.halfHeight - margin;
+    const entityBottom = cameraY + entityBounds.halfHeight + margin;
+    
+    const cameraLeft = -this.width / (2 * this.zoom);
+    const cameraRight = this.width / (2 * this.zoom);
+    const cameraTop = -this.height / (2 * this.zoom);
+    const cameraBottom = this.height / (2 * this.zoom);
+    
+    const isVisible = !(entityRight < cameraLeft || entityLeft > cameraRight ||
+                       entityBottom < cameraTop || entityTop > cameraBottom);
+    
+    // ⚡ Culling: пропускаем невидимые объекты
+    if (!isVisible) {
+      return;
+    }
     
     // ⚡ Переиспользуем или создаем контейнер сущности
     let entityContainer = this._entityDisplayObjects.get(entity.id);
