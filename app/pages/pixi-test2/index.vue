@@ -481,6 +481,7 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для орков
       });
 
+
       
     } catch (error) {
       console.error('❌ Ошибка запуска:', error);

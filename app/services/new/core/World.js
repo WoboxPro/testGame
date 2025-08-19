@@ -52,8 +52,16 @@ export class World extends SimpleEventEmitter {
     // 🏛️ Система фракций
     this.factionSystem = new FactionSystem(this);
     
-    // 🎯 Система коллизий
-    this.collisionSystem = new CollisionSystem(this);
+    // 🎯 Система коллизий с настройками оптимизации
+    const collisionOptions = {
+      cellSize: options.collision?.cellSize || 100,
+      optimizationThreshold: options.collision?.optimizationThreshold || 50,
+      useOptimization: options.collision?.useOptimization !== false,
+      worldWidth: this.width,
+      worldHeight: this.height,
+      ...options.collision
+    };
+    this.collisionSystem = new CollisionSystem(this, collisionOptions);
     
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     

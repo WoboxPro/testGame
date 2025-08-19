@@ -489,7 +489,8 @@ export class EntityController {
       const ruleKey = collisionSystem._getRuleKey(entity.collision.name, otherEntity.collision.name);
       const hasRule = collisionSystem.collisionRules.has(ruleKey);
       
-      if (hasRule && collisionSystem._detectCollision(entity, otherEntity)) {
+      const collisionResult = collisionSystem._detectCollision(entity, otherEntity);
+      if (hasRule && collisionResult.colliding) {
         // 🎯 НОВИНКА: Проверяем тип коллизии - блокируем только 'block'
         const entityCollisionType = entity.collision.collisionType || 'block';
         const otherCollisionType = otherEntity.collision.collisionType || 'block';
