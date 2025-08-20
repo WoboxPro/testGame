@@ -437,6 +437,33 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision() // 🎯 Добавляем коллизии!
       });
       
+      // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
+      const heroWeapon = myWorld.addEntity({
+        name: 'Меч героя',
+        type: 'weapon',
+        form: 'rectangle',
+        width: 3,
+        height: 20,
+        color: 0x002299,  // Серебристый меч
+        parent: controlledHero.id,  // 🔗 Привязываем к герою
+        offsetX: 8,                 // Справа от героя
+        offsetY: -5                 // Чуть выше центра
+        // collision: НЕТ - оружие не блокирует движение
+      });
+      const heroWeapon2 = myWorld.addEntity({
+        name: 'Меч героя',
+        type: 'weapon',
+        form: 'rectangle',
+        width: 3,
+        height: 20,
+        color: 0x990000,  // Серебристый меч
+        parent: controlledHero.id,  // 🔗 Привязываем к герою
+        offsetX: -8,                 // Справа от героя
+        offsetY: -5                 // Чуть выше центра
+        // collision: НЕТ - оружие не блокирует движение
+      });
+      console.log(`🗡️ Оружие создано: ${heroWeapon.name} привязано к ${controlledHero.name}`);
+      
       // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 

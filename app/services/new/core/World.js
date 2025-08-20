@@ -96,6 +96,19 @@ export class World extends SimpleEventEmitter {
     
     // 📦 Добавляем в мир
     this.entities.set(entity.id, entity);
+    
+    // 🔗 Устанавливаем parent-child связи
+    if (entity.parent) {
+      const parentEntity = this.entities.get(entity.parent);
+      if (parentEntity) {
+        parentEntity.addChild(entity.id);
+        // Обновляем позицию дочерней сущности
+        const worldPos = entity.getWorldPosition();
+        entity.x = worldPos.x;
+        entity.y = worldPos.y;
+      }
+    }
+    
     return entity;
   }
   
@@ -196,6 +209,12 @@ export class World extends SimpleEventEmitter {
    * 📍 Обновить позицию сущности с проверкой биома
    */
   updateEntityPosition(entity, newX, newY) {
+    // Устанавливаем новую позицию
+    entity.setPosition(newX, newY);
+    
+    // 🔗 Обновляем позиции дочерних сущностей
+    entity.updateChildrenPositions();
+    
     // Обновляем позицию в системе биомов
     this.biomeSystem.updateEntityPosition(entity, newX, newY);
     

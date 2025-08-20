@@ -14,6 +14,13 @@ export class Entity {
     this.x = options.x || 0;
     this.y = options.y || 0;
     
+    // 🔗 Parent-Child система
+    this.parent = options.parent || null;           // ID родительской сущности
+    this.children = new Set();                      // Set ID дочерних сущностей
+    this.offsetX = options.offsetX || 0;            // Смещение от родителя по X
+    this.offsetY = options.offsetY || 0;            // Смещение от родителя по Y
+    this.localRotation = options.localRotation || 0; // Поворот относительно родителя
+    
     // 🏷️ Классификация (для будущей логики)
     this.type = options.type || 'decoration'; // structure / decoration / unit
     
@@ -116,6 +123,59 @@ export class Entity {
    */
   canMove() {
     return !this.isMovementBlocked;
+  }
+  
+  /**
+   * 🔗 Добавить дочернюю сущность
+   */
+  addChild(childId) {
+    this.children.add(childId);
+  }
+  
+  /**
+   * ➖ Удалить дочернюю сущность
+   */
+  removeChild(childId) {
+    this.children.delete(childId);
+  }
+  
+  /**
+   * 📍 Получить мировые координаты с учетом родителя
+   */
+  getWorldPosition() {
+    if (!this.parent || !this.world) {
+      return { x: this.x, y: this.y };
+    }
+    
+    const parentEntity = this.world.getEntity(this.parent);
+    if (!parentEntity) {
+      return { x: this.x, y: this.y };
+    }
+    
+    const parentPos = parentEntity.getWorldPosition();
+    return {
+      x: parentPos.x + this.offsetX,
+      y: parentPos.y + this.offsetY
+    };
+  }
+  
+  /**
+   * 🔄 Обновить позицию дочерних сущностей
+   */
+  updateChildrenPositions() {
+    if (!this.world || this.children.size === 0) return;
+    
+    for (const childId of this.children) {
+      const child = this.world.getEntity(childId);
+      if (child) {
+        const worldPos = child.getWorldPosition();
+        child.x = worldPos.x;
+        child.y = worldPos.y;
+        
+        // Рекурсивно обновляем детей детей
+        child.updateChildrenPositions();
+      }
+    }
   }
   
   /**
