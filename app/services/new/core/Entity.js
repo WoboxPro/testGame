@@ -13,6 +13,11 @@ export class Entity {
     // 📍 Позиция в мире
     this.x = options.x || 0;
     this.y = options.y || 0;
+    this.rotation = options.rotation || 0;          // Поворот в радианах
+    
+    // 🎯 Система поворота по направлению движения
+    this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'movement' | 'mouse'
+    this.rotationSpeed = options.rotationSpeed || 0.2;          // Скорость поворота
     
     // 🔗 Parent-Child система
     this.parent = options.parent || null;           // ID родительской сущности
@@ -176,6 +181,31 @@ export class Entity {
         child.updateChildrenPositions();
       }
     }
+  }
+  
+  /**
+   * 🎯 Обновить поворот по направлению движения
+   */
+  updateRotationFromMovement(deltaX, deltaY) {
+    if (this.rotationBehavior !== 'movement') return;
+    if (deltaX === 0 && deltaY === 0) return; // Нет движения
+    
+    // Вычисляем целевой угол поворота
+    const targetRotation = Math.atan2(deltaY, deltaX);
+    
+    // Плавный поворот к целевому углу
+    let angleDiff = targetRotation - this.rotation;
+    
+    // Нормализуем угол (-π до π)
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+    
+    // Применяем поворот с учетом скорости
+    this.rotation += angleDiff * this.rotationSpeed;
+    
+    // Нормализуем итоговый угол
+    while (this.rotation > Math.PI) this.rotation -= 2 * Math.PI;
+    while (this.rotation < -Math.PI) this.rotation += 2 * Math.PI;
   }
   
   /**

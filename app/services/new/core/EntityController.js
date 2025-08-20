@@ -368,6 +368,9 @@ export class EntityController {
   _moveEntity(entity, deltaX, deltaY) {
     if (!entity) return;
     
+    // 🎯 Обновляем поворот по направлению движения
+    entity.updateRotationFromMovement(deltaX, deltaY);
+    
     // 🎯 Получаем предполагаемую новую позицию
     let newX = entity.x + deltaX;
     let newY = entity.y + deltaY;

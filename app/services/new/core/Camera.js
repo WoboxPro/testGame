@@ -547,9 +547,10 @@ export class Camera {
       if (this.worldLayer) this.worldLayer.addChild(entityContainer);
     }
     
-    // Обновляем позицию
+    // Обновляем позицию и поворот
     entityContainer.x = cameraX;
     entityContainer.y = cameraY;
+    entityContainer.rotation = entity.rotation || 0;  // 🎯 НОВИНКА: Применяем поворот
     
     // Отмечаем как актуальный
     if (aliveIds) aliveIds.add(entity.id);

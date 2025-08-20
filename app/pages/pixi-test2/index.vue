@@ -434,7 +434,9 @@ onMounted(async () => {
         form: 'soldier', 
         size: 12, 
         color: 0x00FF80,  // Ярко-зеленый для выделения
-        collision: unitCollisionType.createEntityCollision() // 🎯 Добавляем коллизии!
+        collision: unitCollisionType.createEntityCollision(),
+        rotationBehavior: 'movement',  // 🎯 НОВИНКА: Алмаз поворачивается по направлению движения
+        rotationSpeed: 0.3 
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
@@ -459,8 +461,7 @@ onMounted(async () => {
         color: 0x990000,  // Серебристый меч
         parent: controlledHero.id,  // 🔗 Привязываем к герою
         offsetX: -8,                 // Справа от героя
-        offsetY: -5                 // Чуть выше центра
-        // collision: НЕТ - оружие не блокирует движение
+        offsetY: -5,                 
       });
       console.log(`🗡️ Оружие создано: ${heroWeapon.name} привязано к ${controlledHero.name}`);
       
@@ -472,7 +473,9 @@ onMounted(async () => {
         size: 8,             // 🎯 Увеличиваем размер
         name: 'Управляемый Алмаз', 
         color: 0xFF00FF,     // 🎯 Ярко-розовый цвет для выделения
-        collision: unitCollisionType.createEntityCollision({ radius: 10 }) // 🎯 Добавляем коллизии!
+        collision: unitCollisionType.createEntityCollision({ radius: 10 }), // 🎯 Добавляем коллизии!
+        rotationBehavior: 'movement',  // 🎯 НОВИНКА: Алмаз поворачивается по направлению движения
+        rotationSpeed: 0.3             // Быстрее чем у героя для наглядности
       });
       // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
