@@ -18,6 +18,8 @@ export class Entity {
     // 🎯 Система поворота по направлению движения
     this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'movement' | 'mouse'
     this.rotationSpeed = options.rotationSpeed || 0.2;          // Скорость поворота
+    this.rotateChildren = options.rotateChildren !== false;     // Поворачивать дочерние вместе
+    this.rotationOffset = options.rotationOffset || -Math.PI/2; // Смещение угла (по умолчанию -90° = вверх)
     
     // 🔗 Parent-Child система
     this.parent = options.parent || null;           // ID родительской сущности
@@ -190,8 +192,8 @@ export class Entity {
     if (this.rotationBehavior !== 'movement') return;
     if (deltaX === 0 && deltaY === 0) return; // Нет движения
     
-    // Вычисляем целевой угол поворота
-    const targetRotation = Math.atan2(deltaY, deltaX);
+    // Вычисляем целевой угол поворота с учетом смещения
+    const targetRotation = Math.atan2(deltaY, deltaX) + this.rotationOffset;
     
     // Плавный поворот к целевому углу
     let angleDiff = targetRotation - this.rotation;
@@ -200,12 +202,55 @@ export class Entity {
     while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
     while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
     
+    // Сохраняем старый угол для дочерних
+    const oldRotation = this.rotation;
+    
     // Применяем поворот с учетом скорости
     this.rotation += angleDiff * this.rotationSpeed;
     
     // Нормализуем итоговый угол
     while (this.rotation > Math.PI) this.rotation -= 2 * Math.PI;
     while (this.rotation < -Math.PI) this.rotation += 2 * Math.PI;
+    
+    // 🔄 Поворачиваем дочерние сущности если включено
+    if (this.rotateChildren) {
+      const rotationDelta = this.rotation - oldRotation;
+      this.rotateChildrenBy(rotationDelta);
+    }
+  }
+  
+  /**
+   * 🔄 Повернуть дочерние сущности на указанный угол
+   */
+  rotateChildrenBy(rotationDelta) {
+    if (!this.world || this.children.size === 0 || rotationDelta === 0) return;
+    
+    for (const childId of this.children) {
+      const child = this.world.getEntity(childId);
+      if (child) {
+        // Поворачиваем позицию дочерней сущности вокруг родителя
+        const cos = Math.cos(rotationDelta);
+        const sin = Math.sin(rotationDelta);
+        
+        const newOffsetX = child.offsetX * cos - child.offsetY * sin;
+        const newOffsetY = child.offsetX * sin + child.offsetY * cos;
+        
+        child.offsetX = newOffsetX;
+        child.offsetY = newOffsetY;
+        
+        // Поворачиваем саму дочернюю сущность
+        child.rotation += rotationDelta;
+        
+        // Нормализуем угол дочерней сущности
+        while (child.rotation > Math.PI) child.rotation -= 2 * Math.PI;
+        while (child.rotation < -Math.PI) child.rotation += 2 * Math.PI;
+        
+        // Рекурсивно поворачиваем детей детей
+        if (child.rotateChildren) {
+          child.rotateChildrenBy(rotationDelta);
+        }
+      }
+    }
   }
   
   /**

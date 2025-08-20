@@ -435,8 +435,10 @@ onMounted(async () => {
         size: 12, 
         color: 0x00FF80,  // Ярко-зеленый для выделения
         collision: unitCollisionType.createEntityCollision(),
-        rotationBehavior: 'movement',  // 🎯 НОВИНКА: Алмаз поворачивается по направлению движения
-        rotationSpeed: 0.3 
+        rotationBehavior: 'movement',  // 🎯 Герой поворачивается по направлению движения
+        rotationSpeed: 0.15,           // Скорость поворота
+        rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
+        rotationOffset: Math.PI/2     // 🎯 Смещение угла: -90° = вверх по умолчанию 
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
@@ -475,7 +477,8 @@ onMounted(async () => {
         color: 0xFF00FF,     // 🎯 Ярко-розовый цвет для выделения
         collision: unitCollisionType.createEntityCollision({ radius: 10 }), // 🎯 Добавляем коллизии!
         rotationBehavior: 'movement',  // 🎯 НОВИНКА: Алмаз поворачивается по направлению движения
-        rotationSpeed: 0.3             // Быстрее чем у героя для наглядности
+        rotationSpeed: 0.3,            // Быстрее чем у героя для наглядности
+        rotationOffset: 0              // 🎯 Без смещения = вправо по умолчанию (для сравнения)
       });
       // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
