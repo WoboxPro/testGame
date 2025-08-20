@@ -438,7 +438,8 @@ onMounted(async () => {
         rotationBehavior: 'movement',  // 🎯 Герой поворачивается по направлению движения
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
-        rotationOffset: Math.PI/2     // 🎯 Смещение угла: -90° = вверх по умолчанию 
+        childRotationType: 'orbit',    // 🌍 НОВИНКА: 'stick' = прилипли, 'orbit' = только орбита
+        rotationOffset: Math.PI/2      // 🎯 Смещение угла: 90° = вниз по умолчанию 
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)

@@ -19,6 +19,7 @@ export class Entity {
     this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'movement' | 'mouse'
     this.rotationSpeed = options.rotationSpeed || 0.2;          // Скорость поворота
     this.rotateChildren = options.rotateChildren !== false;     // Поворачивать дочерние вместе
+    this.childRotationType = options.childRotationType || 'stick'; // 'stick' | 'orbit'
     this.rotationOffset = options.rotationOffset || -Math.PI/2; // Смещение угла (по умолчанию -90° = вверх)
     
     // 🔗 Parent-Child система
@@ -228,7 +229,7 @@ export class Entity {
     for (const childId of this.children) {
       const child = this.world.getEntity(childId);
       if (child) {
-        // Поворачиваем позицию дочерней сущности вокруг родителя
+        // Всегда поворачиваем позицию дочерней сущности вокруг родителя
         const cos = Math.cos(rotationDelta);
         const sin = Math.sin(rotationDelta);
         
@@ -238,12 +239,16 @@ export class Entity {
         child.offsetX = newOffsetX;
         child.offsetY = newOffsetY;
         
-        // Поворачиваем саму дочернюю сущность
-        child.rotation += rotationDelta;
-        
-        // Нормализуем угол дочерней сущности
-        while (child.rotation > Math.PI) child.rotation -= 2 * Math.PI;
-        while (child.rotation < -Math.PI) child.rotation += 2 * Math.PI;
+        // Поворачиваем саму дочернюю сущность в зависимости от типа
+        if (this.childRotationType === 'stick') {
+          // 📎 STICK: дочерняя сущность поворачивается вместе с родителем
+          child.rotation += rotationDelta;
+          
+          // Нормализуем угол дочерней сущности
+          while (child.rotation > Math.PI) child.rotation -= 2 * Math.PI;
+          while (child.rotation < -Math.PI) child.rotation += 2 * Math.PI;
+        }
+        // 🌍 ORBIT: дочерняя сущность НЕ поворачивается, только перемещается по орбите
         
         // Рекурсивно поворачиваем детей детей
         if (child.rotateChildren) {
