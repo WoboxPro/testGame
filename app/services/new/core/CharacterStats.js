@@ -10,6 +10,13 @@ export class CharacterStats {
     // 🏃 Скорость передвижения
     this.speed = config.speed || 1;
     
+    // ❤️ Система жизней (необязательный параметр)
+    this.maxHealth = config.health !== undefined ? config.health : null;
+    this.currentHealth = config.currentHealth !== undefined ? config.currentHealth : this.maxHealth;
+    
+    // ⚔️ Урон при касании (необязательный параметр)
+    this.touchDamage = config.touchDamage !== undefined ? config.touchDamage : null;
+    
     // 🔧 Служебные поля
     this._baseSpeed = this.speed; // Сохраняем базовую скорость для эффектов
   }
@@ -46,12 +53,74 @@ export class CharacterStats {
   }
   
   /**
+   * ❤️ Получить текущие жизни
+   */
+  getHealth() {
+    return this.currentHealth;
+  }
+  
+  /**
+   * 💚 Получить максимальные жизни
+   */
+  getMaxHealth() {
+    return this.maxHealth;
+  }
+  
+  /**
+   * 💙 Установить текущие жизни
+   */
+  setHealth(newHealth) {
+    if (this.maxHealth === null) {
+      this.currentHealth = null; // Бессмертный остается бессмертным
+    } else {
+      this.currentHealth = Math.max(0, Math.min(newHealth, this.maxHealth));
+    }
+    return this;
+  }
+  
+  /**
+   * 💀 Проверить, жив ли персонаж
+   */
+  isAlive() {
+    return this.currentHealth === null || this.currentHealth > 0;
+  }
+  
+  /**
+   * 🔄 Восстановить жизни до максимума
+   */
+  restoreHealth() {
+    this.currentHealth = this.maxHealth;
+    return this;
+  }
+  
+  /**
+   * ⚔️ Получить урон при касании
+   */
+  getTouchDamage() {
+    return this.touchDamage;
+  }
+  
+  /**
+   * 💥 Нанести урон данной сущности
+   */
+  takeDamage(damageAmount) {
+    if (this.currentHealth === null) return false; // Бессмертный не получает урон
+    
+    this.currentHealth = Math.max(0, this.currentHealth - damageAmount);
+    return true; // Урон нанесен
+  }
+  
+  /**
    * 🔄 Создать независимую копию характеристик
    */
   clone() {
-    return new CharacterStats({
-      speed: this._baseSpeed
+    const newStats = new CharacterStats({
+      speed: this._baseSpeed,
+      health: this.maxHealth,
+      touchDamage: this.touchDamage
     });
+    newStats.currentHealth = this.currentHealth;
+    return newStats;
   }
   
   /**
@@ -60,7 +129,10 @@ export class CharacterStats {
   toObject() {
     return {
       speed: this.speed,
-      baseSpeed: this._baseSpeed
+      baseSpeed: this._baseSpeed,
+      currentHealth: this.currentHealth,
+      maxHealth: this.maxHealth,
+      touchDamage: this.touchDamage
     };
   }
   
@@ -70,6 +142,9 @@ export class CharacterStats {
   fromObject(data) {
     if (data.speed !== undefined) this.speed = data.speed;
     if (data.baseSpeed !== undefined) this._baseSpeed = data.baseSpeed;
+    if (data.currentHealth !== undefined) this.currentHealth = data.currentHealth;
+    if (data.maxHealth !== undefined) this.maxHealth = data.maxHealth;
+    if (data.touchDamage !== undefined) this.touchDamage = data.touchDamage;
     return this;
   }
   

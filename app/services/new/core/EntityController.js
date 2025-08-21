@@ -502,12 +502,12 @@ export class EntityController {
       
       const collisionResult = collisionSystem._detectCollision(entity, otherEntity);
       if (hasRule && collisionResult.colliding) {
-        // 🎯 НОВИНКА: Проверяем тип коллизии - блокируем только 'block'
+        // 🎯 НОВИНКА: Проверяем тип коллизии - блокируем только 'block' с 'block'
         const entityCollisionType = entity.collision.collisionType || 'block';
         const otherCollisionType = otherEntity.collision.collisionType || 'block';
         
-        // Блокируем только если хотя бы одна коллизия типа 'block'
-        if (entityCollisionType === 'block' || otherCollisionType === 'block') {
+        // Блокируем только если ОБЕ коллизии типа 'block' (триггеры не блокируют)
+        if (entityCollisionType === 'block' && otherCollisionType === 'block') {
           return true; // Найдена блокирующая коллизия
         }
       }

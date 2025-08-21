@@ -330,6 +330,7 @@ onMounted(async () => {
       myWorld.collisionSystem.addRule('unit', 'unit', 'unit_collision');     // 🚫 Блокирующие
       myWorld.collisionSystem.addRule('unit', 'pickup', 'pickup_collision'); // 📡 Триггерные
       myWorld.collisionSystem.addRule('unit', 'building', 'unit_building');  // 🏗️ Юнит ↔ Здание
+      myWorld.collisionSystem.addRule('unit', 'trap', 'trap_damage');        // 🪤 Ловушки наносят урон
       
       // 🚫 Событие блокировки движения между юнитами (block + block)
       myWorld.on('unit_collision_enter', ({entityA, entityB, distance}) => {
@@ -356,6 +357,39 @@ onMounted(async () => {
       
       myWorld.on('pickup_collision_exit', ({entityA, entityB}) => {
         console.log(`📤 ТРИГГЕР: ${entityA.name} покинул зону ${entityB.name}`);
+      });
+
+      // 🪤 Событие урона от ловушки
+      myWorld.on('trap_damage_enter', ({entityA, entityB, point, normal}) => {
+        console.log(`🪤 ЛОВУШКА: Событие trap_damage_enter сработало!`);
+        console.log(`🔍 EntityA: ${entityA.name} (collision: ${entityA.collision?.name})`);
+        console.log(`🔍 EntityB: ${entityB.name} (collision: ${entityB.collision?.name})`);
+        
+        // Определяем кто герой, а кто ловушка
+        const hero = entityA.collision?.name === 'unit' ? entityA : entityB;
+        const trap = entityA.collision?.name === 'trap' ? entityA : entityB;
+        
+        console.log(`👤 Герой: ${hero.name}, 🪤 Ловушка: ${trap.name}`);
+        console.log(`📊 Герой stats: ${!!hero.stats}, 📊 Ловушка stats: ${!!trap.stats}`);
+        
+        if (hero.stats && trap.stats) {
+          const damage = trap.stats.getTouchDamage();
+          console.log(`⚔️ Урон ловушки: ${damage}`);
+          
+          if (damage && damage > 0) {
+            const oldHealth = hero.stats.getHealth();
+            const damaged = hero.stats.takeDamage(damage);
+            
+            if (damaged) {
+              const newHealth = hero.stats.getHealth();
+              console.log(`💥 УРОН: ${hero.name} получил ${damage} урона от ${trap.name} (${oldHealth} → ${newHealth})`);
+              
+              if (!hero.stats.isAlive()) {
+                console.log(`💀 СМЕРТЬ: ${hero.name} погиб от ловушки!`);
+              }
+            }
+          }
+        }
       });
       
       // 🏗️ НОВИНКА: Событие коллизии с прямоугольной сущностью
@@ -446,7 +480,7 @@ onMounted(async () => {
         mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
         
         // 📊 НОВИНКА: Характеристики героя (быстрый)
-        stats: { speed: 4 }            // Быстрее базовой скорости (5)
+        stats: { speed: 4, health: 2, currentHealth: 1 }  // Быстрый, 2 макс жизни, 1 текущая
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
@@ -489,8 +523,24 @@ onMounted(async () => {
         rotationOffset: 0,             // 🎯 Без смещения = вправо по умолчанию (для сравнения)
         
         // 📊 НОВИНКА: Характеристики алмаза (медленный)
-        stats: { speed: 2 }            // Медленнее базовой скорости (5)
+        stats: { speed: 2, health: 2, currentHealth: 2 }  // Медленный, 2 макс жизни, полные
       });
+
+      // 🪤 НОВИНКА: Создаем ловушку с уроном при касании
+      const damageTrap = myWorld.addEntity({
+        x: 50, y: 50,
+        type: 'trap',
+        form: 'rect',
+        width: 30,
+        height: 30,
+        name: 'Шипастая ловушка',
+        color: 0xFF0000,  // Красный цвет для опасности
+        collision: createTriggerCollision({ name: 'trap', form: 'rect', width: 30, height: 30 }),
+        
+        // ⚔️ НОВИНКА: Урон при касании
+        stats: { touchDamage: 1 }  // Наносит 1 урон при касании
+      });
+      
       // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
       myCamera3.followEntity(controlledHero2);
