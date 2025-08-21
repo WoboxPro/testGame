@@ -32,6 +32,8 @@ export class PixiGame {
     // 🎮 Контроллеры управления сущностями
     this.entityControllers = new Map(); // id -> EntityController
     
+    // ⏱️ Масштаб времени игры (1 = нормальная скорость)
+    this.timeScale = 1;
   }
   
   /**
@@ -96,6 +98,8 @@ export class PixiGame {
         this.mainApp = canvas.app;
         // Подключаемся к ticker как в PixiShooterEngine
         this.mainApp.ticker.add(this._tick);
+        // Применяем текущий масштаб времени к тикеру
+        this.mainApp.ticker.speed = this.timeScale;
       }
     }
   }
@@ -107,6 +111,7 @@ export class PixiGame {
     if (!this.isRunning) return;
     
     try {
+      const dt = ticker.deltaMS; // мс, уже умножено на ticker.speed (= timeScale)
       // 🎮 Обновляем CameraController
       if (this.cameraController) {
         this.cameraController._updateFromTicker(ticker);
@@ -119,7 +124,7 @@ export class PixiGame {
       
       // 🌍 Обновляем все миры
       this.worlds.forEach(world => {
-        world.update();
+        world.update(dt);
       });
       
       // 🎨 Рендерим все канвасы
@@ -163,6 +168,24 @@ export class PixiGame {
     this.selectedCamera = null;  // 🔧 ФИКС: очищаем ссылки!
     
     // PixiGame остановлен
+  }
+
+  /**
+   * ⏱️ Установить масштаб времени игры
+   */
+  setTimeScale(scale) {
+    const clamped = Math.max(0, Number(scale) || 0);
+    this.timeScale = clamped;
+    if (this.mainApp && this.mainApp.ticker) {
+      this.mainApp.ticker.speed = this.timeScale;
+    }
+  }
+
+  /**
+   * ⏱️ Получить текущий масштаб времени
+   */
+  getTimeScale() {
+    return this.timeScale;
   }
   
   /**

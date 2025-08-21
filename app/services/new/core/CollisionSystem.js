@@ -258,6 +258,9 @@ export class CollisionSystem {
     this.blockDamageCooldownMs = options.blockDamageCooldownMs ?? 300;
     this.lastDamageAt = new Map();
     
+    // ⏱️ Игровое время (мс), тикает с dt — зависит от timeScale
+    this.gameTimeMs = 0;
+    
     // 🔗 Минимальная чистка активных коллизий при смерти сущности
     if (this.world?.on) {
       this.world.on('entity_death', ({ entity }) => {
@@ -268,6 +271,14 @@ export class CollisionSystem {
     }
     
     console.log('🎯 CollisionSystem создана с оптимизацией:', this.useOptimization);
+  }
+
+  /**
+   * ⏱️ Продвинуть игровое время (мс)
+   */
+  advanceTime(dtMs) {
+    const dt = typeof dtMs === 'number' && isFinite(dtMs) ? dtMs : 0;
+    if (dt > 0) this.gameTimeMs += dt;
   }
   
   /**
@@ -643,8 +654,8 @@ export class CollisionSystem {
     const typeB = target.collision?.collisionType || 'block';
     if (typeA === 'block' && typeB === 'block' && this.blockDamageCooldownMs > 0) {
       const pairKey = attacker.id <= target.id ? `${attacker.id}:${target.id}` : `${target.id}:${attacker.id}`;
-      const now = Date.now();
-      const lastAt = this.lastDamageAt.get(pairKey) || 0;
+      const now = this.gameTimeMs;
+      const lastAt = this.lastDamageAt.get(pairKey) ?? -Infinity;
       if (now - lastAt < this.blockDamageCooldownMs) {
         return;
       }

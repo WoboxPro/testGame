@@ -63,6 +63,9 @@ export class World extends SimpleEventEmitter {
     };
     this.collisionSystem = new CollisionSystem(this, collisionOptions);
     
+    // ⏱️ Простые игровые таймеры (подчиняются dt)
+    this._timers = new Set(); // {remainingMs, callback, repeat}
+    
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     
     // 📡 Уведомляем о создании мира
@@ -200,9 +203,62 @@ export class World extends SimpleEventEmitter {
   /**
    * 🔄 Обновить мир (вызывается каждый кадр)
    */
-  update() {
+  update(dt = 16) {
+    // ⏱️ Продвигаем игровое время систем, зависящих от dt
+    if (this.collisionSystem?.advanceTime) {
+      this.collisionSystem.advanceTime(dt);
+    }
+    
+    // ⏱️ Обновляем игровые таймеры
+    if (dt > 0 && this._timers.size > 0) {
+      const fired = [];
+      for (const t of this._timers) {
+        t.remainingMs -= dt;
+        if (t.remainingMs <= 0) {
+          fired.push(t);
+        }
+      }
+      for (const t of fired) {
+        try { t.callback?.(); } catch (e) { console.error('Timer callback error:', e); }
+        this._timers.delete(t);
+        if (t.repeat) {
+          t.remainingMs += t.repeat; // перезапуск
+          this._timers.add(t);
+        }
+      }
+    }
+    
     // 🎯 Проверяем коллизии каждый кадр
     this.collisionSystem.checkCollisions();
+  }
+
+  /**
+   * ⏱️ Поставить игровой таймер (подчиняется timeScale через dt)
+   */
+  setGameTimeout(callback, delayMs) {
+    if (typeof delayMs !== 'number' || delayMs < 0) delayMs = 0;
+    const t = { remainingMs: delayMs, callback, repeat: 0 };
+    this._timers.add(t);
+    return t;
+  }
+
+  /**
+   * ⏱️ Повторяющийся игровой таймер
+   */
+  setGameInterval(callback, intervalMs) {
+    if (typeof intervalMs !== 'number' || intervalMs <= 0) intervalMs = 16;
+    const t = { remainingMs: intervalMs, callback, repeat: intervalMs };
+    this._timers.add(t);
+    return t;
+  }
+
+  /**
+   * ⏱️ Отменить игровой таймер
+   */
+  clearGameTimer(timerHandle) {
+    if (timerHandle && this._timers) {
+      this._timers.delete(timerHandle);
+    }
   }
   
   /**

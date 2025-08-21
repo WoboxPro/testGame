@@ -142,10 +142,15 @@ export class Entity {
     this.velocity.x = 0;
     this.velocity.y = 0;
     
-    // Снимаем блокировку в следующем кадре
-    setTimeout(() => {
-      this.isMovementBlocked = false;
-    }, 16); // ~1 кадр при 60 FPS
+    // Снимаем блокировку через ~1 кадр игрового времени
+    if (this.world && this.world.setGameTimeout) {
+      this.world.setGameTimeout(() => {
+        this.isMovementBlocked = false;
+      }, 16);
+    } else {
+      // Fallback на реальное время
+      setTimeout(() => { this.isMovementBlocked = false; }, 16);
+    }
   }
   
   /**
@@ -437,12 +442,22 @@ export class Entity {
     
     console.log(`⏱️ ПЛАНИРОВАНИЕ: ${this.name} воскреснет через ${this.respawnTime}мс`);
     
-    setTimeout(() => {
-      const respawned = this.doRespawn();
-      if (respawned) {
-        console.log(`✨ ВОСКРЕШЕНИЕ: ${this.name} воскрес автоматически!`);
-      }
-    }, this.respawnTime);
+    if (this.world && this.world.setGameTimeout) {
+      this.world.setGameTimeout(() => {
+        const respawned = this.doRespawn();
+        if (respawned) {
+          console.log(`✨ ВОСКРЕШЕНИЕ: ${this.name} воскрес автоматически!`);
+        }
+      }, this.respawnTime);
+    } else {
+      // Fallback на реальное время
+      setTimeout(() => {
+        const respawned = this.doRespawn();
+        if (respawned) {
+          console.log(`✨ ВОСКРЕШЕНИЕ: ${this.name} воскрес автоматически!`);
+        }
+      }, this.respawnTime);
+    }
     
     return true;
   }

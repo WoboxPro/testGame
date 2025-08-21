@@ -263,10 +263,9 @@ export class EntityController {
     // 🚫 Предотвращаем default поведение для наших клавиш
     event.preventDefault();
     
-    // 📍 Движение - можем зажимать
+    // 📍 Движение - можем зажимать (фактическое движение выполняется в тикере с dt)
     if (action.startsWith('move_')) {
       this.pressedKeys.add(action);
-      this._executeAction(action);
     } 
     // ⚡ Модификаторы скорости
     else if (action.startsWith('speed_')) {
@@ -315,23 +314,24 @@ export class EntityController {
   /**
    * ⚡ Выполнить действие
    */
-  _executeAction(action) {
+  _executeAction(action, dtMs = 16.67) {
     if (this.controlledEntities.size === 0) {
       return; // Нет привязанных сущностей
     }
+    const frameFactor = Math.max(0, dtMs) / 16.67;
     
     switch (action) {
       case 'move_up':
-        this._moveEntities(0, -this.currentSpeed);
+        this._moveEntities(0, -this.currentSpeed * frameFactor);
         break;
       case 'move_down':
-        this._moveEntities(0, this.currentSpeed);
+        this._moveEntities(0, this.currentSpeed * frameFactor);
         break;
       case 'move_left':
-        this._moveEntities(-this.currentSpeed, 0);
+        this._moveEntities(-this.currentSpeed * frameFactor, 0);
         break;
       case 'move_right':
-        this._moveEntities(this.currentSpeed, 0);
+        this._moveEntities(this.currentSpeed * frameFactor, 0);
         break;
     }
   }
@@ -447,6 +447,7 @@ export class EntityController {
     if (!this.isEnabled || this.controlledEntities.size === 0) return;
     
     const currentTime = ticker.lastTime;
+    const dtMs = ticker.deltaMS;
     
     // Проверяем что прошло достаточно времени для движения (16ms = ~60fps)
     if (currentTime - this.lastMoveTime >= 16) {
@@ -457,7 +458,7 @@ export class EntityController {
       // Обрабатываем все нажатые клавиши движения
       for (const action of this.pressedKeys) {
         if (action.startsWith('move_')) {
-          this._executeAction(action);
+          this._executeAction(action, dtMs);
         }
       }
       
