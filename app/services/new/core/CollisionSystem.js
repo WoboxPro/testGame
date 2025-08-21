@@ -250,6 +250,14 @@ export class CollisionSystem {
       avgCheckTime: 0
     };
     
+    // ⚔️ Защита от дублирования урона
+    this.lastDamageFrame = new Map();
+    this._calledFromEntityController = false;
+    
+    // ⏱️ Кулдаун урона для block↔block пар (мс)
+    this.blockDamageCooldownMs = options.blockDamageCooldownMs ?? 300;
+    this.lastDamageAt = new Map();
+    
     console.log('🎯 CollisionSystem создана с оптимизацией:', this.useOptimization);
   }
   
@@ -358,12 +366,40 @@ export class CollisionSystem {
     const wasColliding = this.activeCollisions.has(collisionKey);
     
     if (result.colliding && !wasColliding) {
+      // Фиксируем активную коллизию при первом входе,
+      // чтобы enter/урон не срабатывали каждый кадр при удержании контакта
       this.activeCollisions.add(collisionKey);
       this._emitCollisionEvent(`${eventName}_enter`, entityA, entityB, result);
       
     } else if (!result.colliding && wasColliding) {
+      // 📤 ВЫХОД из коллизии - всегда обрабатываем
       this.activeCollisions.delete(collisionKey);
       this._emitCollisionEvent(`${eventName}_exit`, entityA, entityB, result);
+      console.log(`📤 ВЫХОД ИЗ КОЛЛИЗИИ: ${entityA.name} ↔ ${entityB.name}`);
+    }
+  }
+  
+  /**
+   * ⚡ Мгновенная проверка коллизий для одной сущности (вызывается после движения)
+   */
+  _checkEntityPairImmediate(movedEntity) {
+    if (!movedEntity.collision?.enabled || movedEntity.isDead) return;
+    
+    console.log(`⚡ МГНОВЕННАЯ ПРОВЕРКА для ${movedEntity.name}`);
+    
+    const entities = this.world.getAllEntities();
+    const entitiesWithCollision = entities.filter(entity => 
+      entity.collision?.enabled && 
+      !entity.isDead &&
+      entity.id !== movedEntity.id // Исключаем саму движущуюся сущность
+    );
+    
+    console.log(`🔍 Найдено ${entitiesWithCollision.length} сущностей для проверки`);
+    
+    // Проверяем коллизии только с движущейся сущностью
+    for (const otherEntity of entitiesWithCollision) {
+      console.log(`🔍 Проверяем ${movedEntity.name} ↔ ${otherEntity.name}`);
+      this._checkEntityPair(movedEntity, otherEntity);
     }
   }
   
@@ -550,6 +586,118 @@ export class CollisionSystem {
     };
     
     this.world.emit(eventName, collisionData);
+    
+    // ⚔️ АВТОМАТИЧЕСКАЯ СИСТЕМА УРОНА: Проверяем урон только при входе в коллизию
+    // (но только если событие НЕ вызвано из EntityController, чтобы избежать дублирования)
+    if (eventName.endsWith('_enter') && !this._calledFromEntityController) {
+      this._checkCombatDamage(entityA, entityB);
+    }
+  }
+  
+  /**
+   * ⚔️ Проверить и нанести урон между сущностями на основе фракций
+   */
+  _checkCombatDamage(entityA, entityB) {
+    // 🛡️ Защита от дублирования урона (например из EntityController и CollisionSystem)
+    const damageKey = entityA.id <= entityB.id ? `${entityA.id}:${entityB.id}` : `${entityB.id}:${entityA.id}`;
+    const currentFrame = Date.now();
+    
+    if (!this.lastDamageFrame) this.lastDamageFrame = new Map();
+    
+    // Если урон уже был нанесен в этом фрейме - пропускаем
+    if (this.lastDamageFrame.get(damageKey) === currentFrame) {
+      return;
+    }
+    
+    this.lastDamageFrame.set(damageKey, currentFrame);
+    
+    // Проверяем урон A → B
+    this._applyCombatDamage(entityA, entityB);
+    
+    // Проверяем урон B → A  
+    this._applyCombatDamage(entityB, entityA);
+  }
+  
+  /**
+   * ⚔️ Нанести урон от атакующего к цели
+   */
+  _applyCombatDamage(attacker, target) {
+    // Проверяем есть ли у атакующего урон при касании
+    const damage = attacker.stats?.getTouchDamage();
+    if (!damage || damage <= 0) return;
+    
+    // Проверяем может ли цель получать урон
+    if (!target.stats) return;
+    
+    // ⏱️ Кулдаун для block↔block: урон не чаще, чем раз в blockDamageCooldownMs
+    const typeA = attacker.collision?.collisionType || 'block';
+    const typeB = target.collision?.collisionType || 'block';
+    if (typeA === 'block' && typeB === 'block' && this.blockDamageCooldownMs > 0) {
+      const pairKey = attacker.id <= target.id ? `${attacker.id}:${target.id}` : `${target.id}:${attacker.id}`;
+      const now = Date.now();
+      const lastAt = this.lastDamageAt.get(pairKey) || 0;
+      if (now - lastAt < this.blockDamageCooldownMs) {
+        return;
+      }
+      this.lastDamageAt.set(pairKey, now);
+    }
+    
+    // 🏛️ ФРАКЦИОННАЯ ЛОГИКА:
+    const factionSystem = this.world.factionSystem;
+    if (!factionSystem) {
+      // Если нет системы фракций - наносим урон всем
+      this._dealDamage(attacker, target, damage, 'без системы фракций');
+      return;
+    }
+    
+    const attackerFaction = factionSystem.getEntityFaction(attacker);
+    const targetFaction = factionSystem.getEntityFaction(target);
+    
+    // 🪤 Нет фракции у атакующего = наносит урон всем (ловушки)
+    if (!attackerFaction) {
+      this._dealDamage(attacker, target, damage, 'нейтральный (наносит урон всем)');
+      return;
+    }
+    
+    // 🏛️ Проверяем может ли атаковать согласно фракциям
+    if (factionSystem.canEntityAttack(attacker, target)) {
+      this._dealDamage(attacker, target, damage, `враждебная фракция`);
+    } else {
+      console.log(`🛡️ ${target.name} защищен от ${attacker.name} (союзная фракция)`);
+    }
+  }
+  
+  /**
+   * 💥 Нанести урон цели
+   */
+  _dealDamage(attacker, target, damage, reason) {
+    const oldHealth = target.stats.getHealth();
+    const damaged = target.stats.takeDamage(damage, target);
+    
+    if (damaged) {
+      const newHealth = target.stats.getHealth();
+      console.log(`⚔️ ${attacker.name} → ${target.name}: ${damage} урона (${reason}) [${oldHealth} → ${newHealth}]`);
+    }
+  }
+  
+  /**
+   * 🚫 Проверить нужно ли блокировать движение при коллизии
+   */
+  _checkMovementBlocking(entityA, entityB) {
+    const collisionTypeA = entityA.collision?.collisionType || 'block';
+    const collisionTypeB = entityB.collision?.collisionType || 'block';
+    
+    console.log(`🔍 ПРОВЕРКА БЛОКИРОВКИ: ${entityA.name} (${collisionTypeA}) ↔ ${entityB.name} (${collisionTypeB})`);
+    
+    // Блокируем движение только если ОБЕ коллизии типа 'block'
+    // Триггеры (trigger) НЕ блокируют движение
+    if (collisionTypeA === 'block' && collisionTypeB === 'block') {
+      console.log(`🚫 АВТОБЛОК: ${entityA.name} ↔ ${entityB.name} (block + block)`);
+      entityA.stopMovement();
+      entityB.stopMovement();
+    } else {
+      console.log(`✅ НЕТ БЛОКИРОВКИ: ${entityA.name} ↔ ${entityB.name} (не все block)`);
+    }
   }
   
   /**

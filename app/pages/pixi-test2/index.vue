@@ -332,13 +332,12 @@ onMounted(async () => {
       myWorld.collisionSystem.addRule('unit', 'building', 'unit_building');  // 🏗️ Юнит ↔ Здание
       myWorld.collisionSystem.addRule('unit', 'trap', 'trap_damage');        // 🪤 Ловушки наносят урон
       
-      // 🚫 Событие блокировки движения между юнитами (block + block)
+      // 🚫 Событие блокировки движения между юнитами (блокировка происходит автоматически в CollisionSystem)
       myWorld.on('unit_collision_enter', ({entityA, entityB, distance}) => {
-        console.log(`🚫 БЛОК: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)}) - движение заблокировано!`);
+        console.log(`🚫 БЛОК: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)})`);
         
-        // Останавливаем движение обеих сущностей
-        entityA.stopMovement();
-        entityB.stopMovement();
+        // Движение блокируется автоматически в CollisionSystem._checkMovementBlocking()
+        // Здесь можно добавить дополнительную логику (звуки, эффекты и т.д.)
       });
       
       myWorld.on('unit_collision_exit', ({entityA, entityB}) => {
@@ -359,38 +358,12 @@ onMounted(async () => {
         console.log(`📤 ТРИГГЕР: ${entityA.name} покинул зону ${entityB.name}`);
       });
 
-      // 🪤 Событие урона от ловушки
-      myWorld.on('trap_damage_enter', ({entityA, entityB, point, normal}) => {
-        console.log(`🪤 ЛОВУШКА: Событие trap_damage_enter сработало!`);
-        console.log(`🔍 EntityA: ${entityA.name} (collision: ${entityA.collision?.name})`);
-        console.log(`🔍 EntityB: ${entityB.name} (collision: ${entityB.collision?.name})`);
-        
-        // Определяем кто герой, а кто ловушка
+      // 🪤 Событие ловушки (урон обрабатывается автоматически в CollisionSystem)
+      myWorld.on('trap_damage_enter', ({entityA, entityB}) => {
         const hero = entityA.collision?.name === 'unit' ? entityA : entityB;
         const trap = entityA.collision?.name === 'trap' ? entityA : entityB;
-        
-        console.log(`👤 Герой: ${hero.name}, 🪤 Ловушка: ${trap.name}`);
-        console.log(`📊 Герой stats: ${!!hero.stats}, 📊 Ловушка stats: ${!!trap.stats}`);
-        
-        if (hero.stats && trap.stats) {
-          const damage = trap.stats.getTouchDamage();
-          console.log(`⚔️ Урон ловушки: ${damage}`);
-          
-          if (damage && damage > 0) {
-            const oldHealth = hero.stats.getHealth();
-            const damaged = hero.stats.takeDamage(damage, hero); // 🔄 Передаем ссылку на сущность
-            
-            if (damaged) {
-              const newHealth = hero.stats.getHealth();
-              console.log(`💥 УРОН: ${hero.name} получил ${damage} урона от ${trap.name} (${oldHealth} → ${newHealth})`);
-              
-              if (!hero.stats.isAlive()) {
-                // 📡 Смерть теперь обрабатывается через событие entity_death
-              }
-            }
-          }
-        }
-            });
+        console.log(`🪤 ${hero.name} наступил на ловушку ${trap.name}!`);
+      });
 
       // 📡 ГИБРИДНАЯ АРХИТЕКТУРА: Дополнительная логика при смерти
       myWorld.on('entity_death', ({ entity, cause, damageAmount, position, timestamp }) => {
@@ -562,7 +535,12 @@ onMounted(async () => {
         rotationOffset: 0,             // 🎯 Без смещения = вправо по умолчанию (для сравнения)
         
         // 📊 НОВИНКА: Характеристики алмаза (медленный)
-        stats: { speed: 2, health: 2, currentHealth: 2 },  // Медленный, 2 макс жизни, полные
+        stats: { 
+          speed: 2, 
+          health: 100, 
+          currentHealth: 100,
+          touchDamage: 1      // ⚔️ Алмаз наносит урон враждебным фракциям
+        },
         
         // 🔄 НОВИНКА: Система респауна  
         respawn: true,        // Возрождение при смерти
@@ -611,11 +589,19 @@ onMounted(async () => {
       myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
       
       // Добавляем врагов разных фракций
-      const orcWarrior1 = myWorld.addUnit(200, -100, { 
+      const orcWarrior1 = myWorld.addUnit(100, -100, { 
         name: 'Орк-воин 1', 
         form: 'soldier', 
         faction: orcFaction,
-        collision: unitCollisionType.createEntityCollision() // 🎯 Коллизии для орков
+        collision: unitCollisionType.createEntityCollision(), // 🎯 Коллизии для орков
+        
+        // ⚔️ Боевые характеристики орка
+        stats: { 
+          health: 300,          // 3 жизни у орка
+          currentHealth: 300,
+          touchDamage: 2      // Наносит 2 урона враждебным фракциям
+        },
+        respawn: false        // Орки не воскрешаются
       });
     } catch (error) {
       console.error('❌ Ошибка запуска:', error);

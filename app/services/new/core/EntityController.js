@@ -432,6 +432,8 @@ export class EntityController {
       entity.world.updateEntityPosition(entity, newX, newY);
     }
     
+    // Мгновенная проверка коллизий больше не нужна - урон наносится в _checkEntityCollisions
+    
     // 📍 Убираем логи движения - слишком много спама
     // if (this.settings.controlMode === 'single' || entity.id === this.activeEntityId) {
     //   console.log(`📍 ${entity.name} перемещена в (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
@@ -502,12 +504,36 @@ export class EntityController {
       
       const collisionResult = collisionSystem._detectCollision(entity, otherEntity);
       if (hasRule && collisionResult.colliding) {
-        // 🎯 НОВИНКА: Проверяем тип коллизии - блокируем только 'block' с 'block'
+        
+        // 🔒 ПРОВЕРЯЕМ: Это новая коллизия или продолжение старой?
+        const collisionKey = collisionSystem._getCollisionKey(entity, otherEntity);
+        const wasColliding = collisionSystem.activeCollisions.has(collisionKey);
+        
+        if (!wasColliding) {
+          // 📡 НОВАЯ КОЛЛИЗИЯ: Генерируем событие enter (с уроном)
+          const eventName = collisionSystem.collisionRules.get(ruleKey);
+          
+          // Добавляем в активные коллизии
+          collisionSystem.activeCollisions.add(collisionKey);
+          
+          // 🛡️ Устанавливаем флаг что событие из EntityController 
+          collisionSystem._calledFromEntityController = true;
+          collisionSystem._checkCombatDamage(entity, otherEntity); // Наносим урон ОДИН раз
+          collisionSystem._emitCollisionEvent(`${eventName}_enter`, entity, otherEntity, collisionResult);
+          collisionSystem._calledFromEntityController = false;
+          
+          console.log(`🆕 НОВАЯ КОЛЛИЗИЯ: ${entity.name} ↔ ${otherEntity.name}`);
+        } else {
+          console.log(`🔄 ПРОДОЛЖЕНИЕ: ${entity.name} ↔ ${otherEntity.name} (урон НЕ наносится)`);
+        }
+        
+        // 🎯 Проверяем тип коллизии - блокируем только 'block' с 'block'
         const entityCollisionType = entity.collision.collisionType || 'block';
         const otherCollisionType = otherEntity.collision.collisionType || 'block';
         
         // Блокируем только если ОБЕ коллизии типа 'block' (триггеры не блокируют)
         if (entityCollisionType === 'block' && otherCollisionType === 'block') {
+          console.log(`🚫 EntityController БЛОК: ${entity.name} ↔ ${otherEntity.name}`);
           return true; // Найдена блокирующая коллизия
         }
       }
