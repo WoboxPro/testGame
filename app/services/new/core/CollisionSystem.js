@@ -258,6 +258,15 @@ export class CollisionSystem {
     this.blockDamageCooldownMs = options.blockDamageCooldownMs ?? 300;
     this.lastDamageAt = new Map();
     
+    // 🔗 Минимальная чистка активных коллизий при смерти сущности
+    if (this.world?.on) {
+      this.world.on('entity_death', ({ entity }) => {
+        if (entity?.id) {
+          this._clearPairsForEntity(entity.id);
+        }
+      });
+    }
+    
     console.log('🎯 CollisionSystem создана с оптимизацией:', this.useOptimization);
   }
   
@@ -731,6 +740,41 @@ export class CollisionSystem {
    */
   clearActiveCollisions() {
     this.activeCollisions.clear();
+  }
+  
+  /**
+   * 🧹 ВНУТРЕННЕЕ: убрать пары из активных коллизий и кешей урона для сущности
+   * (используется только при смерти)
+   */
+  _clearPairsForEntity(entityId) {
+    if (!entityId) return;
+    const idStr = String(entityId);
+    
+    // Удаляем пары из activeCollisions
+    for (const key of Array.from(this.activeCollisions)) {
+      const [a, b] = key.split(':');
+      if (a === idStr || b === idStr) {
+        this.activeCollisions.delete(key);
+      }
+    }
+    
+    // Чистим кеши урона
+    if (this.lastDamageAt) {
+      for (const key of Array.from(this.lastDamageAt.keys())) {
+        const [a, b] = key.split(':');
+        if (a === idStr || b === idStr) {
+          this.lastDamageAt.delete(key);
+        }
+      }
+    }
+    if (this.lastDamageFrame) {
+      for (const key of Array.from(this.lastDamageFrame.keys())) {
+        const [a, b] = key.split(':');
+        if (a === idStr || b === idStr) {
+          this.lastDamageFrame.delete(key);
+        }
+      }
+    }
   }
   
   /**
