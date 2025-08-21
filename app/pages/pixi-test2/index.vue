@@ -608,6 +608,7 @@ onMounted(async () => {
         
         // ⚔️ Боевые характеристики орка
         stats: { 
+          speed: 2,
           health: 300,          // 3 жизни у орка
           currentHealth: 300,
           touchDamage: 2      // Наносит 2 урона враждебным фракциям
