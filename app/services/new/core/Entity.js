@@ -94,6 +94,13 @@ export class Entity {
       this.stats = new CharacterStats(); // Дефолтные характеристики
     }
     
+    // 🔄 Система респауна
+    this.respawn = options.respawn || false; // Возрождение при смерти
+    this.respawnTime = options.respawnTime || 2000; // Время респауна в миллисекундах (по умолчанию 2 сек)
+    this.spawnX = this.x; // Изначальная X координата для респауна
+    this.spawnY = this.y; // Изначальная Y координата для респауна
+    this.isDead = false; // Состояние смерти (для скрытия сущности)
+    
     // 🏃 Параметры движения
     this.velocity = { x: 0, y: 0 };
     this.previousPosition = { x: this.x, y: this.y };
@@ -351,6 +358,83 @@ export class Entity {
       // Дочерняя сущность тоже отражается
       child.isMirrored = this.isMirrored;
     }
+  }
+  
+  /**
+   * 💀 Убить сущность (скрыть и заблокировать)
+   */
+  die() {
+    this.isDead = true;
+    this.isMovementBlocked = true; // Блокируем движение
+    
+    // 👶 Убиваем всех дочерних сущностей
+    if (this.world) {
+      for (const childId of this.children) {
+        const child = this.world.getEntity(childId);
+        if (child) {
+          child.isDead = true;
+          child.isMovementBlocked = true;
+        }
+      }
+    }
+    
+    console.log(`💀 ${this.name} умер и исчез с карты ${this.children.size > 0 ? `(+ ${this.children.size} детей)` : ''}`);
+  }
+  
+  /**
+   * 🔄 Возродить сущность на изначальной позиции с полными жизнями
+   */
+  doRespawn() {
+    if (!this.respawn) return false; // Респаун отключен
+    
+    // Восстанавливаем позицию
+    this.x = this.spawnX;
+    this.y = this.spawnY;
+    
+    // Восстанавливаем жизни если есть характеристики
+    if (this.stats && this.stats.getMaxHealth() !== null) {
+      this.stats.restoreHealth();
+    }
+    
+    // Сбрасываем состояние смерти и движение
+    this.isDead = false;
+    this.velocity = { x: 0, y: 0 };
+    this.isMovementBlocked = false;
+    
+    // 👶 Воскрешаем всех дочерних сущностей
+    if (this.world) {
+      for (const childId of this.children) {
+        const child = this.world.getEntity(childId);
+        if (child) {
+          child.isDead = false;
+          child.isMovementBlocked = false;
+        }
+      }
+    }
+    
+    // Обновляем позицию детей
+    this.updateChildrenPositions();
+    
+    console.log(`🔄 РЕСПАУН: ${this.name} возродился на (${this.spawnX}, ${this.spawnY}) с полными жизнями! ${this.children.size > 0 ? `(+ ${this.children.size} детей)` : ''}`);
+    return true;
+  }
+  
+  /**
+   * 🕒 Запланировать автоматический респаун с задержкой
+   */
+  scheduleRespawn() {
+    if (!this.respawn) return false; // Респаун отключен
+    
+    console.log(`⏱️ ПЛАНИРОВАНИЕ: ${this.name} воскреснет через ${this.respawnTime}мс`);
+    
+    setTimeout(() => {
+      const respawned = this.doRespawn();
+      if (respawned) {
+        console.log(`✨ ВОСКРЕШЕНИЕ: ${this.name} воскрес автоматически!`);
+      }
+    }, this.respawnTime);
+    
+    return true;
   }
   
   /**

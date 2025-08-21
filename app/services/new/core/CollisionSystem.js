@@ -272,7 +272,9 @@ export class CollisionSystem {
     const startTime = performance.now();
     
     const entities = this.world.getAllEntities();
-    const entitiesWithCollision = entities.filter(entity => entity.collision?.enabled);
+    const entitiesWithCollision = entities.filter(entity => 
+      entity.collision?.enabled && !entity.isDead // 💀 Мертвые сущности не участвуют в коллизиях
+    );
     
     // Определяем нужна ли оптимизация
     const shouldOptimize = this.useOptimization && 

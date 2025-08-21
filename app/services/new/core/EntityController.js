@@ -366,7 +366,7 @@ export class EntityController {
    * 📍 Двигать конкретную сущность
    */
   _moveEntity(entity, deltaX, deltaY) {
-    if (!entity) return;
+    if (!entity || entity.isDead) return; // 💀 Мертвые не двигаются
     
     // 📊 Применяем скорость из характеристик сущности
     if (entity.stats && entity.stats.getSpeed) {
@@ -484,8 +484,8 @@ export class EntityController {
    * 🎯 Проверить блокирующие коллизии для сущности в текущей позиции
    */
   _checkEntityCollisions(entity) {
-    if (!entity?.collision?.enabled || !entity.world?.collisionSystem) {
-      return false;
+    if (!entity?.collision?.enabled || !entity.world?.collisionSystem || entity.isDead) {
+      return false; // 💀 Мертвые сущности не проверяют коллизии
     }
     
     const collisionSystem = entity.world.collisionSystem;

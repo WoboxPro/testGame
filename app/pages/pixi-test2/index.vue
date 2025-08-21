@@ -378,7 +378,7 @@ onMounted(async () => {
           
           if (damage && damage > 0) {
             const oldHealth = hero.stats.getHealth();
-            const damaged = hero.stats.takeDamage(damage);
+            const damaged = hero.stats.takeDamage(damage, hero); // 🔄 Передаем ссылку на сущность
             
             if (damaged) {
               const newHealth = hero.stats.getHealth();
@@ -386,6 +386,7 @@ onMounted(async () => {
               
               if (!hero.stats.isAlive()) {
                 console.log(`💀 СМЕРТЬ: ${hero.name} погиб от ловушки!`);
+                // 🔄 Респаун теперь происходит автоматически внутри takeDamage()
               }
             }
           }
@@ -480,7 +481,11 @@ onMounted(async () => {
         mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
         
         // 📊 НОВИНКА: Характеристики героя (быстрый)
-        stats: { speed: 4, health: 2, currentHealth: 1 }  // Быстрый, 2 макс жизни, 1 текущая
+        stats: { speed: 4, health: 2, currentHealth: 1 },  // Быстрый, 2 макс жизни, 1 текущая
+        
+        // 🔄 НОВИНКА: Система респауна
+        respawn: true,        // Возрождение при смерти
+        respawnTime: 3000     // Воскрешение через 3 секунды
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
@@ -523,7 +528,11 @@ onMounted(async () => {
         rotationOffset: 0,             // 🎯 Без смещения = вправо по умолчанию (для сравнения)
         
         // 📊 НОВИНКА: Характеристики алмаза (медленный)
-        stats: { speed: 2, health: 2, currentHealth: 2 }  // Медленный, 2 макс жизни, полные
+        stats: { speed: 2, health: 2, currentHealth: 2 },  // Медленный, 2 макс жизни, полные
+        
+        // 🔄 НОВИНКА: Система респауна  
+        respawn: true,        // Возрождение при смерти
+        respawnTime: 1500     // Воскрешение через 1.5 секунды (быстрее чем у героя)
       });
 
       // 🪤 НОВИНКА: Создаем ловушку с уроном при касании

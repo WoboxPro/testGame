@@ -346,6 +346,11 @@ export class Camera {
    * 🎛️ Проверить должен ли объект отображаться в этой камере
    */
   _shouldRenderEntity(entity) {
+    // 💀 Не рендерим мертвые сущности
+    if (entity.isDead) {
+      return false;
+    }
+    
     // 🔍 Проверяем скрытые типы
     if (this.hiddenTypes.includes(entity.type)) {
       return false;

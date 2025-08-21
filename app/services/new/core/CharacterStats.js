@@ -103,10 +103,21 @@ export class CharacterStats {
   /**
    * 💥 Нанести урон данной сущности
    */
-  takeDamage(damageAmount) {
+  takeDamage(damageAmount, entity = null) {
     if (this.currentHealth === null) return false; // Бессмертный не получает урон
     
     this.currentHealth = Math.max(0, this.currentHealth - damageAmount);
+    
+    // 🔄 Автоматический респаун при смерти
+    if (this.currentHealth <= 0 && entity) {
+      entity.die(); // Убиваем сущность (скрываем)
+      
+      if (entity.respawn) {
+        console.log(`⏱️ ${entity.name} воскреснет через ${entity.respawnTime}мс`);
+        entity.scheduleRespawn();
+      }
+    }
+    
     return true; // Урон нанесен
   }
   
