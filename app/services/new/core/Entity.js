@@ -416,6 +416,16 @@ export class Entity {
     this.updateChildrenPositions();
     
     console.log(`🔄 РЕСПАУН: ${this.name} возродился на (${this.spawnX}, ${this.spawnY}) с полными жизнями! ${this.children.size > 0 ? `(+ ${this.children.size} детей)` : ''}`);
+    
+    // 📡 Испускаем событие воскрешения
+    if (this.world) {
+      this.world.emit('entity_respawn', {
+        entity: this,
+        spawnX: this.spawnX,
+        spawnY: this.spawnY
+      });
+    }
+    
     return true;
   }
   

@@ -385,14 +385,48 @@ onMounted(async () => {
               console.log(`💥 УРОН: ${hero.name} получил ${damage} урона от ${trap.name} (${oldHealth} → ${newHealth})`);
               
               if (!hero.stats.isAlive()) {
-                console.log(`💀 СМЕРТЬ: ${hero.name} погиб от ловушки!`);
-                // 🔄 Респаун теперь происходит автоматически внутри takeDamage()
+                // 📡 Смерть теперь обрабатывается через событие entity_death
               }
             }
           }
         }
+            });
+
+      // 📡 ГИБРИДНАЯ АРХИТЕКТУРА: Дополнительная логика при смерти
+      myWorld.on('entity_death', ({ entity, cause, damageAmount, position, timestamp }) => {
+        console.log(`🎭 СОБЫТИЕ СМЕРТИ: ${entity.name} погиб от ${cause} (урон: ${damageAmount})`);
+        console.log(`📍 Позиция смерти: (${position.x.toFixed(1)}, ${position.y.toFixed(1)})`);
+        console.log(`⏰ Время смерти: ${new Date(timestamp).toLocaleTimeString()}`);
+        
+        // 🎵 Здесь можно добавить звуки
+        // playDeathSound(cause);
+        
+        // 🎨 Здесь можно добавить эффекты  
+        // createDeathEffect(position.x, position.y);
+        
+        // 📊 Здесь можно добавить статистику
+        // gameStats.recordDeath(entity.type, cause);
+        
+        console.log(`🔔 Дополнительная логика смерти выполнена для ${entity.name}`);
       });
-      
+
+      // ✨ ГИБРИДНАЯ АРХИТЕКТУРА: Дополнительная логика при воскрешении
+      myWorld.on('entity_respawn', ({ entity, spawnX, spawnY }) => {
+        console.log(`🎉 СОБЫТИЕ ВОСКРЕШЕНИЯ: ${entity.name} воскрес на (${spawnX}, ${spawnY})!`);
+        console.log(`⚡ Текущие жизни: ${entity.stats?.getHealth()}/${entity.stats?.getMaxHealth()}`);
+        
+        // 🎵 Здесь можно добавить звук воскрешения
+        // playRespawnSound();
+        
+        // 🎨 Здесь можно добавить эффект воскрешения
+        // createRespawnEffect(spawnX, spawnY);
+        
+        // 💨 Здесь можно добавить неуязвимость на пару секунд
+        // makeInvulnerable(entity, 2000);
+        
+        console.log(`🔔 Дополнительная логика воскрешения выполнена для ${entity.name}`);
+      });
+
       // 🏗️ НОВИНКА: Событие коллизии с прямоугольной сущностью
       myWorld.on('unit_building_enter', ({entityA, entityB, distance}) => {
         console.log(`🏗️ ЗДАНИЕ: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)})`);

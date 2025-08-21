@@ -106,15 +106,26 @@ export class CharacterStats {
   takeDamage(damageAmount, entity = null) {
     if (this.currentHealth === null) return false; // Бессмертный не получает урон
     
+    const oldHealth = this.currentHealth;
     this.currentHealth = Math.max(0, this.currentHealth - damageAmount);
     
-    // 🔄 Автоматический респаун при смерти
-    if (this.currentHealth <= 0 && entity) {
-      entity.die(); // Убиваем сущность (скрываем)
-      
+    // 💀 ГИБРИДНАЯ АРХИТЕКТУРА: Автоматическая смерть + события
+    if (this.currentHealth <= 0 && oldHealth > 0 && entity) {
+      // 🎯 КРИТИЧЕСКАЯ логика (всегда выполняется)
+      entity.die();                     // Автоматически умирает
       if (entity.respawn) {
-        console.log(`⏱️ ${entity.name} воскреснет через ${entity.respawnTime}мс`);
-        entity.scheduleRespawn();
+        entity.scheduleRespawn();       // Автоматически планирует респаун
+      }
+      
+      // 📡 ДОПОЛНИТЕЛЬНАЯ логика (через события)
+      if (entity.world) {
+        entity.world.emit('entity_death', {
+          entity: entity,
+          cause: 'damage',
+          damageAmount: damageAmount,
+          position: { x: entity.x, y: entity.y },
+          timestamp: Date.now()
+        });
       }
     }
     
