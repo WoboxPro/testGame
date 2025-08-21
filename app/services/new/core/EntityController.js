@@ -368,6 +368,14 @@ export class EntityController {
   _moveEntity(entity, deltaX, deltaY) {
     if (!entity) return;
     
+    // 📊 Применяем скорость из характеристик сущности
+    if (entity.stats && entity.stats.getSpeed) {
+      const entitySpeed = entity.stats.getSpeed();
+      const speedMultiplier = entitySpeed / this.settings.moveSpeed; // Нормализуем к базовой скорости
+      deltaX *= speedMultiplier;
+      deltaY *= speedMultiplier;
+    }
+    
     // 🎯 Обновляем поворот по направлению движения
     entity.updateRotationFromMovement(deltaX, deltaY);
     

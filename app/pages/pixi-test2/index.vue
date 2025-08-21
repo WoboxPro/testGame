@@ -443,7 +443,10 @@ onMounted(async () => {
         
         //  Зеркальный поворот  (как в Vampire Survivors)
         typeRotate: 'full',          // 'full' | 'mirror' 
-        mirrorAxis: 'y'                // 'x' | 'y' - ось отражения
+        mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
+        
+        // 📊 НОВИНКА: Характеристики героя (быстрый)
+        stats: { speed: 4 }            // Быстрее базовой скорости (5)
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
@@ -483,7 +486,10 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision({ radius: 10 }), // 🎯 Добавляем коллизии!
         rotationBehavior: 'movement',  // 🎯 НОВИНКА: Алмаз поворачивается по направлению движения
         rotationSpeed: 0.3,            // Быстрее чем у героя для наглядности
-        rotationOffset: 0              // 🎯 Без смещения = вправо по умолчанию (для сравнения)
+        rotationOffset: 0,             // 🎯 Без смещения = вправо по умолчанию (для сравнения)
+        
+        // 📊 НОВИНКА: Характеристики алмаза (медленный)
+        stats: { speed: 2 }            // Медленнее базовой скорости (5)
       });
       // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
@@ -491,8 +497,8 @@ onMounted(async () => {
       // 🎮 НОВИНКА: Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         moveSpeed: 3,                    // Скорость движения сущности
-        fastSpeedMultiplier: 2.5,        // Ускорение на Shift
-        slowSpeedMultiplier: 0.4,        // Замедление на Ctrl
+        fastSpeedMultiplier: 1.5,        // Ускорение на Shift (+50%)
+        slowSpeedMultiplier: 0.7,        // Замедление на Ctrl (50%)
         keyLayout: 'wasd',               // Управление WASD
         controlMode: 'all',              // 🌍 'all' = двигаем все сразу, 'single' = по одной с Tab
         useEntityMovementParams: false,  // Пока не используем параметры сущности

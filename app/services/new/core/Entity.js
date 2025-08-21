@@ -4,6 +4,7 @@
  * Базовый класс для всех объектов в мире
  */
 import * as PIXI from 'pixi.js';
+import { CharacterStats } from './CharacterStats.js';
 
 export class Entity {
   constructor(options = {}) {
@@ -83,6 +84,15 @@ export class Entity {
     
     // 🎯 Параметры коллизий
     this.collision = options.collision || null;
+    
+    // 📊 Система характеристик
+    if (options.stats instanceof CharacterStats) {
+      this.stats = options.stats; // Готовый объект CharacterStats
+    } else if (options.stats && typeof options.stats === 'object') {
+      this.stats = new CharacterStats(options.stats); // Создаем из конфига
+    } else {
+      this.stats = new CharacterStats(); // Дефолтные характеристики
+    }
     
     // 🏃 Параметры движения
     this.velocity = { x: 0, y: 0 };
