@@ -22,6 +22,11 @@ export class Entity {
     this.childRotationType = options.childRotationType || 'stick'; // 'stick' | 'orbit'
     this.rotationOffset = options.rotationOffset || -Math.PI/2; // Смещение угла (по умолчанию -90° = вверх)
     
+    // 🪞 Зеркальное отражение (как в Vampire Survivors)
+    this.typeRotate = options.typeRotate || 'full';   // 'full' | 'mirror'
+    this.mirrorAxis = options.mirrorAxis || 'y';      // 'x' | 'y' - ось отражения
+    this.isMirrored = false;                          // Текущее состояние отражения
+    
     // 🔗 Parent-Child система
     this.parent = options.parent || null;           // ID родительской сущности
     this.children = new Set();                      // Set ID дочерних сущностей
@@ -193,6 +198,19 @@ export class Entity {
     if (this.rotationBehavior !== 'movement') return;
     if (deltaX === 0 && deltaY === 0) return; // Нет движения
     
+    if (this.typeRotate === 'mirror') {
+      // 🪞 Зеркальный поворот (как в Vampire Survivors)
+      this._updateMirrorRotation(deltaX, deltaY);
+    } else {
+      // 🔄 Полный поворот (обычный режим)
+      this._updateFullRotation(deltaX, deltaY);
+    }
+  }
+
+  /**
+   * 🔄 Обычный полный поворот на 360°
+   */
+  _updateFullRotation(deltaX, deltaY) {
     // Вычисляем целевой угол поворота с учетом смещения
     const targetRotation = Math.atan2(deltaY, deltaX) + this.rotationOffset;
     
@@ -219,42 +237,109 @@ export class Entity {
       this.rotateChildrenBy(rotationDelta);
     }
   }
+
+  /**
+   * 🪞 Зеркальный поворот (только влево/вправо)
+   */
+  _updateMirrorRotation(deltaX, deltaY) {
+    const oldMirrored = this.isMirrored;
+    
+    // Определяем направление по выбранной оси
+    let shouldMirror = false;
+    if (this.mirrorAxis === 'x') {
+      shouldMirror = deltaY < 0; // Движение вверх = отражение
+    } else { // mirrorAxis === 'y'
+      shouldMirror = deltaX < 0; // Движение влево = отражение
+    }
+    
+    // Обновляем состояние отражения
+    this.isMirrored = shouldMirror;
+    
+    // Если состояние изменилось - обновляем дочерние и их позиции
+    if (this.rotateChildren && oldMirrored !== this.isMirrored) {
+      this.rotateChildrenBy(0, true); // Передаем флаг зеркального обновления
+      this.updateChildrenPositions(); // Обновляем позиции после зеркалирования
+    }
+  }
   
   /**
    * 🔄 Повернуть дочерние сущности на указанный угол
    */
-  rotateChildrenBy(rotationDelta) {
-    if (!this.world || this.children.size === 0 || rotationDelta === 0) return;
+  rotateChildrenBy(rotationDelta, isMirrorUpdate = false) {
+    if (!this.world || this.children.size === 0) return;
+    if (!isMirrorUpdate && rotationDelta === 0) return;
     
     for (const childId of this.children) {
       const child = this.world.getEntity(childId);
       if (child) {
-        // Всегда поворачиваем позицию дочерней сущности вокруг родителя
-        const cos = Math.cos(rotationDelta);
-        const sin = Math.sin(rotationDelta);
         
-        const newOffsetX = child.offsetX * cos - child.offsetY * sin;
-        const newOffsetY = child.offsetX * sin + child.offsetY * cos;
-        
-        child.offsetX = newOffsetX;
-        child.offsetY = newOffsetY;
-        
-        // Поворачиваем саму дочернюю сущность в зависимости от типа
-        if (this.childRotationType === 'stick') {
-          // 📎 STICK: дочерняя сущность поворачивается вместе с родителем
-          child.rotation += rotationDelta;
-          
-          // Нормализуем угол дочерней сущности
-          while (child.rotation > Math.PI) child.rotation -= 2 * Math.PI;
-          while (child.rotation < -Math.PI) child.rotation += 2 * Math.PI;
+        if (this.typeRotate === 'mirror') {
+          // 🪞 Зеркальное отражение дочерних
+          this._applyMirrorToChild(child);
+        } else {
+          // 🔄 Обычный поворот
+          this._applyRotationToChild(child, rotationDelta);
         }
-        // 🌍 ORBIT: дочерняя сущность НЕ поворачивается, только перемещается по орбите
         
         // Рекурсивно поворачиваем детей детей
         if (child.rotateChildren) {
-          child.rotateChildrenBy(rotationDelta);
+          child.rotateChildrenBy(rotationDelta, isMirrorUpdate);
         }
       }
+    }
+  }
+
+  /**
+   * 🔄 Применить обычный поворот к дочерней сущности
+   */
+  _applyRotationToChild(child, rotationDelta) {
+    // Всегда поворачиваем позицию дочерней сущности вокруг родителя
+    const cos = Math.cos(rotationDelta);
+    const sin = Math.sin(rotationDelta);
+    
+    const newOffsetX = child.offsetX * cos - child.offsetY * sin;
+    const newOffsetY = child.offsetX * sin + child.offsetY * cos;
+    
+    child.offsetX = newOffsetX;
+    child.offsetY = newOffsetY;
+    
+    // Поворачиваем саму дочернюю сущность в зависимости от типа
+    if (this.childRotationType === 'stick') {
+      // 📎 STICK: дочерняя сущность поворачивается вместе с родителем
+      child.rotation += rotationDelta;
+      
+      // Нормализуем угол дочерней сущности
+      while (child.rotation > Math.PI) child.rotation -= 2 * Math.PI;
+      while (child.rotation < -Math.PI) child.rotation += 2 * Math.PI;
+    }
+    // 🌍 ORBIT: дочерняя сущность НЕ поворачивается, только перемещается по орбите
+  }
+
+  /**
+   * 🪞 Применить зеркальное отражение к дочерней сущности
+   */
+  _applyMirrorToChild(child) {
+    // Сохраняем оригинальные смещения если еще не сохранены
+    if (child.originalOffsetX === undefined) {
+      child.originalOffsetX = child.offsetX;
+    }
+    if (child.originalOffsetY === undefined) {
+      child.originalOffsetY = child.offsetY;
+    }
+    
+    // Применяем зеркальное отражение к дочерней сущности
+    if (this.mirrorAxis === 'x') {
+      // Отражение по оси X (верх/низ)
+      child.offsetY = this.isMirrored ? -child.originalOffsetY : child.originalOffsetY;
+    } else { // mirrorAxis === 'y'
+      // Отражение по оси Y (лево/право) - меч переходит на другую сторону
+      child.offsetX = this.isMirrored ? -child.originalOffsetX : child.originalOffsetX;
+    }
+    
+    // Для STICK режима также отражаем саму дочернюю сущность
+    if (this.childRotationType === 'stick') {
+      // Дочерняя сущность тоже отражается
+      child.isMirrored = this.isMirrored;
     }
   }
   

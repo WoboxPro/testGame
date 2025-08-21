@@ -550,7 +550,20 @@ export class Camera {
     // Обновляем позицию и поворот
     entityContainer.x = cameraX;
     entityContainer.y = cameraY;
-    entityContainer.rotation = entity.rotation || 0;  // 🎯 НОВИНКА: Применяем поворот
+    entityContainer.rotation = entity.rotation || 0;  // 🎯 Применяем поворот
+    
+    // 🪞 Применяем зеркальное отражение
+    if (entity.typeRotate === 'mirror' && entity.isMirrored) {
+      if (entity.mirrorAxis === 'x') {
+        entityContainer.scale.y = -1; // Отражение по оси X (верх/низ)
+      } else { // mirrorAxis === 'y'
+        entityContainer.scale.x = -1; // Отражение по оси Y (лево/право)
+      }
+    } else {
+      // Сбрасываем отражение если нужно
+      entityContainer.scale.x = 1;
+      entityContainer.scale.y = 1;
+    }
     
     // Отмечаем как актуальный
     if (aliveIds) aliveIds.add(entity.id);

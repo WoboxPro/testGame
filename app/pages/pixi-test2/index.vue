@@ -438,8 +438,12 @@ onMounted(async () => {
         rotationBehavior: 'movement',  // 🎯 Герой поворачивается по направлению движения
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
-        childRotationType: 'orbit',    // 🌍 НОВИНКА: 'stick' = прилипли, 'orbit' = только орбита
-        rotationOffset: Math.PI/2      // 🎯 Смещение угла: 90° = вниз по умолчанию 
+        childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе
+        rotationOffset: Math.PI/2,     // 🎯 Смещение угла: 90° = вниз по умолчанию
+        
+        //  Зеркальный поворот  (как в Vampire Survivors)
+        typeRotate: 'full',          // 'full' | 'mirror' 
+        mirrorAxis: 'y'                // 'x' | 'y' - ось отражения
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
