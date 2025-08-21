@@ -10,6 +10,7 @@ import { Canvas } from './core/Canvas.js';
 import { Camera } from './core/Camera.js';
 import { CameraController } from './core/CameraController.js';
 import { EntityController } from './core/EntityController.js';
+import { AIController } from './core/AIController.js';
 
 
 export class PixiGame {
@@ -34,6 +35,9 @@ export class PixiGame {
     
     // ⏱️ Масштаб времени игры (1 = нормальная скорость)
     this.timeScale = 1;
+
+    // 🤖 AI контроллер
+    this.aiController = null;
   }
   
   /**
@@ -125,6 +129,9 @@ export class PixiGame {
       // 🌍 Обновляем все миры
       this.worlds.forEach(world => {
         world.update(dt);
+        // Обновляем ИИ
+        if (!this.aiController) this.aiController = new AIController(world);
+        this.aiController.update(dt);
       });
       
       // 🎨 Рендерим все канвасы

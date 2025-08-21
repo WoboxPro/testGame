@@ -600,7 +600,7 @@ onMounted(async () => {
       myWorld.addEntity({ x: 20, y: -10, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
       
       // Добавляем врагов разных фракций
-      const orcWarrior1 = myWorld.addUnit(100, -100, { 
+      const orcWarrior1 = myWorld.addUnit(120, -100, { 
         name: 'Орк-воин 1', 
         form: 'soldier', 
         faction: orcFaction,
@@ -608,7 +608,7 @@ onMounted(async () => {
         
         // ⚔️ Боевые характеристики орка
         stats: { 
-          speed: 2,
+          speed: 2, 
           health: 300,          // 3 жизни у орка
           currentHealth: 300,
           touchDamage: 2      // Наносит 2 урона враждебным фракциям
@@ -618,9 +618,14 @@ onMounted(async () => {
           type: 'circle',
           range: 70,
           showBorder: true,
-          color: 0xee00000,
+          color: 0xEE0000,
           width: 1,
           alpha: 0.8
+        },
+        ai: {
+          action: true,
+          type: 'seek',
+          alwaysMove: true
         }
       });
     } catch (error) {

@@ -137,6 +137,11 @@ export class World extends SimpleEventEmitter {
     const entity = EntityFactory.createUnit(x, y, options);
     const addedEntity = this.addEntity(entity);
     
+    // Копируем простые поведенческие конфиги на сущность (например, ai)
+    if (options.ai) {
+      addedEntity.ai = { ...options.ai };
+    }
+
     // Если указана фракция - привязываем к ней
     if (options.faction) {
       this.factionSystem.assignEntityToFaction(addedEntity, options.faction);
