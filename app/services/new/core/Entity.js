@@ -670,8 +670,16 @@ export class Entity {
         break;
     }
     
-    // 🎨 Применяем цвет (кроме сложных форм типа tree)
-    graphics.fill({ color: this.visual.color });
+    // 🎨 Применяем стили: либо только обводка, либо заливка
+    const v = this.visual || {};
+    if (v.onlyStroke) {
+      const strokeColor = v.strokeColor !== undefined ? v.strokeColor : v.color;
+      const strokeWidth = v.strokeWidth !== undefined ? v.strokeWidth : 2;
+      const strokeAlpha = v.strokeAlpha !== undefined ? v.strokeAlpha : 1.0;
+      graphics.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
+    } else {
+      graphics.fill({ color: v.color });
+    }
     
     // 🔲 НОВОЕ: Добавляем обводку фракции если есть
     if (this.visual.factionOutline && this.visual.factionOutline.enabled) {

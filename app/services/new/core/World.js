@@ -142,6 +142,33 @@ export class World extends SimpleEventEmitter {
       this.factionSystem.assignEntityToFaction(addedEntity, options.faction);
     }
     
+    // 👁️ Автосоздание визуального круга видимости как дочерней сущности
+    if (options.vision && options.vision.showBorder && options.vision.type === 'circle') {
+      const v = options.vision;
+      // Сохраняем параметры на сущности (для логики)
+      addedEntity.vision = { ...v };
+      this.addEntity({
+        name: `${addedEntity.name} Vision`,
+        type: 'vision',
+        form: 'circle',
+        size: v.range,
+        parent: addedEntity.id,
+        offsetX: 0,
+        offsetY: 0,
+        rotateChildren: false,
+        visual: {
+          form: 'circle',
+          size: v.range,
+          color: 0x000000, // заливка не используется
+          onlyStroke: true,
+          strokeColor: v.color ?? 0x00FFFF,
+          strokeWidth: v.width ?? 2,
+          strokeAlpha: v.alpha ?? 0.8
+        },
+        collision: { enabled: false }
+      });
+    }
+    
     return addedEntity;
   }
   

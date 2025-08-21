@@ -494,7 +494,16 @@ onMounted(async () => {
         
         // 🔄 НОВИНКА: Система респауна
         respawn: true,        // Возрождение при смерти
-        respawnTime: 3000     // Воскрешение через 3 секунды
+        respawnTime: 3000,     // Воскрешение через 3 секунды
+        // 👁️ Видимость (визуальное кольцо создастся автоматически)
+        vision: {
+          type: 'circle',
+          range: 80,
+          showBorder: true,
+          color: 0x00FFFF,
+          width: 2,
+          alpha: 0.8
+        }
       });
       
       // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
@@ -603,7 +612,15 @@ onMounted(async () => {
           currentHealth: 300,
           touchDamage: 2      // Наносит 2 урона враждебным фракциям
         },
-        respawn: false        // Орки не воскрешаются
+        respawn: false,
+        vision: {
+          type: 'circle',
+          range: 70,
+          showBorder: true,
+          color: 0xee00000,
+          width: 1,
+          alpha: 0.8
+        }
       });
     } catch (error) {
       console.error('❌ Ошибка запуска:', error);
