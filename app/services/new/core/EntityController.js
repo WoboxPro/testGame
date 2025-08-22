@@ -1,3 +1,5 @@
+import * as PIXI from 'pixi.js';
+
 /**
  * 🎮 EntityController - Контроллер управления сущностями
  * 
@@ -33,6 +35,17 @@ export class EntityController {
       
       // 🎹 Раскладка клавиш
       keyLayout: options.keyLayout || 'wasd',      // 'wasd' | 'arrows' | 'both'
+
+      // 📱 Тип контроллера: 'keyboard' | 'touch'
+      controlType: options.controlType || 'keyboard',
+      touch: {
+        mode: options.touch?.mode || 'dynamic', // 'dynamic' | 'static'
+        staticX: options.touch?.staticX || 80,
+        staticY: options.touch?.staticY || 520,
+        radius: options.touch?.radius || 60,
+        innerRadius: options.touch?.innerRadius || 28,
+        showJoystick: options.touch?.showJoystick !== false
+      },
       
       ...options.settings
     };
@@ -51,6 +64,13 @@ export class EntityController {
     if (this.isEnabled) {
       this.enable();
     }
+
+    // 📱 Состояние тач-джойстика
+    this._touchActive = false;
+    this._touchCenter = { x: 0, y: 0 };
+    this._touchVector = { x: 0, y: 0 };
+    this._joystickOuter = null;
+    this._joystickInner = null;
   }
   
   /**
@@ -200,7 +220,11 @@ export class EntityController {
     }
     
     this.isEnabled = true;
+    // Всегда добавляем клавиатурные слушатели, чтобы Tab работал даже в touch-режиме
     this._addEventListeners();
+    if (this.settings.controlType === 'touch' || this.settings.controlType === 'both') {
+      this._setupTouchControls();
+    }
     //console.log('✅ EntityController включен');
   }
   
@@ -212,6 +236,7 @@ export class EntityController {
     
     this.isEnabled = false;
     this._removeEventListeners();
+    this._teardownTouchControls();
     this.pressedKeys.clear();
     this.currentSpeed = this.settings.moveSpeed;
     //console.log('❌ EntityController выключен');
@@ -455,10 +480,21 @@ export class EntityController {
       // Обновляем скорость на случай изменения модификаторов
       this._updateSpeed();
       
-      // Обрабатываем все нажатые клавиши движения
-      for (const action of this.pressedKeys) {
-        if (action.startsWith('move_')) {
-          this._executeAction(action, dtMs);
+      if (this.settings.controlType === 'touch' || this.settings.controlType === 'both') {
+        // Аналоговое движение по вектору тача
+        if (this._touchActive) {
+          const frameFactor = Math.max(0, dtMs) / 16.67;
+          const deltaX = this._touchVector.x * this.currentSpeed * frameFactor;
+          const deltaY = this._touchVector.y * this.currentSpeed * frameFactor;
+          this._moveEntities(deltaX, deltaY);
+        }
+      }
+      if (this.settings.controlType === 'keyboard' || this.settings.controlType === 'both') {
+        // Обрабатываем все нажатые клавиши движения
+        for (const action of this.pressedKeys) {
+          if (action.startsWith('move_')) {
+            this._executeAction(action, dtMs);
+          }
         }
       }
       
@@ -479,8 +515,99 @@ export class EntityController {
     if (newSettings.keyLayout) {
       this.keyMap = this._createKeyMap();
     }
+    // 📱 Переключение типа контроллера на лету
+    if (newSettings.controlType || newSettings.touch) {
+      this._teardownTouchControls();
+      if (this.settings.controlType === 'touch' || this.settings.controlType === 'both') {
+        this._setupTouchControls();
+      }
+    }
     
     //console.log('⚙️ EntityController настройки обновлены:', newSettings);
+  }
+
+  /**
+   * 📱 Инициализация тач-джойстика
+   */
+  _setupTouchControls() {
+    const app = this.game?.mainApp;
+    if (!app || !app.stage) return;
+    const stage = app.stage;
+    stage.eventMode = 'static';
+    
+    this._onPointerDown = (e) => {
+      const p = e.global;
+      if (this.settings.touch.mode === 'dynamic') {
+        this._touchCenter.x = p.x;
+        this._touchCenter.y = p.y;
+      } else {
+        this._touchCenter.x = this.settings.touch.staticX;
+        this._touchCenter.y = this.settings.touch.staticY;
+      }
+      this._touchActive = true;
+      this._updateJoystickVisual(p.x, p.y, true);
+    };
+    this._onPointerMove = (e) => {
+      if (!this._touchActive) return;
+      const p = e.global;
+      const dx = p.x - this._touchCenter.x;
+      const dy = p.y - this._touchCenter.y;
+      const r = this.settings.touch.radius;
+      const len = Math.hypot(dx, dy) || 1;
+      const clamped = Math.min(len, r);
+      const nx = dx / len;
+      const ny = dy / len;
+      this._touchVector.x = (clamped / r) * nx; // от -1..1
+      this._touchVector.y = (clamped / r) * ny;
+      this._updateJoystickVisual(this._touchCenter.x + nx * clamped, this._touchCenter.y + ny * clamped, true);
+    };
+    this._onPointerUp = () => {
+      this._touchActive = false;
+      this._touchVector.x = 0; this._touchVector.y = 0;
+      this._updateJoystickVisual(0, 0, false);
+    };
+    stage.on('pointerdown', this._onPointerDown);
+    stage.on('pointermove', this._onPointerMove);
+    stage.on('pointerup', this._onPointerUp);
+    stage.on('pointerupoutside', this._onPointerUp);
+  }
+
+  _teardownTouchControls() {
+    const app = this.game?.mainApp;
+    if (app?.stage) {
+      const stage = app.stage;
+      if (this._onPointerDown) stage.off('pointerdown', this._onPointerDown);
+      if (this._onPointerMove) stage.off('pointermove', this._onPointerMove);
+      if (this._onPointerUp) stage.off('pointerup', this._onPointerUp);
+      if (this._onPointerUp) stage.off('pointerupoutside', this._onPointerUp);
+    }
+    if (this._joystickOuter) { try { this._joystickOuter.destroy(); } catch(_) {} this._joystickOuter = null; }
+    if (this._joystickInner) { try { this._joystickInner.destroy(); } catch(_) {} this._joystickInner = null; }
+  }
+
+  _updateJoystickVisual(innerX, innerY, visible) {
+    if (!this.settings.touch.showJoystick) return;
+    const app = this.game?.mainApp;
+    if (!app || !app.stage) return;
+    if (!this._joystickOuter) {
+      const g1 = new PIXI.Graphics();
+      const g2 = new PIXI.Graphics();
+      app.stage.addChild(g1);
+      app.stage.addChild(g2);
+      this._joystickOuter = g1;
+      this._joystickInner = g2;
+    }
+    const r = this.settings.touch.radius;
+    const ir = this.settings.touch.innerRadius;
+    this._joystickOuter.clear();
+    this._joystickInner.clear();
+    if (!visible) return;
+    // Внешний круг
+    this._joystickOuter.circle(this._touchCenter.x, this._touchCenter.y, r);
+    this._joystickOuter.stroke({ color: 0xffffff, width: 2, alpha: 0.5 });
+    // Внутренний круг (ручка)
+    this._joystickInner.circle(innerX, innerY, ir);
+    this._joystickInner.fill({ color: 0xffffff, alpha: 0.3 });
   }
   
   /**
