@@ -492,13 +492,17 @@ onMounted(async () => {
         // 👁️ Видимость (визуальное кольцо создастся автоматически)
         vision: {
           type: 'cone',
-          angle: 45,
-          range: 80,
+          angle: 70,
+          range: 150,
           showBorder: true,
           color: 0x00FFFF,
           width: 2,
           alpha: 0.8,
           //directionOffsetDeg: 0, // увеличьте/уменьшите при необходимости
+            occlusion: {
+            enabled: true,
+            blockedBy: ['building', 'structure'] // по collision.name или по entity.type
+          }
         }
       });
       
@@ -636,7 +640,11 @@ onMounted(async () => {
           showBorder: true,
           color: 0x00FFFF,
           width: 2,
-          alpha: 0.8
+          alpha: 0.8,
+          occlusion: {
+            enabled: true,
+            blockedBy: ['building', 'structure'] // по collision.name или по entity.type
+          }
         },
         ai: aiAgent
       });

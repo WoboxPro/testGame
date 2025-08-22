@@ -89,7 +89,82 @@ export class AIController {
     while (diff > Math.PI) diff -= 2 * Math.PI;
     while (diff < -Math.PI) diff += 2 * Math.PI;
 
-    return Math.abs(diff) <= halfFovRad;
+    const withinFov = Math.abs(diff) <= halfFovRad;
+    if (!withinFov) return false;
+
+    // Опциональная окклюзия: здания/структуры закрывают линию видимости
+    if (vision.occlusion && vision.occlusion.enabled) {
+      if (this._isOccluded(entity, other, vision.occlusion)) return false;
+    }
+
+    return true;
+  }
+
+  _isOccluded(observer, target, occlusion) {
+    const blockedBy = new Set(occlusion.blockedBy && Array.isArray(occlusion.blockedBy)
+      ? occlusion.blockedBy
+      : ['building', 'structure']);
+    const entities = this.world.getAllEntities();
+
+    const ax = observer.x, ay = observer.y;
+    const bx = target.x, by = target.y;
+    const distAT = Math.hypot(bx - ax, by - ay);
+    if (distAT <= 0) return false;
+
+    for (const e of entities) {
+      if (!e || e.id === observer.id || e.id === target.id) continue;
+      // Фильтр типов блокеров: по collision.name или по типу сущности
+      const collName = e.collision?.name;
+      const isBlockedType = (collName && blockedBy.has(collName)) || (e.type && blockedBy.has(e.type));
+      if (!isBlockedType) continue;
+
+      // Грубая аппроксимация препятствия окружностью радиуса по наибольшей полуоси
+      const dims = this._getEntityHalfExtents(e);
+      const radius = Math.max(dims.halfWidth, dims.halfHeight);
+      if (radius <= 0) continue;
+
+      // Быстрая проверка: центр препятствия должен быть ближе к наблюдателю, чем цель
+      const cx = e.x, cy = e.y;
+      const distAC = Math.hypot(cx - ax, cy - ay);
+      if (distAC >= distAT + radius) continue;
+
+      // Точная проверка: пересечение отрезка AB с кругом (C, r)
+      if (this._segmentIntersectsCircle(ax, ay, bx, by, cx, cy, radius)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  _getEntityHalfExtents(entity) {
+    // Пытаемся взять реальные размеры, иначе оцениваем по visual.size
+    let halfWidth = 0, halfHeight = 0;
+    if (entity.width && entity.height) {
+      halfWidth = Math.abs(entity.width) / 2;
+      halfHeight = Math.abs(entity.height) / 2;
+    } else if (entity.collision?.form === 'rect' && entity.collision.width && entity.collision.height) {
+      halfWidth = Math.abs(entity.collision.width) / 2;
+      halfHeight = Math.abs(entity.collision.height) / 2;
+    } else {
+      const s = (entity.visual?.size != null) ? entity.visual.size : (entity.size || 0);
+      halfWidth = s;
+      halfHeight = s;
+    }
+    return { halfWidth, halfHeight };
+  }
+
+  _segmentIntersectsCircle(ax, ay, bx, by, cx, cy, r) {
+    // Находим ближайшую точку от C на сегменте AB и проверяем расстояние до неё
+    const abx = bx - ax, aby = by - ay;
+    const acx = cx - ax, acy = cy - ay;
+    const abLen2 = abx * abx + aby * aby;
+    if (abLen2 === 0) return false;
+    let t = (acx * abx + acy * aby) / abLen2;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    const px = ax + abx * t;
+    const py = ay + aby * t;
+    const dist = Math.hypot(px - cx, py - cy);
+    return dist <= r;
   }
 
   _findNearestHostile(entity) {
