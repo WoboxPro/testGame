@@ -17,13 +17,30 @@ export class AIController {
       if (!ai?.action || entity.isDead) continue;
       if (!entity.vision || !entity.vision.range) continue;
 
-      // Ищем хоть одну видимую вражескую цель
+      // Ищем хоть одну видимую вражескую цель (с учетом типа зрения)
       let target = this._findVisibleTarget(entity, entity.vision.range);
       if (!target && ai.alwaysMove) {
         // Если всегда движемся — ищем ближайшего врага без ограничения по радиусу
         target = this._findNearestHostile(entity);
       }
+      // Поворачиваемся ТОЛЬКО если цель видна в текущем FOV
+      const rotateTarget = target;
+      // Обновляем флаги видимости для внешней логики/UI
+      if (!entity.vision) entity.vision = {};
+      entity.vision.seesTarget = !!target;
+      entity.vision.visibleTargetId = target?.id || null;
+
+      // Поворачиваемся к цели (видимой или ближайшей в радиусе)
+      if (rotateTarget && ai?.faceTarget !== false) {
+        this._rotateTowardsTarget(entity, rotateTarget, dtMs);
+      }
+
       if (!target && !ai.alwaysMove) continue; // никого не видим — стоим (если не включен alwaysMove)
+
+      // Поворачиваемся к цели, чтобы удерживать её в центре конуса зрения
+      if (target && ai?.faceTarget !== false) {
+        this._rotateTowardsTarget(entity, target, dtMs);
+      }
 
       if (ai.type === 'seek' && target) {
         this._moveTowards(entity, target, dtMs);
@@ -37,17 +54,42 @@ export class AIController {
   _findVisibleTarget(entity, range) {
     const enemies = this.world.getAllEntities();
     let found = null;
-    const range2 = range * range;
     for (const other of enemies) {
       if (!this._isValidTarget(entity, other)) continue;
-      const dx = other.x - entity.x;
-      const dy = other.y - entity.y;
-      if (dx * dx + dy * dy <= range2) {
-        found = other;
-        break;
-      }
+      if (this._isTargetVisible(entity, other, range)) { found = other; break; }
     }
     return found;
+  }
+
+  _isTargetVisible(entity, other, range) {
+    // Проверка дистанции
+    const dx = other.x - entity.x;
+    const dy = other.y - entity.y;
+    if (dx * dx + dy * dy > (range * range)) return false;
+
+    // Тип видимости: circle | cone (по умолчанию circle)
+    const vision = entity.vision || {};
+    const type = vision.type || 'circle';
+    if (type === 'circle') return true;
+
+    // Для конуса проверяем угол относительно направления движения
+    const fovDeg = (vision.angle !== undefined ? vision.angle : (vision.fov !== undefined ? vision.fov : 60));
+    const halfFovRad = (fovDeg * Math.PI) / 360;
+
+    // Направление взгляда: rotation - rotationOffset + optional directionOffset
+    const baseFacing = (entity.rotation || 0) - (entity.rotationOffset || 0);
+    const directionOffset = (vision.directionOffsetRad !== undefined)
+      ? vision.directionOffsetRad
+      : ((vision.directionOffsetDeg || 0) * Math.PI / 180);
+    const facing = baseFacing + directionOffset;
+
+    const angToTarget = Math.atan2(dy, dx);
+    let diff = angToTarget - facing;
+    // Нормализация угла к диапазону [-PI, PI]
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+
+    return Math.abs(diff) <= halfFovRad;
   }
 
   _findNearestHostile(entity) {
@@ -60,6 +102,23 @@ export class AIController {
       const dy = other.y - entity.y;
       const d2 = dx * dx + dy * dy;
       if (d2 < bestD2) { bestD2 = d2; nearest = other; }
+    }
+    return nearest;
+  }
+
+  _findNearestHostileWithin(entity, range) {
+    const entities = this.world.getAllEntities();
+    let nearest = null;
+    let bestD2 = range * range;
+    for (const other of entities) {
+      if (!this._isValidTarget(entity, other)) continue;
+      const dx = other.x - entity.x;
+      const dy = other.y - entity.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= bestD2 && (nearest === null || d2 < bestD2)) {
+        bestD2 = d2;
+        nearest = other;
+      }
     }
     return nearest;
   }
@@ -174,6 +233,53 @@ export class AIController {
     }
     entity.setPosition(newX, newY);
     if (this.world?.biomeSystem) this.world.updateEntityPosition(entity, newX, newY);
+  }
+
+  _rotateTowardsTarget(entity, target, dtMs) {
+    // Целевой угол в мировых координатах
+    const dx = target.x - entity.x;
+    const dy = target.y - entity.y;
+    const targetAngleWorld = Math.atan2(dy, dx);
+
+    // Угол, который должен иметь entity.rotation, чтобы направление взгляда совпадало с targetAngleWorld
+    // facing = (rotation - rotationOffset) + directionOffset
+    const rotationOffset = entity.rotationOffset || 0;
+    const vision = entity.vision || {};
+    const directionOffset = (vision.directionOffsetRad !== undefined)
+      ? vision.directionOffsetRad
+      : ((vision.directionOffsetDeg || 0) * Math.PI / 180);
+    const desiredRotation = targetAngleWorld + rotationOffset - directionOffset;
+
+    // Плавный поворот к целевому углу
+    const before = entity.rotation || 0;
+    let delta = desiredRotation - before;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    while (delta < -Math.PI) delta += 2 * Math.PI;
+
+    const speed = entity.rotationSpeed || 0.2; // как в сущности
+    const timeFactor = Math.max(0, dtMs) / 16.67;
+    entity.rotation = before + delta * speed * timeFactor;
+    const appliedDelta = entity.rotation - before;
+
+    // Нормализация
+    while (entity.rotation > Math.PI) entity.rotation -= 2 * Math.PI;
+    while (entity.rotation < -Math.PI) entity.rotation += 2 * Math.PI;
+
+    // Поворачиваем дочерние сущности, чтобы визуальные элементы (например, конус) следовали повороту
+    if (entity.rotateChildren && appliedDelta !== 0) {
+      entity.rotateChildrenBy(appliedDelta);
+      entity.updateChildrenPositions();
+    }
+
+    // Дополнительно: принудительно синхронизируем поворот дочерних vision-элементов с родителем
+    if (entity.world && entity.children && entity.children.size > 0) {
+      for (const childId of entity.children) {
+        const child = entity.world.getEntity(childId);
+        if (child && child.type === 'vision') {
+          child.rotation = entity.rotation;
+        }
+      }
+    }
   }
 }
 

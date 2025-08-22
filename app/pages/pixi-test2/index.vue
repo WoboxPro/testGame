@@ -570,7 +570,7 @@ onMounted(async () => {
       //myCamera3.followEntity(controlledHero2);
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
-        controlType: 'touch', //'keyboard' | 'touch' | 'both'
+        controlType: 'keyboard', //'keyboard' | 'touch' | 'both'
         touch: { 
           mode: 'dynamic', // static | dynamic
           staticX: 0,
@@ -604,7 +604,8 @@ onMounted(async () => {
           action: true,
           type: 'seek',
           alwaysMove: false,
-          attackNeutral: false
+          attackNeutral: false,
+          //faceTarget: true // - не поворачиваться к цели
       };
       const visionAgent = {
         type: 'circle',
@@ -649,6 +650,7 @@ onMounted(async () => {
           currentHealth: 300,
           touchDamage: 2     
         },
+        rotationSpeed: 0.01,
         respawn: false,
         vision: visionAgent,
         ai: aiAgent
