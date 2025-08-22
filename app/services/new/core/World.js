@@ -147,7 +147,7 @@ export class World extends SimpleEventEmitter {
       this.factionSystem.assignEntityToFaction(addedEntity, options.faction);
     }
     
-    // 👁️ Автосоздание визуального круга видимости как дочерней сущности
+    // 👁️ Автосоздание визуальной области видимости как дочерней сущности
     if (options.vision && options.vision.showBorder && options.vision.type === 'circle') {
       const v = options.vision;
       // Сохраняем параметры на сущности (для логики)
@@ -169,6 +169,41 @@ export class World extends SimpleEventEmitter {
           strokeColor: v.color ?? 0x00FFFF,
           strokeWidth: v.width ?? 2,
           strokeAlpha: v.alpha ?? 0.8
+        },
+        collision: { enabled: false }
+      });
+    }
+    // 👁️ Вариант: конический обзор (поле зрения в виде сектора)
+    else if (options.vision && options.vision.showBorder && options.vision.type === 'cone') {
+      const v = options.vision;
+      // Сохраняем параметры на сущности (для логики)
+      addedEntity.vision = { ...v };
+      const angle = v.angle ?? v.fov ?? 60; // градусов
+      const segments = v.segments ?? 24;    // сглаживание дуги
+      // Базовый сдвиг ориентации: по умолчанию компенсируем rotationOffset родителя, чтобы конус смотрел по направлению движения
+      const parentRotationOffset = addedEntity.rotationOffset ?? 0; // в радианах
+      const userOffsetRad = v.directionOffsetRad ?? ((v.directionOffsetDeg ?? 0) * Math.PI / 180);
+      const baseAngle = v.baseAngle ?? (userOffsetRad - parentRotationOffset);
+      this.addEntity({
+        name: `${addedEntity.name} Vision`,
+        type: 'vision',
+        form: 'vision_cone',
+        size: v.range,
+        parent: addedEntity.id,
+        offsetX: 0,
+        offsetY: 0,
+        rotateChildren: false,
+        visual: {
+          form: 'vision_cone',
+          size: v.range,
+          color: 0x000000,
+          onlyStroke: true,
+          strokeColor: v.color ?? 0x00FFFF,
+          strokeWidth: v.width ?? 2,
+          strokeAlpha: v.alpha ?? 0.8,
+          angle,
+          segments,
+          baseAngle
         },
         collision: { enabled: false }
       });

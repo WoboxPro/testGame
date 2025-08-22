@@ -507,6 +507,26 @@ export class Entity {
       case 'circle':
         graphics.circle(0, 0, this.visual.size);
         break;
+      
+      case 'vision_cone': {
+        // Рисуем сектор круга (клиновидный конус обзора), ориентированный по rotation сущности
+        const radius = this.visual.size;
+        const angleDeg = this.visual.angle !== undefined ? this.visual.angle : 60; // угол FOV в градусах
+        const segments = this.visual.segments !== undefined ? this.visual.segments : 24; // количество сегментов дуги
+        const halfRad = (angleDeg * Math.PI) / 360; // половина угла в радианах
+        const baseAngle = this.visual.baseAngle || 0; // дополнительное смещение направления в радианах
+
+        // Дуга от -halfRad до +halfRad относительно текущей ориентации
+        const points = [0, 0];
+        for (let i = 0; i <= segments; i++) {
+          const t = baseAngle + (-halfRad + (i * (2 * halfRad)) / segments);
+          const x = Math.cos(t) * radius;
+          const y = Math.sin(t) * radius;
+          points.push(x, y);
+        }
+        graphics.poly(points);
+        break;
+      }
         
       case 'rect':
       case 'building':

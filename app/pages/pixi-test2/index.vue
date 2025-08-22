@@ -491,12 +491,14 @@ onMounted(async () => {
         respawnTime: 3000,     // Воскрешение через 3 секунды
         // 👁️ Видимость (визуальное кольцо создастся автоматически)
         vision: {
-          type: 'circle',
+          type: 'cone',
+          angle: 45,
           range: 80,
           showBorder: true,
           color: 0x00FFFF,
           width: 2,
-          alpha: 0.8
+          alpha: 0.8,
+          //directionOffsetDeg: 0, // увеличьте/уменьшите при необходимости
         }
       });
       
@@ -625,7 +627,15 @@ onMounted(async () => {
           touchDamage: 2     
         },
         respawn: false,
-        vision: visionAgent,
+        vision: {
+          type: 'cone',
+          angle: 45,
+          range: 150,
+          showBorder: true,
+          color: 0x00FFFF,
+          width: 2,
+          alpha: 0.8
+        },
         ai: aiAgent
       });
       const enemy2 = myWorld.addUnit(-200, 190, { 
