@@ -256,10 +256,14 @@ export class AIController {
     while (delta > Math.PI) delta -= 2 * Math.PI;
     while (delta < -Math.PI) delta += 2 * Math.PI;
 
-    const speed = entity.rotationSpeed || 0.2; // как в сущности
+    // Приоритет: stats.rotationSpeed, иначе entity.rotationSpeed, иначе 0.2
+    const statsRot = entity.stats?.getRotationSpeed ? entity.stats.getRotationSpeed() : null;
+    const speed = (statsRot != null) ? statsRot : (entity.rotationSpeed || 0.2);
     const timeFactor = Math.max(0, dtMs) / 16.67;
-    entity.rotation = before + delta * speed * timeFactor;
-    const appliedDelta = entity.rotation - before;
+    const maxStep = Math.max(0, speed * timeFactor);
+    const step = Math.sign(delta) * Math.min(Math.abs(delta), maxStep);
+    entity.rotation = before + step;
+    const appliedDelta = step;
 
     // Нормализация
     while (entity.rotation > Math.PI) entity.rotation -= 2 * Math.PI;

@@ -247,7 +247,9 @@ export class Entity {
     const oldRotation = this.rotation;
     
     // Применяем поворот с учетом скорости
-    this.rotation += angleDiff * this.rotationSpeed;
+    const statsRot = this.stats?.getRotationSpeed ? this.stats.getRotationSpeed() : null;
+    const rs = (statsRot != null) ? statsRot : this.rotationSpeed;
+    this.rotation += angleDiff * rs;
     
     // Нормализуем итоговый угол
     while (this.rotation > Math.PI) this.rotation -= 2 * Math.PI;

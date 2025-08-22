@@ -89,7 +89,7 @@ onMounted(async () => {
         focusY: 0,           // 🎯 Тоже смотрит на центр мира  
         world: myWorld,      // ТОТ ЖЕ МИР!
         canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 2,           // Слегка увеличенный зум (было 2.0)
+        zoom: 1.3,           // Слегка увеличенный зум (было 2.0)
         priority: 3,
         respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
         hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border','vision'],    // Скрываем пули, эффекты, частицы
@@ -567,7 +567,7 @@ onMounted(async () => {
       
       //  Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
-      //myCamera3.followEntity(controlledHero2);
+      myCamera3.followEntity(controlledHero2);
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         controlType: 'keyboard', //'keyboard' | 'touch' | 'both'
@@ -625,13 +625,14 @@ onMounted(async () => {
           speed: 0.5, 
           health: 300,          
           currentHealth: 300,
-          touchDamage: 2     
+          touchDamage: 2,
+           rotationSpeed: 0.01,     
         },
         respawn: false,
         vision: {
           type: 'cone',
-          angle: 45,
-          range: 150,
+          angle: 80,
+          range: 180,
           showBorder: true,
           color: 0x00FFFF,
           width: 2,
@@ -648,9 +649,8 @@ onMounted(async () => {
           speed: 0.7, 
           health: 300,          
           currentHealth: 300,
-          touchDamage: 2     
+          touchDamage: 2,
         },
-        rotationSpeed: 0.01,
         respawn: false,
         vision: visionAgent,
         ai: aiAgent

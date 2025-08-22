@@ -9,6 +9,8 @@ export class CharacterStats {
   constructor(config = {}) {
     // 🏃 Скорость передвижения
     this.speed = config.speed || 1;
+    // 🔄 Скорость поворота (рад/тик)
+    this.rotationSpeed = config.rotationSpeed !== undefined ? config.rotationSpeed : null;
     
     // ❤️ Система жизней (необязательный параметр)
     this.maxHealth = config.health !== undefined ? config.health : null;
@@ -19,6 +21,7 @@ export class CharacterStats {
     
     // 🔧 Служебные поля
     this._baseSpeed = this.speed; // Сохраняем базовую скорость для эффектов
+    this._baseRotationSpeed = this.rotationSpeed; // Может быть null, если не задана
   }
   
   /**
@@ -33,6 +36,30 @@ export class CharacterStats {
    */
   setSpeed(newSpeed) {
     this.speed = Math.max(0, newSpeed); // Не может быть отрицательной
+    return this;
+  }
+
+  /**
+   * 🔄 Получить текущую скорость поворота (если не задана — вернуть null)
+   */
+  getRotationSpeed() {
+    return this.rotationSpeed !== undefined ? this.rotationSpeed : null;
+  }
+
+  /**
+   * 🔄 Установить скорость поворота
+   */
+  setRotationSpeed(newSpeed) {
+    this.rotationSpeed = Math.max(0, newSpeed);
+    if (this._baseRotationSpeed == null) this._baseRotationSpeed = this.rotationSpeed;
+    return this;
+  }
+
+  /**
+   * 🔄 Сбросить скорость поворота к базовой
+   */
+  resetRotationSpeed() {
+    this.rotationSpeed = this._baseRotationSpeed;
     return this;
   }
   
@@ -138,6 +165,7 @@ export class CharacterStats {
   clone() {
     const newStats = new CharacterStats({
       speed: this._baseSpeed,
+      rotationSpeed: this._baseRotationSpeed,
       health: this.maxHealth,
       touchDamage: this.touchDamage
     });
@@ -152,6 +180,8 @@ export class CharacterStats {
     return {
       speed: this.speed,
       baseSpeed: this._baseSpeed,
+      rotationSpeed: this.rotationSpeed,
+      baseRotationSpeed: this._baseRotationSpeed,
       currentHealth: this.currentHealth,
       maxHealth: this.maxHealth,
       touchDamage: this.touchDamage
@@ -164,6 +194,8 @@ export class CharacterStats {
   fromObject(data) {
     if (data.speed !== undefined) this.speed = data.speed;
     if (data.baseSpeed !== undefined) this._baseSpeed = data.baseSpeed;
+    if (data.rotationSpeed !== undefined) this.rotationSpeed = data.rotationSpeed;
+    if (data.baseRotationSpeed !== undefined) this._baseRotationSpeed = data.baseRotationSpeed;
     if (data.currentHealth !== undefined) this.currentHealth = data.currentHealth;
     if (data.maxHealth !== undefined) this.maxHealth = data.maxHealth;
     if (data.touchDamage !== undefined) this.touchDamage = data.touchDamage;
