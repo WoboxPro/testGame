@@ -571,7 +571,7 @@ onMounted(async () => {
         moveSpeed: 3,                    // Скорость движения сущности
         fastSpeedMultiplier: 1.5,        // Ускорение на Shift (+50%)
         slowSpeedMultiplier: 0.7,        // Замедление на Ctrl (50%)
-        keyLayout: 'wasd',               // Управление WASD
+        keyLayout: 'wasd',             // wasd/arrows
         controlMode: 'all',              // 🌍 'all' = двигаем все сразу, 'single' = по одной с Tab
         useEntityMovementParams: false,  // Пока не используем параметры сущности
         respectEntityBounds: true        // Учитываем границы мира
