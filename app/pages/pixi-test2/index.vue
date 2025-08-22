@@ -568,7 +568,7 @@ onMounted(async () => {
       //myCamera3.followEntity(controlledHero2);
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
-        controlType: 'touch',
+        controlType: 'touch', //'keyboard' | 'touch' | 'both'
         touch: { 
           mode: 'static', // static | dynamic
           staticX: 0,
