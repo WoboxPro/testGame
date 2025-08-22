@@ -570,7 +570,7 @@ onMounted(async () => {
       const entityController = game.createEntityController({
         controlType: 'touch', //'keyboard' | 'touch' | 'both'
         touch: { 
-          mode: 'static', // static | dynamic
+          mode: 'dynamic', // static | dynamic
           staticX: 0,
           staticY: 0,
           radius: 70, 
