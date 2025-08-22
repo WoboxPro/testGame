@@ -312,17 +312,17 @@ onMounted(async () => {
 // END: FRACTION -----------------------------------------------------------------------------------------------------------------
 // COLLISION -----------------------------------------------------------------------------------------------------------------
 
-      // 🎯 НОВИНКА: Настройка системы коллизий!
+      // Настройка системы коллизий!
       
       // Создаем тип коллизии для юнитов (фиксированный радиус)
       const unitCollisionType = createUnitCollision({ radius: 12 });
       
-      // 🎯 НОВИНКА: Автоматические коллизии (размер от entity.size)
+      // Автоматические коллизии (размер от entity.size)
       const autoCollisionType = createAutoUnitCollision({ 
         sizeMultiplier: 1.2 // На 20% больше чем размер сущности
       });
       
-      // 📡 НОВИНКА: Триггерные коллизии (только события, не блокируют)
+      // Триггерные коллизии (только события, не блокируют)
       const triggerCollisionType = createTriggerCollision({ 
         name: 'pickup',
         radius: 15 
@@ -402,7 +402,7 @@ onMounted(async () => {
         console.log(`🔔 Дополнительная логика воскрешения выполнена для ${entity.name}`);
       });
 
-      // 🏗️ НОВИНКА: Событие коллизии с прямоугольной сущностью
+      // Событие коллизии с прямоугольной сущностью
       myWorld.on('unit_building_enter', ({entityA, entityB, distance}) => {
         console.log(`🏗️ ЗДАНИЕ: ${entityA.name} столкнулся с ${entityB.name} (расстояние: ${distance.toFixed(1)})`);
         if (entityB.collision.form === 'rect') {
@@ -430,7 +430,7 @@ onMounted(async () => {
         collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
       });
 
-      // 🎁 НОВИНКА: Триггерные объекты (НЕ блокируют движение, только события!)
+      // Триггерные объекты (НЕ блокируют движение, только события!)
       myWorld.addEntity({
         x: 620, y: -700,
         name: 'Подарок 1 (Trigger)',
@@ -442,7 +442,7 @@ onMounted(async () => {
       });
       
       
-      // 🎯 НОВИНКА: Прямоугольная сущность с width/height!
+      // Прямоугольная сущность с width/height!
       myWorld.addEntity({
         x: 0, y: 100,
         name: 'Прямоугольный Тест',
@@ -481,11 +481,12 @@ onMounted(async () => {
         //  Зеркальный поворот  (как в Vampire Survivors)
         typeRotate: 'full',          // 'full' | 'mirror' 
         mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
-        
-        // 📊 НОВИНКА: Характеристики героя (быстрый)
-        stats: { speed: 4, health: 2, currentHealth: 1 },  // Быстрый, 2 макс жизни, 1 текущая
-        
-        // 🔄 НОВИНКА: Система респауна
+        stats: { 
+          speed: 4, 
+          health: 2, 
+          currentHealth: 1 
+        },  
+        // Система респауна
         respawn: true,        // Возрождение при смерти
         respawnTime: 3000,     // Воскрешение через 3 секунды
         // 👁️ Видимость (визуальное кольцо создастся автоматически)
@@ -525,7 +526,6 @@ onMounted(async () => {
       });
       console.log(`🗡️ Оружие создано: ${heroWeapon.name} привязано к ${controlledHero.name}`);
       
-      // 🔫 ПУЛИ (НЕ будут видны в мини-карте)
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 
         type: 'unit',        // 🎯 Меняем тип чтобы была видна в мини-карте
@@ -537,21 +537,19 @@ onMounted(async () => {
         rotationBehavior: 'movement',  // 🎯 НОВИНКА: Алмаз поворачивается по направлению движения
         rotationSpeed: 0.3,            // Быстрее чем у героя для наглядности
         rotationOffset: 0,             // 🎯 Без смещения = вправо по умолчанию (для сравнения)
-        
-        // 📊 НОВИНКА: Характеристики алмаза (медленный)
+        // Характеристики  
         stats: { 
           speed: 2, 
           health: 100, 
           currentHealth: 100,
           touchDamage: 1      // ⚔️ Алмаз наносит урон враждебным фракциям
         },
-        
-        // 🔄 НОВИНКА: Система респауна  
+        //  Система респауна  
         respawn: true,        // Возрождение при смерти
         respawnTime: 1500     // Воскрешение через 1.5 секунды (быстрее чем у героя)
       });
 
-      // 🪤 НОВИНКА: Создаем ловушку с уроном при касании
+      // Создаем ловушку с уроном при касании
       const damageTrap = myWorld.addEntity({
         x: 50, y: 50,
         type: 'trap',
@@ -561,15 +559,14 @@ onMounted(async () => {
         name: 'Шипастая ловушка',
         color: 0xFF0000,  // Красный цвет для опасности
         collision: createTriggerCollision({ name: 'trap', form: 'rect', width: 30, height: 30 }),
-        
-        // ⚔️ НОВИНКА: Урон при касании
+        // Урон при касании
         stats: { touchDamage: 1 }  // Наносит 1 урон при касании
       });
       
-      // 📹 НОВИНКА: Камера автоматически следит за управляемым героем!
+      //  Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
       myCamera3.followEntity(controlledHero2);
-      // 🎮 НОВИНКА: Создаем контроллер для управления множественными сущностями
+      // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         moveSpeed: 3,                    // Скорость движения сущности
         fastSpeedMultiplier: 1.5,        // Ускорение на Shift (+50%)
@@ -590,7 +587,6 @@ onMounted(async () => {
 
 // END: PLAYER -----------------------------------------------------------------------------------------------------------------
     myWorld.addEntity({ x: 570, y: -700, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
-
      
      
      const aiAgent = {
