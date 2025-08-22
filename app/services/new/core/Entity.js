@@ -510,21 +510,47 @@ export class Entity {
         graphics.circle(0, 0, this.visual.size);
         break;
       
+      case 'vision_circle': {
+        // Динамическое круговое поле зрения с окклюзией
+        const radius = this.visual.size;
+        const occ = this.visual.occlusion || {};
+        const enabled = !!occ.enabled && (occ.vision !== false);
+        const samples = Math.max(8, Math.min(256, occ.samples || 64));
+        if (!enabled || !this.world) {
+          graphics.circle(0, 0, radius);
+          break;
+        }
+        const points = [0, 0];
+        const step = (Math.PI * 2) / samples;
+        for (let i = 0; i <= samples; i++) {
+          const t = -Math.PI + i * step;
+          const d = this._castOcclusionRay(0, 0, t, radius, occ);
+          points.push(Math.cos(t) * d, Math.sin(t) * d);
+        }
+        graphics.poly(points);
+        break;
+      }
+      
       case 'vision_cone': {
         // Рисуем сектор круга (клиновидный конус обзора), ориентированный по rotation сущности
         const radius = this.visual.size;
         const angleDeg = this.visual.angle !== undefined ? this.visual.angle : 60; // угол FOV в градусах
-        const segments = this.visual.segments !== undefined ? this.visual.segments : 24; // количество сегментов дуги
+        const segments = this.visual.segments !== undefined ? this.visual.segments : 24; // базовое количество сегментов дуги
         const halfRad = (angleDeg * Math.PI) / 360; // половина угла в радианах
         const baseAngle = this.visual.baseAngle || 0; // дополнительное смещение направления в радианах
-
-        // Дуга от -halfRad до +halfRad относительно текущей ориентации
+        const occ = this.visual.occlusion || {};
+        const occEnabled = !!occ.enabled && (occ.vision !== false) && !!this.world;
         const points = [0, 0];
-        for (let i = 0; i <= segments; i++) {
-          const t = baseAngle + (-halfRad + (i * (2 * halfRad)) / segments);
-          const x = Math.cos(t) * radius;
-          const y = Math.sin(t) * radius;
-          points.push(x, y);
+        const totalArc = 2 * halfRad;
+        const raySamples = occEnabled ? Math.max(8, Math.min(256, occ.samples || segments)) : segments;
+        for (let i = 0; i <= raySamples; i++) {
+          const local = -halfRad + (i * totalArc) / raySamples;
+          const t = baseAngle + local;
+          let dist = radius;
+          if (occEnabled) {
+            dist = this._castOcclusionRay(0, 0, t, radius, occ);
+          }
+          points.push(Math.cos(t) * dist, Math.sin(t) * dist);
         }
         graphics.poly(points);
         break;
@@ -715,6 +741,83 @@ export class Entity {
     
     // ➕ Добавляем в контейнер
     container.addChild(graphics);
+  }
+
+  // === ВСПОМОГАТЕЛЬНЫЕ РЕЙКАСТЫ ДЛЯ ОККЛЮЗИИ В VISION ===
+  _castOcclusionRay(localX, localY, localAngle, maxDist, occlusion) {
+    // Преобразуем локальные координаты в мировые
+    const cosR = Math.cos(this.rotation || 0);
+    const sinR = Math.sin(this.rotation || 0);
+    const ox = this.x + (localX * cosR - localY * sinR);
+    const oy = this.y + (localX * sinR + localY * cosR);
+    const dirX = Math.cos((this.rotation || 0) + localAngle);
+    const dirY = Math.sin((this.rotation || 0) + localAngle);
+    const tx = ox + dirX * maxDist;
+    const ty = oy + dirY * maxDist;
+    
+    const blockedBy = new Set(Array.isArray(occlusion.blockedBy) ? occlusion.blockedBy : ['building','structure']);
+    const entities = this.world.getAllEntities();
+    let best = maxDist;
+    
+    for (const e of entities) {
+      if (!e || e.id === this.id || e.type === 'vision') continue;
+      const collName = e.collision?.name;
+      const isBlockedType = (collName && blockedBy.has(collName)) || (e.type && blockedBy.has(e.type));
+      if (!isBlockedType) continue;
+      const ex = e.x, ey = e.y;
+      const dims = this._getEntityHalfExtentsForOcc(e);
+      const r = Math.max(dims.halfWidth, dims.halfHeight);
+      if (r <= 0) continue;
+      // Быстрый тест — пересечение сегмента с круговой аппроксимацией
+      const hit = this._segmentIntersectsCircle(ox, oy, tx, ty, ex, ey, r);
+      if (!hit) continue;
+      // Оценим дистанцию до точки ближайшего приближения
+      const tHit = this._closestParamOnSegment(ox, oy, tx, ty, ex, ey);
+      const px = ox + (tx - ox) * tHit;
+      const py = oy + (ty - oy) * tHit;
+      const dist = Math.hypot(px - ox, py - oy);
+      if (dist < best) best = dist;
+    }
+    return Math.max(0, Math.min(maxDist, best));
+  }
+
+  _getEntityHalfExtentsForOcc(entity) {
+    let halfWidth = 0, halfHeight = 0;
+    if (entity.width && entity.height) {
+      halfWidth = Math.abs(entity.width) / 2;
+      halfHeight = Math.abs(entity.height) / 2;
+    } else if (entity.collision?.form === 'rect' && entity.collision.width && entity.collision.height) {
+      halfWidth = Math.abs(entity.collision.width) / 2;
+      halfHeight = Math.abs(entity.collision.height) / 2;
+    } else {
+      const s = (entity.visual?.size != null) ? entity.visual.size : (entity.size || 0);
+      halfWidth = s;
+      halfHeight = s;
+    }
+    return { halfWidth, halfHeight };
+  }
+
+  _segmentIntersectsCircle(ax, ay, bx, by, cx, cy, r) {
+    const abx = bx - ax, aby = by - ay;
+    const acx = cx - ax, acy = cy - ay;
+    const abLen2 = abx * abx + aby * aby;
+    if (abLen2 === 0) return false;
+    let t = (acx * abx + acy * aby) / abLen2;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    const px = ax + abx * t;
+    const py = ay + aby * t;
+    const dist = Math.hypot(px - cx, py - cy);
+    return dist <= r;
+  }
+
+  _closestParamOnSegment(ax, ay, bx, by, cx, cy) {
+    const abx = bx - ax, aby = by - ay;
+    const acx = cx - ax, acy = cy - ay;
+    const abLen2 = abx * abx + aby * aby;
+    if (abLen2 === 0) return 0;
+    let t = (acx * abx + acy * aby) / abLen2;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    return t;
   }
   
   /**

@@ -152,23 +152,25 @@ export class World extends SimpleEventEmitter {
       const v = options.vision;
       // Сохраняем параметры на сущности (для логики)
       addedEntity.vision = { ...v };
+      const useVisionCircle = !!(v.occlusion && v.occlusion.enabled && (v.occlusion.vision !== false));
       this.addEntity({
         name: `${addedEntity.name} Vision`,
         type: 'vision',
-        form: 'circle',
+        form: useVisionCircle ? 'vision_circle' : 'circle',
         size: v.range,
         parent: addedEntity.id,
         offsetX: 0,
         offsetY: 0,
         rotateChildren: false,
         visual: {
-          form: 'circle',
+          form: useVisionCircle ? 'vision_circle' : 'circle',
           size: v.range,
           color: 0x000000, // заливка не используется
           onlyStroke: true,
           strokeColor: v.color ?? 0x00FFFF,
           strokeWidth: v.width ?? 2,
-          strokeAlpha: v.alpha ?? 0.8
+          strokeAlpha: v.alpha ?? 0.8,
+          occlusion: v.occlusion ? { ...v.occlusion } : undefined
         },
         collision: { enabled: false }
       });
@@ -203,7 +205,8 @@ export class World extends SimpleEventEmitter {
           strokeAlpha: v.alpha ?? 0.8,
           angle,
           segments,
-          baseAngle
+          baseAngle,
+          occlusion: v.occlusion ? { ...v.occlusion } : undefined
         },
         collision: { enabled: false }
       });

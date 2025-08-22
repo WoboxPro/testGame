@@ -500,9 +500,11 @@ onMounted(async () => {
           alpha: 0.8,
           //directionOffsetDeg: 0, // увеличьте/уменьшите при необходимости
             occlusion: {
-            enabled: true,
-            blockedBy: ['building', 'structure'] // по collision.name или по entity.type
-          }
+              vision: true,
+              samples: 64,                   // 16–128; больше = плавнее, но дороже
+              enabled: true,
+              blockedBy: ['building', 'structure'] // по collision.name или по entity.type
+            }
         }
       });
       
@@ -617,7 +619,12 @@ onMounted(async () => {
         showBorder: true,
         color: 0xEE0000,
         width: 1,
-        alpha: 0.8
+        alpha: 0.8,
+        // occlusion: {
+        //   samples: 10,                   // 16–128; больше = плавнее, но дороже
+        //   enabled: true,
+        //   blockedBy: ['building', 'structure'] // по collision.name или по entity.type
+        // }
       };
       
       const enemy1 = myWorld.addUnit(150, -100, { 
@@ -642,13 +649,15 @@ onMounted(async () => {
           width: 2,
           alpha: 0.8,
           occlusion: {
+            vision: true,
+            samples: 32,                   // 16–128; больше = плавнее, но дороже
             enabled: true,
             blockedBy: ['building', 'structure'] // по collision.name или по entity.type
           }
         },
         ai: aiAgent
       });
-      const enemy2 = myWorld.addUnit(-200, 190, { 
+      const enemy2 = myWorld.addUnit(-250, 230, { 
         name: 'Враг 2', 
         form: 'soldier', 
         faction: enemyFaction,

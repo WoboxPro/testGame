@@ -569,6 +569,13 @@ export class Camera {
       entityContainer.scale.x = 1;
       entityContainer.scale.y = 1;
     }
+
+    // 🔄 Динамическая перерисовка для vision-элементов (окклюзия/конус)
+    if (entity.type === 'vision') {
+      // Перерисовываем содержимое контейнера на каждом кадре
+      if (entityContainer.removeChildren) entityContainer.removeChildren();
+      entity.render(entityContainer);
+    }
     
     // Отмечаем как актуальный
     if (aliveIds) aliveIds.add(entity.id);
