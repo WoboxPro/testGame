@@ -569,7 +569,14 @@ onMounted(async () => {
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         controlType: 'touch',
-        touch: { mode: 'dynamic', radius: 70, innerRadius: 30, showJoystick: true },
+        touch: { 
+          mode: 'static', // static | dynamic
+          staticX: 0,
+          staticY: 0,
+          radius: 70, 
+          innerRadius: 30, 
+          showJoystick: true 
+        },
         moveSpeed: 3,                    // Скорость движения сущности
         fastSpeedMultiplier: 1.5,        // Ускорение на Shift (+50%)
         slowSpeedMultiplier: 0.7,        // Замедление на Ctrl (50%)
