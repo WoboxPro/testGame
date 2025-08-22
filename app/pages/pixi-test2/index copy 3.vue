@@ -289,7 +289,7 @@ onMounted(async () => {
         isPlayerControlled: true,
       });
       
-      const enemyFaction = new CreateFaction('orcs', {
+      const orcFaction = new CreateFaction('orcs', {
         name: 'Команда2',
         displayName: 'Красные Игроки',
         color: 0xFF0000,          // Красный цвет
@@ -303,11 +303,11 @@ onMounted(async () => {
       
       // Добавляем фракции в мир
       myWorld.addFaction(playerFaction);
-      myWorld.addFaction(enemyFaction);
+      myWorld.addFaction(orcFaction);
      
      // Отношения между фракциями
-      myWorld.setFactionRelation(playerFaction, enemyFaction, 'war');
-      myWorld.setFactionRelation(enemyFaction, playerFaction, 'war');
+      myWorld.setFactionRelation(playerFaction, orcFaction, 'war');
+      myWorld.setFactionRelation(orcFaction, playerFaction, 'war');
 
 // END: FRACTION -----------------------------------------------------------------------------------------------------------------
 // COLLISION -----------------------------------------------------------------------------------------------------------------
@@ -423,13 +423,21 @@ onMounted(async () => {
       myWorld.addStructure(650, -700, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
       
       // 👥 ЮНИТЫ (будут видны в мини-карте) + АВТОМАТИЧЕСКИЕ КОЛЛИЗИИ!
-      myWorld.addUnit(-50, -400, { 
+      myWorld.addUnit(-50, -30, { 
         name: 'Солдат 1 (Auto)', 
         form: 'soldier', 
         size: 8,
         collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
       });
 
+      myWorld.addUnit(70, -20, { 
+        name: 'Танк (Auto)', 
+        form: 'tank', 
+        faction: orcFaction,
+        size: 10, // 🎯 Очень большой!
+        color: 0x228B22,
+        collision: autoCollisionType.createEntityCollision() 
+      });
       // 🎁 НОВИНКА: Триггерные объекты (НЕ блокируют движение, только события!)
       myWorld.addEntity({
         x: 620, y: -700,
@@ -589,11 +597,7 @@ onMounted(async () => {
       myWorld.assignEntityToFaction(controlledHero2, playerFaction);      
 
 // END: PLAYER -----------------------------------------------------------------------------------------------------------------
-    myWorld.addEntity({ x: 570, y: -700, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
-
-     
-     
-     const aiAgent = {
+      const aiAgent = {
           action: true,
           type: 'seek',
           alwaysMove: false,
@@ -607,11 +611,13 @@ onMounted(async () => {
         width: 1,
         alpha: 0.8
       };
+      myWorld.addEntity({ x: 570, y: -700, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
       
+      // Добавляем врагов разных фракций
       const enemy1 = myWorld.addUnit(150, -100, { 
         name: 'Враг 1', 
         form: 'soldier', 
-        faction: enemyFaction,
+        faction: orcFaction,
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.5, 
@@ -626,7 +632,7 @@ onMounted(async () => {
       const enemy2 = myWorld.addUnit(-200, 190, { 
         name: 'Враг 2', 
         form: 'soldier', 
-        faction: enemyFaction,
+        faction: orcFaction,
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.7, 

@@ -39,9 +39,7 @@ export class AIController {
     let found = null;
     const range2 = range * range;
     for (const other of enemies) {
-      if (other.id === entity.id || other.isDead) continue;
-      // фракционная проверка: видим только потенциальные цели
-      if (!this.world.canEntitiesAttack(entity, other)) continue;
+      if (!this._isValidTarget(entity, other)) continue;
       const dx = other.x - entity.x;
       const dy = other.y - entity.y;
       if (dx * dx + dy * dy <= range2) {
@@ -57,14 +55,32 @@ export class AIController {
     let nearest = null;
     let bestD2 = Infinity;
     for (const other of entities) {
-      if (other.id === entity.id || other.isDead) continue;
-      if (!this.world.canEntitiesAttack(entity, other)) continue;
+      if (!this._isValidTarget(entity, other)) continue;
       const dx = other.x - entity.x;
       const dy = other.y - entity.y;
       const d2 = dx * dx + dy * dy;
       if (d2 < bestD2) { bestD2 = d2; nearest = other; }
     }
     return nearest;
+  }
+
+  _isValidTarget(self, other) {
+    if (!other || other.id === self.id || other.isDead) return false;
+    // Разрешаем атаковать только боевые юниты
+    if (other.type !== 'unit') return false;
+    // Должны иметь характеристики (получать урон)
+    if (!other.stats || (other.stats.getHealth && other.stats.getHealth() === 0)) return false;
+    // Фракционная проверка: только если self может атаковать other
+    const fs = this.world?.factionSystem;
+    if (!fs) return true; // если нет системы фракций — считаем валидной целью
+    const attackerFaction = fs.getEntityFaction(self);
+    const targetFaction = fs.getEntityFaction(other);
+    // Не атакуем цели без фракции, если не разрешено явно
+    if (!targetFaction) {
+      const ai = self.ai || {};
+      if (!ai.attackNeutral) return false;
+    }
+    return !!fs.canEntityAttack(self, other);
   }
 
   _moveStraight(entity, dtMs) {
