@@ -611,7 +611,10 @@ onMounted(async () => {
           type: 'seek',
           alwaysMove: false,
           attackNeutral: false,
-          pursueLastSeen: true,
+          pursueLastSeen: true, // постоянно преследовать последнее виденное
+          idleScan: true, // сканировать окружающую область
+          idleScanIntervalMs: 1500, // интервал сканирования
+          idleScanJitterMs: 1000 // случайная задержка сканирования
 
           //faceTarget: true // - не поворачиваться к цели
       };

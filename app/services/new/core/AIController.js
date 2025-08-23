@@ -47,7 +47,13 @@ export class AIController {
       else if (ai.pursueLastSeen && aiState._lastSeen) moveTarget = aiState._lastSeen; // последняя точка
       else if (ai.alwaysMove) moveTarget = this._findNearestHostile(entity) || null; // фоновое движение
 
-      if (!moveTarget) continue; // стоим
+      if (!moveTarget) {
+        // В спокойном состоянии — медленно оглядываться, если включено
+        if (ai.idleScan) {
+          this._idleScan(entity, dtMs);
+        }
+        continue; // не двигаемся
+      }
 
       if (ai.type === 'seek' && moveTarget) {
         if (moveTarget.id) {
@@ -305,6 +311,25 @@ export class AIController {
     const deltaX = (dx / len) * step;
     const deltaY = (dy / len) * step;
     this._attemptMove(entity, deltaX, deltaY);
+  }
+
+  _idleScan(entity, dtMs) {
+    const ai = entity.ai || {};
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const interval = typeof ai.idleScanIntervalMs === 'number' ? ai.idleScanIntervalMs : 1500;
+    const jitter = typeof ai.idleScanJitterMs === 'number' ? ai.idleScanJitterMs : 1000;
+    if (!ai._idleScanFacing || !ai._idleScanNext || now >= ai._idleScanNext) {
+      // Выбираем новую случайную цель направления (мировой угол взгляда)
+      const randAngle = -Math.PI + Math.random() * (2 * Math.PI);
+      ai._idleScanFacing = randAngle;
+      ai._idleScanNext = now + interval + Math.random() * jitter;
+      entity.ai = ai;
+    }
+    // Поворачиваемся к выбранному направлению
+    const distance = 100; // синтетическая дальняя цель для вычисления угла
+    const tx = entity.x + Math.cos(ai._idleScanFacing) * distance;
+    const ty = entity.y + Math.sin(ai._idleScanFacing) * distance;
+    this._rotateTowardsTarget(entity, { x: tx, y: ty }, dtMs);
   }
 
   _attemptMove(entity, deltaX, deltaY) {
