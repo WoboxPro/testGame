@@ -899,11 +899,14 @@ export class Entity {
     this.slots = this.slots || {};
     this.slotAttachments = this.slotAttachments || {};
     for (const [name, cfg] of Object.entries(slotMap)) {
+      const raw = cfg || {};
+      // Сохраняем все дополнительные поля (например, bullet) и нормализуем базовые
       this.slots[name] = {
-        offsetX: (cfg && cfg.offsetX != null) ? cfg.offsetX : 0,
-        offsetY: (cfg && cfg.offsetY != null) ? cfg.offsetY : 0,
-        angleOffset: (cfg && cfg.angleOffset != null) ? cfg.angleOffset : 0,
-        maxWeapons: (cfg && cfg.maxWeapons != null) ? cfg.maxWeapons : 1
+        ...raw,
+        offsetX: (raw.offsetX != null) ? raw.offsetX : 0,
+        offsetY: (raw.offsetY != null) ? raw.offsetY : 0,
+        angleOffset: (raw.angleOffset != null) ? raw.angleOffset : 0,
+        maxWeapons: (raw.maxWeapons != null) ? raw.maxWeapons : 1
       };
       if (!this.slotAttachments[name]) this.slotAttachments[name] = new Set();
     }
