@@ -611,6 +611,8 @@ onMounted(async () => {
           type: 'seek',
           alwaysMove: false,
           attackNeutral: false,
+          pursueLastSeen: true,
+
           //faceTarget: true // - не поворачиваться к цели
       };
       const visionAgent = {

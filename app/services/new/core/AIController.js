@@ -18,32 +18,49 @@ export class AIController {
       if (!entity.vision || !entity.vision.range) continue;
 
       // Ищем хоть одну видимую вражескую цель (с учетом типа зрения)
-      let target = this._findVisibleTarget(entity, entity.vision.range);
-      if (!target && ai.alwaysMove) {
-        // Если всегда движемся — ищем ближайшего врага без ограничения по радиусу
-        target = this._findNearestHostile(entity);
-      }
+      const visibleTarget = this._findVisibleTarget(entity, entity.vision.range);
       // Поворачиваемся ТОЛЬКО если цель видна в текущем FOV
-      const rotateTarget = target;
+      const rotateTarget = visibleTarget;
       // Обновляем флаги видимости для внешней логики/UI
       if (!entity.vision) entity.vision = {};
-      entity.vision.seesTarget = !!target;
-      entity.vision.visibleTargetId = target?.id || null;
+      entity.vision.seesTarget = !!visibleTarget;
+      entity.vision.visibleTargetId = visibleTarget?.id || null;
+
+      // Память последнего видения
+      const aiState = entity.ai || {};
+      if (visibleTarget) {
+        aiState._lastSeen = {
+          x: visibleTarget.x,
+          y: visibleTarget.y,
+          time: (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+        };
+      }
+      entity.ai = aiState;
 
       // Поворачиваемся к цели (видимой или ближайшей в радиусе)
       if (rotateTarget && ai?.faceTarget !== false) {
         this._rotateTowardsTarget(entity, rotateTarget, dtMs);
       }
+      // Выбираем цель для движения
+      let moveTarget = null;
+      if (visibleTarget) moveTarget = visibleTarget; // живая цель
+      else if (ai.pursueLastSeen && aiState._lastSeen) moveTarget = aiState._lastSeen; // последняя точка
+      else if (ai.alwaysMove) moveTarget = this._findNearestHostile(entity) || null; // фоновое движение
 
-      if (!target && !ai.alwaysMove) continue; // никого не видим — стоим (если не включен alwaysMove)
+      if (!moveTarget) continue; // стоим
 
-      // Поворачиваемся к цели, чтобы удерживать её в центре конуса зрения
-      if (target && ai?.faceTarget !== false) {
-        this._rotateTowardsTarget(entity, target, dtMs);
-      }
-
-      if (ai.type === 'seek' && target) {
-        this._moveTowards(entity, target, dtMs);
+      if (ai.type === 'seek' && moveTarget) {
+        if (moveTarget.id) {
+          this._moveTowards(entity, moveTarget, dtMs);
+        } else {
+          this._moveTowardsPosition(entity, moveTarget.x, moveTarget.y, dtMs);
+          // Если дошли до последней точки — очищаем память
+          const dx = moveTarget.x - entity.x;
+          const dy = moveTarget.y - entity.y;
+          if ((dx * dx + dy * dy) <= 4) {
+            aiState._lastSeen = null;
+          }
+        }
       } else {
         // Идем по прямой в направлении взгляда
         this._moveStraight(entity, dtMs);
@@ -273,6 +290,17 @@ export class AIController {
     const step = baseSpeed * (Math.max(0, dtMs) / 16.67);
     const dx = target.x - entity.x;
     const dy = target.y - entity.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const deltaX = (dx / len) * step;
+    const deltaY = (dy / len) * step;
+    this._attemptMove(entity, deltaX, deltaY);
+  }
+
+  _moveTowardsPosition(entity, x, y, dtMs) {
+    const baseSpeed = entity.stats?.getSpeed ? entity.stats.getSpeed() : 1;
+    const step = baseSpeed * (Math.max(0, dtMs) / 16.67);
+    const dx = x - entity.x;
+    const dy = y - entity.y;
     const len = Math.hypot(dx, dy) || 1;
     const deltaX = (dx / len) * step;
     const deltaY = (dy / len) * step;
