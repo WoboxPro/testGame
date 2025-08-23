@@ -535,10 +535,10 @@ onMounted(async () => {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
           bullet: {
             weaponType: 'projectile',
-            bulletSpeed: 8,
+            bulletSpeed: 10,
             bulletsPerShot: 1,
             maxRange: 400,
-            fireRate: 200,
+            fireRate: 150,
             bulletLifetime: 2.0,
             damage: 1,
             autoFire: true
@@ -562,7 +562,7 @@ onMounted(async () => {
             bulletSpeed: 11,
             bulletsPerShot: 1,
             maxRange: 300,
-            fireRate: 300,
+            fireRate: 100,
             bulletLifetime: 2.0,
             damage: 1,
             autoFire: true

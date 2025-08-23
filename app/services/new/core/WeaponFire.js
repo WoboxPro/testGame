@@ -52,17 +52,20 @@ export class MuzzleFireController {
     this.slotName = slotName;
     this.config = projectileConfig instanceof ProjectileConfig ? projectileConfig : new ProjectileConfig(projectileConfig);
 
-    this._fireTimer = null;      // game interval handle for auto fire
-    this._stepTimer = null;      // game interval handle for projectile stepping
-    this._active = false;
+    this._fireTimer = null;      // deprecated: not used after accumulator
+    this._stepTimer = null;      // game interval handle for stepping
+    this._active = false;        // true when auto is running
+    this._autoActive = false;    // internal auto-fire flag
+    this._fireAccMs = 0;         // accumulator for precise fire rate
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
   }
 
   startAuto() {
     if (!this.world || !this.weapon) return;
-    if (this._fireTimer) this.world.clearGameTimer(this._fireTimer);
-    const intervalMs = this.config.fireRate;
-    this._fireTimer = this.world.setGameInterval(() => this.fireOnce(), intervalMs);
+    // Use accumulator in stepper instead of interval-per-shot
+    if (this._fireTimer && this.world) this.world.clearGameTimer(this._fireTimer);
+    this._fireTimer = null;
+    this._autoActive = true;
     this._active = true;
     this._ensureStepper();
   }
@@ -70,6 +73,7 @@ export class MuzzleFireController {
   stopAuto() {
     if (this._fireTimer && this.world) this.world.clearGameTimer(this._fireTimer);
     this._fireTimer = null;
+    this._autoActive = false;
     this._active = false;
   }
 
@@ -93,11 +97,15 @@ export class MuzzleFireController {
         break;
       case 'projectile':
       default:
-        for (let i = 0; i < this.config.bulletsPerShot; i++) {
-          this._spawnProjectile(t.x, t.y, facing);
-        }
+        this._fireOnceImmediate(t.x, t.y, facing);
         this._ensureStepper();
         break;
+    }
+  }
+
+  _fireOnceImmediate(x, y, facing) {
+    for (let i = 0; i < this.config.bulletsPerShot; i++) {
+      this._spawnProjectile(x, y, facing);
     }
   }
 
@@ -161,6 +169,20 @@ export class MuzzleFireController {
 
   _step() {
     if (!this.world) return;
+    // Compute effective dt from timer repeat
+    const dt = (this._stepTimer && this._stepTimer.repeat) ? this._stepTimer.repeat : 16;
+    // Accumulate auto-fire
+    if (this._autoActive) {
+      this._fireAccMs += dt;
+      while (this._fireAccMs >= this.config.fireRate) {
+        const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
+        if (t) {
+          const facing = (t.facing != null) ? t.facing : (t.angle || 0);
+          this._fireOnceImmediate(t.x, t.y, facing);
+        }
+        this._fireAccMs -= this.config.fireRate;
+      }
+    }
     for (let i = this._activeProjectiles.length - 1; i >= 0; i--) {
       const p = this._activeProjectiles[i];
       const e = this.world.getEntity(p.id);
@@ -168,7 +190,7 @@ export class MuzzleFireController {
       e.x += p.vx;
       e.y += p.vy;
       p.traveled += Math.hypot(p.vx, p.vy);
-      if (this.config.bulletLifetimeMs > 0) p.lifetimeMsRemaining -= 16;
+      if (this.config.bulletLifetimeMs > 0) p.lifetimeMsRemaining -= dt;
       if (p.traveled >= this.config.maxRange || (this.config.weaponType === 'projectile' && this.config.bulletLifetimeMs > 0 && p.lifetimeMsRemaining <= 0)) {
         this.world.removeEntity(e.id);
         this._activeProjectiles.splice(i, 1);
