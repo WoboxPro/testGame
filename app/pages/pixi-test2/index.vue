@@ -508,31 +508,41 @@ onMounted(async () => {
         }
       });
       
-      // 🔗 НОВИНКА: Добавляем дочернюю сущность (оружие)
+      // 🎯 Система слотов на герое (для оружия)
+      controlledHero.defineSlots({
+        right_gun: { offsetX: 8,  offsetY: -5, angleOffset: 0, maxWeapons: 1 },
+        left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
+      });
+      
+      // 🔗 Создаем оружие и привязываем к слотам героя
       const heroWeapon = myWorld.addEntity({
-        name: 'Меч героя',
+        name: 'Правое оружие',
         type: 'weapon',
         form: 'rectangle',
         width: 3,
         height: 20,
-        color: 0x002299,  // Серебристый меч
-        parent: controlledHero.id,  // 🔗 Привязываем к герою
-        offsetX: 8,                 // Справа от героя
-        offsetY: -5                 // Чуть выше центра
-        // collision: НЕТ - оружие не блокирует движение
+        color: 0x002299
+      });
+      // 🔫 Дуло правого оружия
+      heroWeapon.defineSlots({
+        muzzle: { offsetX: 0, offsetY: -12, angleOffset: 0 }
       });
       const heroWeapon2 = myWorld.addEntity({
-        name: 'Меч героя',
+        name: 'Левое оружие',
         type: 'weapon',
         form: 'rectangle',
         width: 3,
         height: 20,
-        color: 0x990000,  // Серебристый меч
-        parent: controlledHero.id,  // 🔗 Привязываем к герою
-        offsetX: -8,                 // Справа от героя
-        offsetY: -5,                 
+        color: 0x990000
       });
-      console.log(`🗡️ Оружие создано: ${heroWeapon.name} привязано к ${controlledHero.name}`);
+      // 🔫 Дуло левого оружия
+      heroWeapon2.defineSlots({
+        muzzle: { offsetX: 0, offsetY: -12, angleOffset: 0 }
+      });
+      controlledHero.attachEntityToSlot(heroWeapon, 'right_gun');
+      controlledHero.attachEntityToSlot(heroWeapon2, 'left_gun');
+      // Мгновенная синхронизация трансформов (на всякий случай)
+      controlledHero.updateAttachedSlots();
       
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 
