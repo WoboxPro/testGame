@@ -106,6 +106,15 @@ export class Entity {
     this.previousPosition = { x: this.x, y: this.y };
     this.isMovementBlocked = false;
     
+    // 🎯 Система слотов (для оружия/узлов крепления)
+    this.slots = options.slots || {};           // { slotName: { offsetX, offsetY, angleOffset, maxWeapons } }
+    this.slotAttachments = {};                  // { slotName: Set(childId) }
+    this.attachedSlot = null;                   // Если эта сущность прикреплена к слоту родителя — имя слота
+    // Инициализируем структуры для переданных слотов
+    for (const name of Object.keys(this.slots)) {
+      this.slotAttachments[name] = new Set();
+    }
+    
   }
   
   /**
@@ -181,17 +190,37 @@ export class Entity {
     if (!this.parent || !this.world) {
       return { x: this.x, y: this.y };
     }
-    
     const parentEntity = this.world.getEntity(this.parent);
     if (!parentEntity) {
       return { x: this.x, y: this.y };
     }
-    
+    // Если мы прикреплены к слоту родителя — используем трансформ слота
+    if (this.attachedSlot && typeof parentEntity.getSlotWorldTransform === 'function') {
+      const t = parentEntity.getSlotWorldTransform(this.attachedSlot);
+      if (t) return { x: t.x, y: t.y };
+    }
+    // Обычное смещение от родителя
     const parentPos = parentEntity.getWorldPosition();
-    return {
-      x: parentPos.x + this.offsetX,
-      y: parentPos.y + this.offsetY
-    };
+    return { x: parentPos.x + this.offsetX, y: parentPos.y + this.offsetY };
+  }
+
+  /**
+   * 📐 Получить мировой трансформ (позиция + угол)
+   */
+  getWorldTransform() {
+    if (!this.parent || !this.world) {
+      return { x: this.x, y: this.y, angle: this.rotation || 0 };
+    }
+    const parentEntity = this.world.getEntity(this.parent);
+    if (!parentEntity) {
+      return { x: this.x, y: this.y, angle: this.rotation || 0 };
+    }
+    if (this.attachedSlot && typeof parentEntity.getSlotWorldTransform === 'function') {
+      const t = parentEntity.getSlotWorldTransform(this.attachedSlot);
+      if (t) return { x: t.x, y: t.y, angle: t.facing + (this.localRotation || 0) };
+    }
+    const pos = this.getWorldPosition();
+    return { x: pos.x, y: pos.y, angle: this.rotation || 0 };
   }
   
   /**
@@ -206,6 +235,11 @@ export class Entity {
         const worldPos = child.getWorldPosition();
         child.x = worldPos.x;
         child.y = worldPos.y;
+        // Если ребенок прикреплен к нашему слоту — синхронизируем угол
+        if (child.attachedSlot) {
+          const t = this.getSlotWorldTransform(child.attachedSlot);
+          if (t) child.rotation = t.facing + (child.localRotation || 0);
+        }
         
         // Рекурсивно обновляем детей детей
         child.updateChildrenPositions();
@@ -855,6 +889,148 @@ export class Entity {
     this._renderGraphics(container); // Временный fallback
   }
   
+  // === СИСТЕМА СЛОТОВ ДЛЯ ПРИВЯЗКИ СУЩНОСТЕЙ ===
+  /**
+   * 🧩 Определить слоты на сущности
+   * slotMap: { name: { offsetX, offsetY, angleOffset, maxWeapons } }
+   */
+  defineSlots(slotMap) {
+    if (!slotMap || typeof slotMap !== 'object') return this;
+    this.slots = this.slots || {};
+    this.slotAttachments = this.slotAttachments || {};
+    for (const [name, cfg] of Object.entries(slotMap)) {
+      this.slots[name] = {
+        offsetX: (cfg && cfg.offsetX != null) ? cfg.offsetX : 0,
+        offsetY: (cfg && cfg.offsetY != null) ? cfg.offsetY : 0,
+        angleOffset: (cfg && cfg.angleOffset != null) ? cfg.angleOffset : 0,
+        maxWeapons: (cfg && cfg.maxWeapons != null) ? cfg.maxWeapons : 1
+      };
+      if (!this.slotAttachments[name]) this.slotAttachments[name] = new Set();
+    }
+    return this;
+  }
+
+  /**
+   * 🔗 Прикрепить сущность к слоту
+   * child: Entity | childId
+   */
+  attachEntityToSlot(child, slotName) {
+    if (!slotName || !this.slots || !this.slots[slotName]) {
+      console.warn(`Слот "${slotName}" не определен у ${this.name}`);
+      return null;
+    }
+    const childEntity = typeof child === 'string' ? (this.world ? this.world.getEntity(child) : null) : child;
+    if (!childEntity) {
+      console.warn('attachEntityToSlot: некорректная дочерняя сущность');
+      return null;
+    }
+    const attachments = this.slotAttachments[slotName] || (this.slotAttachments[slotName] = new Set());
+    const capacity = this.slots[slotName].maxWeapons || 1;
+    if (attachments.size >= capacity) {
+      console.warn(`Слот "${slotName}" заполнен (${capacity}) у ${this.name}`);
+      return null;
+    }
+    // Обновляем родительско-дочерние связи
+    if (childEntity.parent && childEntity.parent !== this.id) {
+      // Отвязываем от предыдущего родителя, если был
+      const prev = this.world ? this.world.getEntity(childEntity.parent) : null;
+      if (prev) prev.removeChild(childEntity.id);
+    }
+    childEntity.parent = this.id;
+    childEntity.attachedSlot = slotName;
+    childEntity.offsetX = 0;
+    childEntity.offsetY = 0;
+    this.addChild(childEntity.id);
+    attachments.add(childEntity.id);
+    // Мгновенно синхронизируем позицию/угол
+    const t = this.getSlotWorldTransform(slotName);
+    if (t) {
+      childEntity.x = t.x;
+      childEntity.y = t.y;
+      childEntity.rotation = t.facing + (childEntity.localRotation || 0);
+    }
+    return childEntity;
+  }
+
+  /**
+   * 🔓 Отсоединить сущность от слота или очистить слот
+   * arg: Entity | childId | slotName(string)
+   */
+  detachEntityFromSlot(arg) {
+    if (!arg) return;
+    // Очистить весь слот по имени
+    if (typeof arg === 'string' && this.slots && this.slots[arg]) {
+      const slotName = arg;
+      const set = this.slotAttachments[slotName];
+      if (!set) return;
+      for (const childId of Array.from(set)) {
+        const child = this.world ? this.world.getEntity(childId) : null;
+        if (child) {
+          child.attachedSlot = null;
+          child.parent = null;
+          this.removeChild(child.id);
+        }
+      }
+      set.clear();
+      return;
+    }
+    // Отвязать конкретную сущность
+    const childEntity = typeof arg === 'string' ? (this.world ? this.world.getEntity(arg) : null) : arg;
+    if (!childEntity) return;
+    const slotName = childEntity.attachedSlot;
+    if (!slotName) return;
+    const set = this.slotAttachments[slotName];
+    if (set) set.delete(childEntity.id);
+    childEntity.attachedSlot = null;
+    childEntity.parent = null;
+    this.removeChild(childEntity.id);
+  }
+
+  /**
+   * 📌 Мировая точка и угол заданного слота
+   */
+  getSlotWorldTransform(slotName) {
+    const slot = this.slots && this.slots[slotName];
+    if (!slot) return null;
+    const base = this.getWorldTransform();
+    const cos = Math.cos(base.angle);
+    const sin = Math.sin(base.angle);
+    const x = base.x + cos * slot.offsetX - sin * slot.offsetY;
+    const y = base.y + sin * slot.offsetX + cos * slot.offsetY;
+    const facing = base.angle + (slot.angleOffset || 0);
+    return { x, y, facing };
+  }
+
+  /**
+   * 📌 Трансформы всех слотов
+   */
+  getAllSlotWorldTransforms() {
+    const out = {};
+    for (const name of Object.keys(this.slots || {})) {
+      out[name] = this.getSlotWorldTransform(name);
+    }
+    return out;
+  }
+
+  /**
+   * 🔄 Принудительно обновить все прикрепленные к слотам сущности
+   */
+  updateAttachedSlots() {
+    if (!this.world || !this.slotAttachments) return;
+    for (const [slotName, set] of Object.entries(this.slotAttachments)) {
+      const t = this.getSlotWorldTransform(slotName);
+      if (!t) continue;
+      for (const childId of set) {
+        const child = this.world.getEntity(childId);
+        if (!child) continue;
+        child.x = t.x;
+        child.y = t.y;
+        child.rotation = t.facing + (child.localRotation || 0);
+        child.updateChildrenPositions();
+      }
+    }
+  }
+
   /**
    * 👕 Экипировать предмет (для sprite системы)
    */
