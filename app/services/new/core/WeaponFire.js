@@ -17,12 +17,21 @@ export class ProjectileConfig {
       friendlyFire: false,
       validTargets: { block: ['building','structure'], hit: ['unit'] },
       // visuals
-      size: 2,
+      size: 2, // legacy
       width: undefined,
       height: undefined,
-      color: 0xFFD700
+      color: 0xFFD700,
+      // new grouped configs
+      sizeBullet: undefined,
+      bulletConfigs: {
+        collideAsPoint: false,
+        collisionRadius: null, // null -> use sizeBullet
+        useCCD: false,
+        validTargets: undefined
+      }
     };
     const cfg = { ...defaults, ...(input || {}) };
+    const bc = cfg.bulletConfigs || {};
     this.weaponType = cfg.weaponType;
     this.bulletSpeed = Number(cfg.bulletSpeed) || defaults.bulletSpeed;
     this.bulletsPerShot = Math.max(1, Math.floor(cfg.bulletsPerShot || defaults.bulletsPerShot));
@@ -33,12 +42,16 @@ export class ProjectileConfig {
     // combat
     this.damage = Number(cfg.damage) || defaults.damage;
     this.friendlyFire = !!cfg.friendlyFire;
-    this.validTargets = cfg.validTargets || defaults.validTargets;
+    this.validTargets = (bc.validTargets) || cfg.validTargets || defaults.validTargets;
     // visuals
-    this.size = (cfg.size != null) ? cfg.size : defaults.size;
+    this.sizeBullet = (cfg.sizeBullet != null) ? cfg.sizeBullet : ((cfg.size != null) ? cfg.size : defaults.size);
     this.width = cfg.width;
     this.height = cfg.height;
     this.color = (cfg.color != null) ? cfg.color : defaults.color;
+    // collision behavior
+    this.collideAsPoint = !!bc.collideAsPoint;
+    this.collisionRadius = (bc.collisionRadius != null) ? bc.collisionRadius : null;
+    this.useCCD = !!bc.useCCD;
   }
 }
 
@@ -114,11 +127,13 @@ export class MuzzleFireController {
     const vx = Math.cos(angle) * speed;
     const vy = Math.sin(angle) * speed;
     const useRect = (this.config.width != null && this.config.height != null);
+    const visualSize = this.config.sizeBullet;
+    const collisionRadius = this.config.collideAsPoint ? 1 : (this.config.collisionRadius != null ? this.config.collisionRadius : (visualSize != null ? visualSize : 2));
     const bullet = this.world.addEntity({
       x, y,
       type: 'bullet',
       form: useRect ? 'rectangle' : 'bullet',
-      size: useRect ? undefined : this.config.size,
+      size: useRect ? undefined : (visualSize != null ? visualSize : 2),
       width: useRect ? this.config.width : undefined,
       height: useRect ? this.config.height : undefined,
       color: this.config.color,
@@ -126,7 +141,7 @@ export class MuzzleFireController {
         enabled: true,
         name: 'projectile',
         form: useRect ? 'rect' : 'circle',
-        radius: useRect ? undefined : (this.config.size || 2),
+        radius: useRect ? undefined : collisionRadius,
         width: useRect ? (this.config.width || 2) : undefined,
         height: useRect ? (this.config.height || 2) : undefined,
         collisionType: 'trigger',
@@ -139,6 +154,10 @@ export class MuzzleFireController {
     //   ownership: { entityId, displayName, factionId },
     //   friendlyFire: boolean,
     //   validTargets: { block: string[], hit: string[] },
+    //   sizeBullet: number,
+    //   collideAsPoint: boolean,
+    //   collisionRadius: number|null,
+    //   useCCD: boolean,
     //   ttlMs: number,
     //   rangeLeft: number
     // }
@@ -149,6 +168,10 @@ export class MuzzleFireController {
       ownership: { entityId: shooter?.id, displayName: shooter?.name, factionId },
       friendlyFire: this.config.friendlyFire,
       validTargets: this.config.validTargets,
+      sizeBullet: visualSize != null ? visualSize : 2,
+      collideAsPoint: this.config.collideAsPoint,
+      collisionRadius: this.config.collisionRadius,
+      useCCD: this.config.useCCD,
       ttlMs: this.config.bulletLifetimeMs,
       rangeLeft: this.config.maxRange
     };

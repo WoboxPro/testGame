@@ -535,12 +535,19 @@ onMounted(async () => {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
           bullet: {
             weaponType: 'projectile',
-            bulletSpeed: 10,
+            bulletSpeed: 5,
             bulletsPerShot: 1,
             maxRange: 400,
-            fireRate: 150,
+            fireRate: 2000,
             bulletLifetime: 2.0,
-            damage: 1,
+            damage: 10,
+            sizeBullet: 3,
+            bulletConfigs: {
+              collideAsPoint: false,
+              collisionRadius: null,
+              useCCD: false,
+              validTargets: { block: ['building','structure'], hit: ['unit'] }
+            },
             autoFire: true
           }
         }
@@ -559,12 +566,19 @@ onMounted(async () => {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
           bullet: {
             weaponType: 'projectile',
-            bulletSpeed: 11,
+            bulletSpeed: 7,
             bulletsPerShot: 1,
             maxRange: 300,
-            fireRate: 100,
+            fireRate: 200,
             bulletLifetime: 2.0,
             damage: 1,
+            sizeBullet: 1, // радиус пули
+            bulletConfigs: {
+              collideAsPoint: false, // если true, то пуля будет считаться точкой, а не кругом
+              collisionRadius: null, // радиус коллизии пули
+              useCCD: false, // Логика не реализована - нужно чтоб пули на высоких скоростях не проходили сквозь стены
+              validTargets: { block: ['building','structure'], hit: ['unit'] } // блок - стены, hit - юниты
+            },
             autoFire: true
           }
         }

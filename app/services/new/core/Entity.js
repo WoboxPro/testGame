@@ -619,7 +619,8 @@ export class Entity {
         break;
         
       case 'bullet':
-        graphics.circle(0, 0, Math.max(1, this.visual.size * 0.3));
+        // Рисуем пулю радиусом равным visual.size (без коэффициента 0.3)
+        graphics.circle(0, 0, Math.max(1, this.visual.size));
         break;
         
       case 'soldier':
