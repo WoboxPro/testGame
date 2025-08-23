@@ -614,8 +614,8 @@ onMounted(async () => {
           pursueLastSeen: true, // постоянно преследовать последнее виденное
           idleScan: true, // сканировать окружающую область
           idleScanIntervalMs: 1500, // интервал сканирования
-          idleScanJitterMs: 1000 // случайная задержка сканирования
-
+          idleScanJitterMs: 1000, // случайная задержка сканирования
+          avoidObstacles: true, // избегать препятствий
           //faceTarget: true // - не поворачиваться к цели
       };
       const visionAgent = {
@@ -625,11 +625,11 @@ onMounted(async () => {
         color: 0xEE0000,
         width: 1,
         alpha: 0.8,
-        // occlusion: {
-        //   samples: 10,                   // 16–128; больше = плавнее, но дороже
-        //   enabled: true,
-        //   blockedBy: ['building', 'structure'] // по collision.name или по entity.type
-        // }
+        occlusion: {
+         // samples: 10,                   // 16–128; больше = плавнее, но дороже
+          enabled: true,
+          blockedBy: ['building', 'structure'] // по collision.name или по entity.type
+        }
       };
       
       const enemy1 = myWorld.addUnit(150, -100, { 

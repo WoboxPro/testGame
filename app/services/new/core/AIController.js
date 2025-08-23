@@ -299,7 +299,7 @@ export class AIController {
     const len = Math.hypot(dx, dy) || 1;
     const deltaX = (dx / len) * step;
     const deltaY = (dy / len) * step;
-    this._attemptMove(entity, deltaX, deltaY);
+    this._moveWithAvoidance(entity, deltaX, deltaY, step);
   }
 
   _moveTowardsPosition(entity, x, y, dtMs) {
@@ -310,7 +310,24 @@ export class AIController {
     const len = Math.hypot(dx, dy) || 1;
     const deltaX = (dx / len) * step;
     const deltaY = (dy / len) * step;
-    this._attemptMove(entity, deltaX, deltaY);
+    this._moveWithAvoidance(entity, deltaX, deltaY, step);
+  }
+
+  _moveWithAvoidance(entity, deltaX, deltaY, step) {
+    // Прямо вперёд
+    if (this._attemptMove(entity, deltaX, deltaY)) return true;
+    const ai = entity.ai || {};
+    if (!ai.avoidObstacles) return false;
+    // Пробуем обойти: набор углов отклонения
+    const offsetsDeg = [15, -15, 30, -30, 45, -45, 60, -60, 90, -90, 120, -120, 150, -150, 180];
+    const baseAngle = Math.atan2(deltaY, deltaX);
+    for (const deg of offsetsDeg) {
+      const rad = deg * Math.PI / 180;
+      const nx = Math.cos(baseAngle + rad) * step;
+      const ny = Math.sin(baseAngle + rad) * step;
+      if (this._attemptMove(entity, nx, ny)) return true;
+    }
+    return false;
   }
 
   _idleScan(entity, dtMs) {
@@ -353,7 +370,7 @@ export class AIController {
         }
       }
       entity.x = oldX; entity.y = oldY;
-      if (blocked) return;
+      if (blocked) return false;
     }
     if (this.world?.bounds) {
       newX = Math.max(this.world.bounds.left, Math.min(this.world.bounds.right, newX));
@@ -361,6 +378,7 @@ export class AIController {
     }
     entity.setPosition(newX, newY);
     if (this.world?.biomeSystem) this.world.updateEntityPosition(entity, newX, newY);
+    return true;
   }
 
   _rotateTowardsTarget(entity, target, dtMs) {
