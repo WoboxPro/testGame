@@ -11,7 +11,16 @@ export class ProjectileConfig {
       maxRange: 400,            // px
       fireRate: 200,            // ms between shots
       bulletLifetime: 2.0,      // seconds (for projectile)
-      autoFire: true
+      autoFire: true,
+      // combat
+      damage: 1,
+      friendlyFire: false,
+      validTargets: { block: ['building','structure'], hit: ['unit'] },
+      // visuals
+      size: 2,
+      width: undefined,
+      height: undefined,
+      color: 0xFFD700
     };
     const cfg = { ...defaults, ...(input || {}) };
     this.weaponType = cfg.weaponType;
@@ -21,6 +30,15 @@ export class ProjectileConfig {
     this.fireRate = Math.max(1, Number(cfg.fireRate) || defaults.fireRate);
     this.bulletLifetimeMs = Math.max(0, Math.floor((cfg.bulletLifetime != null ? cfg.bulletLifetime : defaults.bulletLifetime) * 1000));
     this.autoFire = !!cfg.autoFire;
+    // combat
+    this.damage = Number(cfg.damage) || defaults.damage;
+    this.friendlyFire = !!cfg.friendlyFire;
+    this.validTargets = cfg.validTargets || defaults.validTargets;
+    // visuals
+    this.size = (cfg.size != null) ? cfg.size : defaults.size;
+    this.width = cfg.width;
+    this.height = cfg.height;
+    this.color = (cfg.color != null) ? cfg.color : defaults.color;
   }
 }
 
@@ -87,14 +105,45 @@ export class MuzzleFireController {
     const speed = this.config.bulletSpeed;
     const vx = Math.cos(angle) * speed;
     const vy = Math.sin(angle) * speed;
-
+    const useRect = (this.config.width != null && this.config.height != null);
     const bullet = this.world.addEntity({
       x, y,
       type: 'bullet',
-      form: 'bullet',
-      size: 2,
-      color: 0xFFD700
+      form: useRect ? 'rectangle' : 'bullet',
+      size: useRect ? undefined : this.config.size,
+      width: useRect ? this.config.width : undefined,
+      height: useRect ? this.config.height : undefined,
+      color: this.config.color,
+      collision: {
+        enabled: true,
+        name: 'projectile',
+        form: useRect ? 'rect' : 'circle',
+        radius: useRect ? undefined : (this.config.size || 2),
+        width: useRect ? (this.config.width || 2) : undefined,
+        height: useRect ? (this.config.height || 2) : undefined,
+        collisionType: 'trigger',
+        layer: 'projectiles'
+      }
     });
+    // 📦 Содержимое боевого блока пули во время полёта:
+    // bullet.combat = {
+    //   damage: number,
+    //   ownership: { entityId, displayName, factionId },
+    //   friendlyFire: boolean,
+    //   validTargets: { block: string[], hit: string[] },
+    //   ttlMs: number,
+    //   rangeLeft: number
+    // }
+    const shooter = this.weapon?.parent ? this.world.getEntity(this.weapon.parent) : this.weapon;
+    const factionId = (this.world?.factionSystem?.getEntityFaction(shooter)?.id) || shooter?.factionId || null;
+    bullet.combat = {
+      damage: this.config.damage,
+      ownership: { entityId: shooter?.id, displayName: shooter?.name, factionId },
+      friendlyFire: this.config.friendlyFire,
+      validTargets: this.config.validTargets,
+      ttlMs: this.config.bulletLifetimeMs,
+      rangeLeft: this.config.maxRange
+    };
     const proj = {
       id: bullet.id,
       vx, vy,

@@ -336,6 +336,9 @@ onMounted(async () => {
       myWorld.collisionSystem.addRule('unit', 'pickup', 'pickup_collision'); // 📡 Триггерные
       myWorld.collisionSystem.addRule('unit', 'building', 'unit_building');  // 🏗️ Юнит ↔ Здание
       myWorld.collisionSystem.addRule('unit', 'trap', 'trap_damage');        // 🪤 Ловушки наносят урон
+      // 🎯 Пули (триггеры) ↔ цели
+      myWorld.collisionSystem.addRule('projectile', 'unit', 'projectile');   // пуля наносит урон юнитам
+      myWorld.collisionSystem.addRule('projectile', 'building', 'projectile'); // пуля блокируется зданием
       
       // 🚫 Событие блокировки движения между юнитами (блокировка происходит автоматически в CollisionSystem)
       myWorld.on('unit_collision_enter', ({entityA, entityB, distance}) => {
@@ -537,6 +540,7 @@ onMounted(async () => {
             maxRange: 400,
             fireRate: 200,
             bulletLifetime: 2.0,
+            damage: 1,
             autoFire: true
           }
         }
@@ -560,6 +564,7 @@ onMounted(async () => {
             maxRange: 300,
             fireRate: 300,
             bulletLifetime: 2.0,
+            damage: 1,
             autoFire: true
           }
         }
@@ -683,7 +688,7 @@ onMounted(async () => {
         stats: { 
           speed: 0.5, 
           health: 300,          
-          currentHealth: 300,
+          currentHealth: 1,
           touchDamage: 2,
            rotationSpeed: 0.01,     
         },
@@ -712,7 +717,7 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.7, 
-          health: 300,          
+          health: 1,          
           currentHealth: 300,
           touchDamage: 2,
         },

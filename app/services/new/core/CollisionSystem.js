@@ -607,10 +607,17 @@ export class CollisionSystem {
     
     this.world.emit(eventName, collisionData);
     
-    // ⚔️ АВТОМАТИЧЕСКАЯ СИСТЕМА УРОНА: Проверяем урон только при входе в коллизию
-    // (но только если событие НЕ вызвано из EntityController, чтобы избежать дублирования)
+    // ⚔️ АВТОМАТИКА: если одна из сущностей — пуля (projectile trigger), обрабатываем логику попадания
     if (eventName.endsWith('_enter') && !this._calledFromEntityController) {
-      this._checkCombatDamage(entityA, entityB);
+      const aIsProjectile = entityA.collision?.name === 'projectile';
+      const bIsProjectile = entityB.collision?.name === 'projectile';
+      if (aIsProjectile || bIsProjectile) {
+        const bullet = aIsProjectile ? entityA : entityB;
+        const target = aIsProjectile ? entityB : entityA;
+        this._handleProjectileHit(bullet, target);
+      } else {
+        this._checkCombatDamage(entityA, entityB);
+      }
     }
   }
   
@@ -685,6 +692,57 @@ export class CollisionSystem {
     } else {
       console.log(`🛡️ ${target.name} защищен от ${attacker.name} (союзная фракция)`);
     }
+  }
+
+  /**
+   * 💥 Обработка попадания пули по цели
+   */
+  _handleProjectileHit(bullet, target) {
+    const c = bullet.combat;
+    if (!c) return;
+    // Срок/дистанция прошли — игнор
+    if (c.ttlMs != null && c.ttlMs <= 0) return;
+    if (c.rangeLeft != null && c.rangeLeft <= 0) return;
+
+    // Дружественный огонь
+    if (c.friendlyFire === false && this.world?.factionSystem) {
+      const shooterEntity = this.world.getEntity(c.ownership?.entityId);
+      if (shooterEntity && !this.world.factionSystem.canEntityAttack(shooterEntity, target)) {
+        return;
+      }
+    }
+
+    // Классификация цели: по collision.name и type
+    const targetTags = new Set();
+    if (target.collision?.name) targetTags.add(target.collision.name);
+    if (target.type) targetTags.add(target.type);
+
+    const vt = c.validTargets || {};
+    const blocks = new Set(vt.block || []);
+    const hits = new Set(vt.hit || []);
+
+    const intersects = (set) => {
+      for (const t of targetTags) if (set.has(t)) return true;
+      return false;
+    };
+
+    if (intersects(blocks)) {
+      // Останавливаем пулю (позже — рикошет)
+      this.world.removeEntity(bullet.id);
+      return;
+    }
+
+    if (intersects(hits)) {
+      const dmg = Number(c.damage) || 0;
+      if (dmg > 0 && target.stats) {
+        target.stats.takeDamage(dmg, target);
+      }
+      // Для простоты сейчас пуля исчезает после первого хита
+      this.world.removeEntity(bullet.id);
+      // Статистика попаданий/убийств может логироваться здесь, используя c.ownership
+      return;
+    }
+    // Иначе: игнор цели
   }
   
   /**
