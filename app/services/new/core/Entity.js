@@ -407,6 +407,11 @@ export class Entity {
   die() {
     this.isDead = true;
     this.isMovementBlocked = true; // Блокируем движение
+    // 🚫 Отключаем коллизию и убираем из пространственной сетки
+    if (this.collision) this.collision.enabled = false;
+    if (this.world?.collisionSystem?.spatialGrid) {
+      this.world.collisionSystem.spatialGrid.removeEntity(this.id);
+    }
     
     // 👶 Убиваем всех дочерних сущностей
     if (this.world) {
@@ -441,6 +446,11 @@ export class Entity {
     this.isDead = false;
     this.velocity = { x: 0, y: 0 };
     this.isMovementBlocked = false;
+    // 🔄 Включаем коллизию и возвращаем в сетку
+    if (this.collision) this.collision.enabled = true;
+    if (this.world?.collisionSystem?.spatialGrid) {
+      this.world.collisionSystem.spatialGrid.addEntity(this);
+    }
     
     // 👶 Воскрешаем всех дочерних сущностей
     if (this.world) {

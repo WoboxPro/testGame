@@ -540,7 +540,7 @@ onMounted(async () => {
             maxRange: 600,
             fireRate: 120,
             bulletLifetime: 2.0,
-            damage: 10,
+            damage: 1,
             sizeBullet: 1,
             color: 0xFF0000,
             bulletConfigs: {
@@ -639,7 +639,7 @@ onMounted(async () => {
       myCamera3.followEntity(controlledHero2);
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
-        controlType: 'keyboard', //'keyboard' | 'touch' | 'both'
+        controlType: 'touch', //'keyboard' | 'touch' | 'both'
         touch: { 
           mode: 'dynamic', // static | dynamic
           staticX: 0,
@@ -702,8 +702,8 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.5, 
-          health: 300,          
-          currentHealth: 1,
+          health: 10,          
+          currentHealth: 10,
           touchDamage: 2,
            rotationSpeed: 0.01,     
         },
@@ -733,7 +733,7 @@ onMounted(async () => {
         stats: { 
           speed: 0.7, 
           health: 1,          
-          currentHealth: 300,
+          currentHealth: 1,
           touchDamage: 2,
         },
         respawn: false,
