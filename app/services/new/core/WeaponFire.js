@@ -71,6 +71,7 @@ export class MuzzleFireController {
     this._autoActive = false;    // internal auto-fire flag
     this._fireAccMs = 0;         // accumulator for precise fire rate
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
+    this._onWorldDeath = null;   // listener to stop on death
   }
 
   startAuto() {
@@ -81,6 +82,16 @@ export class MuzzleFireController {
     this._autoActive = true;
     this._active = true;
     this._ensureStepper();
+    // Stop auto-fire if owner or weapon dies
+    if (!this._onWorldDeath && this.world?.on) {
+      this._onWorldDeath = ({ entity }) => {
+        if (!entity) return;
+        if (entity.id === this.weapon.id || entity.id === this.weapon.parent) {
+          this.stopAuto();
+        }
+      };
+      this.world.on('entity_death', this._onWorldDeath);
+    }
   }
 
   stopAuto() {
@@ -88,6 +99,10 @@ export class MuzzleFireController {
     this._fireTimer = null;
     this._autoActive = false;
     this._active = false;
+    if (this._onWorldDeath && this.world?.off) {
+      this.world.off('entity_death', this._onWorldDeath);
+      this._onWorldDeath = null;
+    }
   }
 
   destroy() {
@@ -100,6 +115,9 @@ export class MuzzleFireController {
   fireOnce() {
     if (!this.world || !this.weapon) return;
     if (!this.weapon.getSlotWorldTransform) return;
+    // Do not fire if weapon or owner is dead
+    const owner = this.weapon.parent ? this.world.getEntity(this.weapon.parent) : this.weapon;
+    if (this.weapon.isDead || owner?.isDead) return;
     const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
     if (!t) return;
     const facing = (t.facing != null) ? t.facing : (t.angle || 0);
@@ -196,14 +214,19 @@ export class MuzzleFireController {
     const dt = (this._stepTimer && this._stepTimer.repeat) ? this._stepTimer.repeat : 16;
     // Accumulate auto-fire
     if (this._autoActive) {
-      this._fireAccMs += dt;
-      while (this._fireAccMs >= this.config.fireRate) {
-        const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
-        if (t) {
-          const facing = (t.facing != null) ? t.facing : (t.angle || 0);
-          this._fireOnceImmediate(t.x, t.y, facing);
+      const owner = this.weapon.parent ? this.world.getEntity(this.weapon.parent) : this.weapon;
+      if (this.weapon.isDead || owner?.isDead) {
+        this.stopAuto();
+      } else {
+        this._fireAccMs += dt;
+        while (this._fireAccMs >= this.config.fireRate) {
+          const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
+          if (t) {
+            const facing = (t.facing != null) ? t.facing : (t.angle || 0);
+            this._fireOnceImmediate(t.x, t.y, facing);
+          }
+          this._fireAccMs -= this.config.fireRate;
         }
-        this._fireAccMs -= this.config.fireRate;
       }
     }
     for (let i = this._activeProjectiles.length - 1; i >= 0; i--) {
