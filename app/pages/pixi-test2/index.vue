@@ -620,19 +620,6 @@ onMounted(async () => {
         respawnTime: 1500     // Воскрешение через 1.5 секунды (быстрее чем у героя)
       });
 
-      // Создаем ловушку с уроном при касании
-      const damageTrap = myWorld.addEntity({
-        x: 50, y: 50,
-        type: 'trap',
-        form: 'rect',
-        width: 30,
-        height: 30,
-        name: 'Шипастая ловушка',
-        color: 0xFF0000,  // Красный цвет для опасности
-        collision: createTriggerCollision({ name: 'trap', form: 'rect', width: 30, height: 30 }),
-        // Урон при касании
-        stats: { touchDamage: 1 }  // Наносит 1 урон при касании
-      });
       
       //  Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
@@ -667,7 +654,19 @@ onMounted(async () => {
 
 // END: PLAYER -----------------------------------------------------------------------------------------------------------------
     myWorld.addEntity({ x: 570, y: -700, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
-     
+           // Создаем ловушку с уроном при касании
+      const damageTrap = myWorld.addEntity({
+        x: 50, y: 50,
+        type: 'trap',
+        form: 'rect',
+        width: 30,
+        height: 30,
+        name: 'Шипастая ловушка',
+        color: 0xFF0000,  // Красный цвет для опасности
+        collision: createTriggerCollision({ name: 'trap', form: 'rect', width: 30, height: 30 }),
+        // Урон при касании
+        stats: { touchDamage: 1 }  // Наносит 1 урон при касании
+      });
      
      const aiAgent = {
           action: true,
