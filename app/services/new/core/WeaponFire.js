@@ -55,6 +55,59 @@ export class ProjectileConfig {
   }
 }
 
+// 🔁 Shared per-world ticker for all muzzle controllers to avoid multiple timers and rate stacking
+const WORLD_MUZZLE_TICKERS = new WeakMap();
+
+class SharedMuzzleTicker {
+  constructor(world) {
+    this.world = world;
+    this.controllers = new Set();
+    this._timer = null;
+  }
+
+  add(controller) {
+    this.controllers.add(controller);
+    this._ensure();
+  }
+
+  remove(controller) {
+    this.controllers.delete(controller);
+    if (this.controllers.size === 0) this._stop();
+  }
+
+  _ensure() {
+    if (this._timer || !this.world) return;
+    this._timer = this.world.setGameInterval(() => this._tick(), 16);
+  }
+
+  _stop() {
+    if (this._timer && this.world) this.world.clearGameTimer(this._timer);
+    this._timer = null;
+  }
+
+  _tick() {
+    const dt = (this._timer && this._timer.repeat) ? this._timer.repeat : 16;
+    // Tick all controllers once per world
+    for (const ctrl of this.controllers) {
+      try {
+        ctrl._step(dt);
+      } catch (_) {
+        // ignore controller errors to keep ticker alive
+      }
+    }
+  }
+}
+
+function getWorldMuzzleTicker(world) {
+  if (!world) return null;
+  let ticker = WORLD_MUZZLE_TICKERS.get(world);
+  if (!ticker) {
+    ticker = new SharedMuzzleTicker(world);
+    WORLD_MUZZLE_TICKERS.set(world, ticker);
+  }
+  return ticker;
+}
+
 /**
  * 🎯 Controls firing from a specific weapon slot (e.g., 'muzzle')
  */
@@ -66,12 +119,15 @@ export class MuzzleFireController {
     this.config = projectileConfig instanceof ProjectileConfig ? projectileConfig : new ProjectileConfig(projectileConfig);
 
     this._fireTimer = null;      // deprecated: not used after accumulator
-    this._stepTimer = null;      // game interval handle for stepping
+    this._stepTimer = null;      // deprecated: replaced by shared world ticker
     this._active = false;        // true when auto is running
     this._autoActive = false;    // internal auto-fire flag
     this._fireAccMs = 0;         // accumulator for precise fire rate
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
     this._onWorldDeath = null;   // listener to stop on death
+    // Shared per-world ticker
+    this._sharedTicker = getWorldMuzzleTicker(this.world);
+    if (this._sharedTicker) this._sharedTicker.add(this);
     // Auto-start based on configuration
     if (this.config.autoFire) {
       this.startAuto();
@@ -80,7 +136,7 @@ export class MuzzleFireController {
 
   startAuto() {
     if (!this.world || !this.weapon) return;
-    // Use accumulator in stepper instead of interval-per-shot
+    // Use accumulator with shared world ticker
     if (this._fireTimer && this.world) this.world.clearGameTimer(this._fireTimer);
     this._fireTimer = null;
     this._autoActive = true;
@@ -111,6 +167,8 @@ export class MuzzleFireController {
 
   destroy() {
     this.stopAuto();
+    // Unregister from shared world ticker
+    if (this._sharedTicker) this._sharedTicker.remove(this);
     if (this._stepTimer && this.world) this.world.clearGameTimer(this._stepTimer);
     this._stepTimer = null;
     this._activeProjectiles.length = 0;
@@ -207,22 +265,20 @@ export class MuzzleFireController {
   }
 
   _ensureStepper() {
-    if (this._stepTimer || !this.world) return;
-    // Step projectiles at ~60 FPS
-    this._stepTimer = this.world.setGameInterval(() => this._step(), 16);
+    // Ensure shared world ticker is running
+    if (this._sharedTicker) this._sharedTicker._ensure();
   }
 
-  _step() {
+  _step(dt) {
     if (!this.world) return;
-    // Compute effective dt from timer repeat
-    const dt = (this._stepTimer && this._stepTimer.repeat) ? this._stepTimer.repeat : 16;
+    const effectiveDt = (typeof dt === 'number' && dt > 0) ? dt : 16;
     // Accumulate auto-fire
     if (this._autoActive) {
       const owner = this.weapon.parent ? this.world.getEntity(this.weapon.parent) : this.weapon;
       if (this.weapon.isDead || owner?.isDead) {
         this.stopAuto();
       } else {
-        this._fireAccMs += dt;
+        this._fireAccMs += effectiveDt;
         while (this._fireAccMs >= this.config.fireRate) {
           const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
           if (t) {
@@ -240,17 +296,13 @@ export class MuzzleFireController {
       e.x += p.vx;
       e.y += p.vy;
       p.traveled += Math.hypot(p.vx, p.vy);
-      if (this.config.bulletLifetimeMs > 0) p.lifetimeMsRemaining -= dt;
+      if (this.config.bulletLifetimeMs > 0) p.lifetimeMsRemaining -= effectiveDt;
       if (p.traveled >= this.config.maxRange || (this.config.weaponType === 'projectile' && this.config.bulletLifetimeMs > 0 && p.lifetimeMsRemaining <= 0)) {
         this.world.removeEntity(e.id);
         this._activeProjectiles.splice(i, 1);
       }
     }
-    // Auto-stop stepping if nothing to do and auto not active
-    if (this._activeProjectiles.length === 0 && !this._active && this._stepTimer) {
-      this.world.clearGameTimer(this._stepTimer);
-      this._stepTimer = null;
-    }
+    // With shared ticker, no need to manage per-controller timers here
   }
 }
 

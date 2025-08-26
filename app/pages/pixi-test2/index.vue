@@ -21,11 +21,13 @@ import { CreateZone } from '~/services/new/core/CreateZone.js';
 import { CreateFaction } from '~/services/new/core/CreateFaction.js';
 import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } from '~/services/new/core/CreateCollision.js';
 import { MuzzleFireController, ProjectileConfig } from '~/services/new/core/WeaponFire.js';
+import { MuzzleInputRouter } from '~/services/new/core/MuzzleInputRouter.js';
 
 let game = null;
 let rightFire = null;
 let leftFire = null;
 let leftFire2 = null;
+let inputRouter = null;
 
 onMounted(async () => {
   if (process.client) {
@@ -549,8 +551,9 @@ onMounted(async () => {
               useCCD: false,
               validTargets: { block: ['building','structure'], hit: ['unit'] }
             },
-            autoFire: true
-          }
+            autoFire: false
+          },
+          input: { mouse: 'RMB' }
         }
       });
       const heroWeapon2 = myWorld.addEntity({
@@ -580,8 +583,9 @@ onMounted(async () => {
               useCCD: false, // Логика не реализована - нужно чтоб пули на высоких скоростях не проходили сквозь стены
               validTargets: { block: ['building','structure'], hit: ['unit'] } // блок - стены, hit - юниты
             },
-            autoFire: true
-          }
+            autoFire: false
+          },
+          input: { mouse: 'LMB' }
         },
         // Второй ствол (смещен по X для визуального разделения)
         muzzle2: {
@@ -602,8 +606,9 @@ onMounted(async () => {
               useCCD: false,
               validTargets: { block: ['building','structure'], hit: ['unit'] }
             },
-            autoFire: true
-          }
+            autoFire: false
+          },
+          input: { keys: 'KeyF' }
         }
       });
       controlledHero.attachEntityToSlot(heroWeapon, 'right_gun');
@@ -618,6 +623,13 @@ onMounted(async () => {
       leftFire = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle', leftCfg);
       const leftCfg2 = new ProjectileConfig(heroWeapon2.slots.muzzle2?.bullet || {});
       leftFire2 = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle2', leftCfg2);
+
+      // Роутер ввода для слотов
+      inputRouter = new MuzzleInputRouter({ target: window, preventContextMenu: true });
+      inputRouter.attach();
+      inputRouter.registerFromSlot(heroWeapon, 'muzzle', rightFire);
+      inputRouter.registerFromSlot(heroWeapon2, 'muzzle', leftFire);
+      inputRouter.registerFromSlot(heroWeapon2, 'muzzle2', leftFire2);
       
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 
@@ -774,6 +786,11 @@ onUnmounted(() => {
   if (game) {
     game.stop();
     game = null;
+  }
+  // Снимаем роутер ввода
+  if (inputRouter) {
+    inputRouter.detach();
+    inputRouter = null;
   }
 });
 </script>
