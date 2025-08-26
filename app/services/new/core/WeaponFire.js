@@ -72,6 +72,10 @@ export class MuzzleFireController {
     this._fireAccMs = 0;         // accumulator for precise fire rate
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
     this._onWorldDeath = null;   // listener to stop on death
+    // Auto-start based on configuration
+    if (this.config.autoFire) {
+      this.startAuto();
+    }
   }
 
   startAuto() {

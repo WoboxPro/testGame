@@ -484,7 +484,6 @@ onMounted(async () => {
         childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе
         rotationOffset: Math.PI/2,     // 🎯 Смещение угла: 90° = вниз по умолчанию
         
-        //  Зеркальный поворот  (как в Vampire Survivors)
         typeRotate: 'full',          // 'full' | 'mirror' 
         mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
         stats: { 
@@ -594,8 +593,6 @@ onMounted(async () => {
       const leftCfg = new ProjectileConfig(heroWeapon2.slots.muzzle?.bullet || {});
       rightFire = new MuzzleFireController(myWorld, heroWeapon, 'muzzle', rightCfg);
       leftFire = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle', leftCfg);
-      if (rightCfg.autoFire) rightFire.startAuto();
-      if (leftCfg.autoFire) leftFire.startAuto();
       
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 
