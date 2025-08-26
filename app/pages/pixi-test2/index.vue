@@ -481,13 +481,13 @@ onMounted(async () => {
         size: 12, 
         color: 0x00FF80,  // Ярко-зеленый для выделения
         collision: unitCollisionType.createEntityCollision(),
-        rotationBehavior: 'mouse',  // 🎯 Герой поворачивается по направлению движения
+        rotationBehavior: 'movement',  // 🎯 Герой поворачивается по направлению движения
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе
         rotationOffset: Math.PI/2,     // 🎯 Смещение угла: 90° = вниз по умолчанию
         
-        typeRotate: 'full',          // 'full' | 'mirror' 
+        typeRotate: 'mirror',          // 'full' | 'mirror' 
         mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
         stats: { 
           speed: 4, 

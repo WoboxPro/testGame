@@ -217,7 +217,11 @@ export class Entity {
     }
     if (this.attachedSlot && typeof parentEntity.getSlotWorldTransform === 'function') {
       const t = parentEntity.getSlotWorldTransform(this.attachedSlot);
-      if (t) return { x: t.x, y: t.y, angle: t.facing + (this.localRotation || 0) };
+      if (t) {
+        // Если родитель в режиме 'stick' — наследуем угол слота, иначе сохраняем собственный угол
+        const inheritAngle = (parentEntity.childRotationType === 'stick');
+        return { x: t.x, y: t.y, angle: inheritAngle ? (t.facing + (this.localRotation || 0)) : (this.rotation || 0) };
+      }
     }
     const pos = this.getWorldPosition();
     return { x: pos.x, y: pos.y, angle: this.rotation || 0 };
@@ -235,10 +239,20 @@ export class Entity {
         const worldPos = child.getWorldPosition();
         child.x = worldPos.x;
         child.y = worldPos.y;
+        // 👁️ Поле зрения должно всегда следовать ориентации родителя
+        if (child.type === 'vision') {
+          child.rotation = this.rotation || 0;
+        }
         // Если ребенок прикреплен к нашему слоту — синхронизируем угол
         if (child.attachedSlot) {
           const t = this.getSlotWorldTransform(child.attachedSlot);
-          if (t) child.rotation = t.facing + (child.localRotation || 0);
+          if (t) {
+            // Позиция синхронизируется ниже через updateChildrenPositions рекурсивно
+            // Угол только в режиме 'stick'
+            if (this.childRotationType === 'stick') {
+              child.rotation = t.facing + (child.localRotation || 0);
+            }
+          }
         }
         
         // Рекурсивно обновляем детей детей
@@ -1037,9 +1051,13 @@ export class Entity {
       for (const childId of set) {
         const child = this.world.getEntity(childId);
         if (!child) continue;
+        // Всегда синхронизируем позицию точки крепления
         child.x = t.x;
         child.y = t.y;
-        child.rotation = t.facing + (child.localRotation || 0);
+        // Угол — только в режиме 'stick'; в 'orbit' дочерний хранит свой rotation
+        if (this.childRotationType === 'stick') {
+          child.rotation = t.facing + (child.localRotation || 0);
+        }
         child.updateChildrenPositions();
       }
     }
