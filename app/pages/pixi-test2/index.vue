@@ -481,7 +481,7 @@ onMounted(async () => {
         size: 12, 
         color: 0x00FF80,  // Ярко-зеленый для выделения
         collision: unitCollisionType.createEntityCollision(),
-        rotationBehavior: 'movement',  // 🎯 Герой поворачивается по направлению движения
+        rotationBehavior: 'mouse',  // 🎯 Герой поворачивается по направлению движения
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе

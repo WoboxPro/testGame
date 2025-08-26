@@ -55,6 +55,10 @@ export class EntityController {
     this.lastMoveTime = 0;
     this.currentSpeed = this.settings.moveSpeed;
     
+    // 🖱️ Позиция мыши в мировых координатах
+    this._mouseWorld = { x: 0, y: 0 };
+    this._lastPointerCanvas = { x: 0, y: 0 };
+    
     // 📋 Карта клавиш
     this.keyMap = this._createKeyMap();
     
@@ -262,6 +266,23 @@ export class EntityController {
     
     document.addEventListener('keydown', this.keyDownHandler);
     document.addEventListener('keyup', this.keyUpHandler);
+
+    // 🖱️ Отслеживание курсора для поворота 'mouse'
+    const app = this.game?.mainApp;
+    if (app?.stage && !this._onPointerMoveStage) {
+      this._onPointerMoveStage = (e) => {
+        const p = e.global; // canvas coords
+        this._lastPointerCanvas.x = p.x;
+        this._lastPointerCanvas.y = p.y;
+        const cam = this.game?.getSelectedCamera?.();
+        if (cam && cam.screenToWorld) {
+          const world = cam.screenToWorld(p.x, p.y);
+          this._mouseWorld.x = world.x;
+          this._mouseWorld.y = world.y;
+        }
+      };
+      app.stage.on('pointermove', this._onPointerMoveStage);
+    }
   }
   
   /**
@@ -273,6 +294,11 @@ export class EntityController {
     }
     if (this.keyUpHandler) {
       document.removeEventListener('keyup', this.keyUpHandler);
+    }
+    const app = this.game?.mainApp;
+    if (app?.stage && this._onPointerMoveStage) {
+      app.stage.off('pointermove', this._onPointerMoveStage);
+      this._onPointerMoveStage = null;
     }
   }
   
@@ -497,8 +523,55 @@ export class EntityController {
           }
         }
       }
+
+      // 🎯 Поворот по мыши для сущностей с rotationBehavior='mouse'
+      const cam = this.game?.getSelectedCamera?.();
+      // Если нет камеры, используем последнюю canvas координату как world
+      const targetX = cam && cam.screenToWorld ? cam.screenToWorld(this._lastPointerCanvas.x, this._lastPointerCanvas.y).x : this._mouseWorld.x;
+      const targetY = cam && cam.screenToWorld ? cam.screenToWorld(this._lastPointerCanvas.x, this._lastPointerCanvas.y).y : this._mouseWorld.y;
+      const entities = this.getControlledEntities();
+      for (const entity of entities) {
+        if (entity?.rotationBehavior === 'mouse' && !entity.isDead) {
+          this._rotateEntityTowards(entity, targetX, targetY, dtMs);
+        }
+      }
       
       this.lastMoveTime = currentTime;
+    }
+  }
+
+  _rotateEntityTowards(entity, targetX, targetY, dtMs) {
+    const dx = targetX - entity.x;
+    const dy = targetY - entity.y;
+    const targetAngleWorld = Math.atan2(dy, dx);
+
+    const rotationOffset = entity.rotationOffset || 0;
+    const vision = entity.vision || {};
+    const directionOffset = (vision.directionOffsetRad !== undefined)
+      ? vision.directionOffsetRad
+      : ((vision.directionOffsetDeg || 0) * Math.PI / 180);
+    const desiredRotation = targetAngleWorld + rotationOffset - directionOffset;
+
+    const before = entity.rotation || 0;
+    let delta = desiredRotation - before;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    while (delta < -Math.PI) delta += 2 * Math.PI;
+
+    // Скорость поворота
+    const statsRot = entity.stats?.getRotationSpeed ? entity.stats.getRotationSpeed() : null;
+    const speed = (statsRot != null) ? statsRot : (entity.rotationSpeed || 0.2);
+    const timeFactor = Math.max(0, dtMs) / 16.67;
+    const maxStep = Math.max(0, speed * timeFactor);
+    const step = Math.sign(delta) * Math.min(Math.abs(delta), maxStep);
+    entity.rotation = before + step;
+
+    // Нормализация
+    while (entity.rotation > Math.PI) entity.rotation -= 2 * Math.PI;
+    while (entity.rotation < -Math.PI) entity.rotation += 2 * Math.PI;
+
+    if (entity.rotateChildren && step !== 0 && entity.rotateChildrenBy) {
+      entity.rotateChildrenBy(step);
+      if (entity.updateChildrenPositions) entity.updateChildrenPositions();
     }
   }
   
