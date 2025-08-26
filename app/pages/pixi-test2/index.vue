@@ -25,6 +25,7 @@ import { MuzzleFireController, ProjectileConfig } from '~/services/new/core/Weap
 let game = null;
 let rightFire = null;
 let leftFire = null;
+let leftFire2 = null;
 
 onMounted(async () => {
   if (process.client) {
@@ -581,6 +582,28 @@ onMounted(async () => {
             },
             autoFire: true
           }
+        },
+        // Второй ствол (смещен по X для визуального разделения)
+        muzzle2: {
+          offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
+          bullet: {
+            weaponType: 'projectile',
+            bulletSpeed: 4,
+            bulletsPerShot: 1,
+            maxRange: 500,
+            fireRate: 500,
+            bulletLifetime: 2.0,
+            damage: 1,
+            sizeBullet: 3,
+            color: 0x00ff00,
+            bulletConfigs: {
+              collideAsPoint: false,
+              collisionRadius: null,
+              useCCD: false,
+              validTargets: { block: ['building','structure'], hit: ['unit'] }
+            },
+            autoFire: true
+          }
         }
       });
       controlledHero.attachEntityToSlot(heroWeapon, 'right_gun');
@@ -593,6 +616,8 @@ onMounted(async () => {
       const leftCfg = new ProjectileConfig(heroWeapon2.slots.muzzle?.bullet || {});
       rightFire = new MuzzleFireController(myWorld, heroWeapon, 'muzzle', rightCfg);
       leftFire = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle', leftCfg);
+      const leftCfg2 = new ProjectileConfig(heroWeapon2.slots.muzzle2?.bullet || {});
+      leftFire2 = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle2', leftCfg2);
       
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 
