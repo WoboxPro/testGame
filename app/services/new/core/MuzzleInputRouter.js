@@ -62,7 +62,11 @@ export class MuzzleInputRouter {
     if (!key) return;
     const set = this.mouseBindings[key];
     if (!set || set.size === 0) return;
-    for (const ctrl of set) ctrl?.startAuto?.();
+    for (const ctrl of set) {
+      // single click should fire once respecting rate
+      ctrl?.fireOnceRespectingRate?.();
+      ctrl?.startAuto?.();
+    }
   }
 
   _onMouseUp(e) {
@@ -76,7 +80,10 @@ export class MuzzleInputRouter {
   _onKeyDown(e) {
     const set = this.keyBindings.get(e.code);
     if (!set || set.size === 0) return;
-    for (const ctrl of set) ctrl?.startAuto?.();
+    for (const ctrl of set) {
+      ctrl?.fireOnceRespectingRate?.();
+      ctrl?.startAuto?.();
+    }
   }
 
   _onKeyUp(e) {

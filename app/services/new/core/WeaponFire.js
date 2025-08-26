@@ -125,6 +125,7 @@ export class MuzzleFireController {
     this._fireAccMs = 0;         // accumulator for precise fire rate
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
     this._onWorldDeath = null;   // listener to stop on death
+    this._lastFireMs = 0;        // wall-clock timestamp of last shot (auto or manual)
     // Shared per-world ticker
     this._sharedTicker = getWorldMuzzleTicker(this.world);
     if (this._sharedTicker) this._sharedTicker.add(this);
@@ -191,9 +192,16 @@ export class MuzzleFireController {
       case 'projectile':
       default:
         this._fireOnceImmediate(t.x, t.y, facing);
+        this._lastFireMs = Date.now();
         this._ensureStepper();
         break;
     }
+  }
+
+  fireOnceRespectingRate() {
+    const now = Date.now();
+    if (now - this._lastFireMs < this.config.fireRate) return;
+    this.fireOnce();
   }
 
   _fireOnceImmediate(x, y, facing) {
@@ -284,6 +292,7 @@ export class MuzzleFireController {
           if (t) {
             const facing = (t.facing != null) ? t.facing : (t.angle || 0);
             this._fireOnceImmediate(t.x, t.y, facing);
+            this._lastFireMs = Date.now();
           }
           this._fireAccMs -= this.config.fireRate;
         }
