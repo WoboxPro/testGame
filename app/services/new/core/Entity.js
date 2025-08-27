@@ -27,6 +27,10 @@ export class Entity {
     this.typeRotate = options.typeRotate || 'full';   // 'full' | 'mirror'
     this.mirrorAxis = options.mirrorAxis || 'y';      // 'x' | 'y' - ось отражения
     this.isMirrored = false;                          // Текущее состояние отражения
+    // 🖱️ Настройки зеркала для режима мыши
+    this.mirrorMouse = options.mirrorMouse !== false; // В режиме mouse + mirror не крутить, а только отражать
+    this.mirrorMouseDeadzone = options.mirrorMouseDeadzone || 0; // Порог для переключения, px
+    this.visionFollowMouseInMirror = options.visionFollowMouseInMirror !== false; // В mirror-режиме пусть vision следует мыши
     
     // 🔗 Parent-Child система
     this.parent = options.parent || null;           // ID родительской сущности
@@ -239,9 +243,8 @@ export class Entity {
         const worldPos = child.getWorldPosition();
         child.x = worldPos.x;
         child.y = worldPos.y;
-        // 👁️ Поле зрения следует ориентации родителя.
-        // При зеркале корректируем так, чтобы МИРОВОЙ угол (rotation + baseAngle) отражался по выбранной оси.
-        if (child.type === 'vision') {
+        // 👁️ Поле зрения следует ориентации родителя (если не активен режим: mirror + mouse + followVision)
+        if (child.type === 'vision' && !(this.typeRotate === 'mirror' && this.rotationBehavior === 'mouse' && this.visionFollowMouseInMirror)) {
           const parentAngle = this.rotation || 0;
           const baseAngle = (child.visual && (child.visual.baseAngle != null)) ? child.visual.baseAngle : 0;
           let newChildRot = parentAngle;

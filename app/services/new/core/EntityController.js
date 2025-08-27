@@ -531,9 +531,37 @@ export class EntityController {
       const targetY = cam && cam.screenToWorld ? cam.screenToWorld(this._lastPointerCanvas.x, this._lastPointerCanvas.y).y : this._mouseWorld.y;
       const entities = this.getControlledEntities();
       for (const entity of entities) {
-        if (entity?.rotationBehavior === 'mouse' && !entity.isDead) {
-          this._rotateEntityTowards(entity, targetX, targetY, dtMs);
+        if (!entity || entity.isDead) continue;
+        if (entity.rotationBehavior !== 'mouse') continue;
+
+        // 🪞 Режим зеркала для мыши: не вращаем сущность, только отражаем относительно оси
+        if (entity.typeRotate === 'mirror' && entity.mirrorMouse !== false) {
+          const dx = targetX - entity.x;
+          const dy = targetY - entity.y;
+          const dead = Math.max(0, entity.mirrorMouseDeadzone || 0);
+          let shouldMirror = entity.isMirrored;
+          if (entity.mirrorAxis === 'y') {
+            if (Math.abs(dx) > dead) shouldMirror = dx < 0;
+          } else { // 'x'
+            if (Math.abs(dy) > dead) shouldMirror = dy > 0; // вниз = зеркало, вверх = обычный
+          }
+          if (shouldMirror !== entity.isMirrored) {
+            const old = entity.isMirrored;
+            entity.isMirrored = shouldMirror;
+            if (entity.rotateChildren && old !== shouldMirror) {
+              entity.rotateChildrenBy(0, true);
+              entity.updateChildrenPositions();
+            }
+          }
+          // Отдельно: vision может следовать мыши, даже если тело не крутится
+          if (entity.visionFollowMouseInMirror !== false) {
+            // ничего: обработаем ниже в общем повороте дочернего vision
+          }
+          continue; // саму сущность не вращаем
         }
+
+        // Обычный поворот на мышь
+        this._rotateEntityTowards(entity, targetX, targetY, dtMs);
       }
       
       this.lastMoveTime = currentTime;

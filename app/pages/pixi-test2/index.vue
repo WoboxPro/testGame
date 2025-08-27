@@ -481,13 +481,16 @@ onMounted(async () => {
         size: 12, 
         color: 0x00FF80,  // Ярко-зеленый для выделения
         collision: unitCollisionType.createEntityCollision(),
-        rotationBehavior: 'mouse',  // 🎯 Герой поворачивается по направлению движения
+        rotationBehavior: 'mouse',  // 🎯 Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе
         rotationOffset: Math.PI/2,     // 🎯 Смещение угла: 90° = вниз по умолчанию
-        typeRotate: 'mirror',          // 'full' | 'mirror' 
-        mirrorAxis: 'y',               // 'x' | 'y' - ось отражения
+        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'x',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        mirrorMouse: true,             // 🖱️ В mirror+mouse тело не крутится, только отражается
+        mirrorMouseDeadzone: 4,        // ⚖️ Порог переключения по оси (пиксели)
+        visionFollowMouseInMirror: true, // 👁️ В mirror-режиме конус продолжает следовать курсору
         stats: { 
           speed: 4, 
           health: 2, 
