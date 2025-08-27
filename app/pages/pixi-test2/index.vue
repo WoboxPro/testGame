@@ -502,6 +502,7 @@ onMounted(async () => {
           type: 'cone',
           angle: 70,
           range: 150,
+          directionOffsetDeg: 0,
           showBorder: true,
           color: 0x00FFFF,
           width: 2,

@@ -239,9 +239,24 @@ export class Entity {
         const worldPos = child.getWorldPosition();
         child.x = worldPos.x;
         child.y = worldPos.y;
-        // 👁️ Поле зрения должно всегда следовать ориентации родителя
+        // 👁️ Поле зрения следует ориентации родителя.
+        // При зеркале корректируем так, чтобы МИРОВОЙ угол (rotation + baseAngle) отражался по выбранной оси.
         if (child.type === 'vision') {
-          child.rotation = this.rotation || 0;
+          const parentAngle = this.rotation || 0;
+          const baseAngle = (child.visual && (child.visual.baseAngle != null)) ? child.visual.baseAngle : 0;
+          let newChildRot = parentAngle;
+          if (this.typeRotate === 'mirror' && this.isMirrored) {
+            if (this.mirrorAxis === 'y') {
+              // worldAngle' = PI - worldAngle -> childRot' = PI - parentAngle - 2*baseAngle
+              newChildRot = Math.PI - parentAngle - 2 * baseAngle;
+            } else {
+              // 'x': worldAngle' = -worldAngle -> childRot' = -parentAngle - 2*baseAngle
+              newChildRot = -parentAngle - 2 * baseAngle;
+            }
+          }
+          while (newChildRot > Math.PI) newChildRot -= 2 * Math.PI;
+          while (newChildRot < -Math.PI) newChildRot += 2 * Math.PI;
+          child.rotation = newChildRot;
         }
         // Если ребенок прикреплен к нашему слоту — синхронизируем угол
         if (child.attachedSlot) {
@@ -319,7 +334,7 @@ export class Entity {
     // Определяем направление по выбранной оси
     let shouldMirror = false;
     if (this.mirrorAxis === 'x') {
-      shouldMirror = deltaY < 0; // Движение вверх = отражение
+      shouldMirror = deltaY > 0; // Движение вниз = отражение (вверх = без отражения)
     } else { // mirrorAxis === 'y'
       shouldMirror = deltaX < 0; // Движение влево = отражение
     }
@@ -407,12 +422,7 @@ export class Entity {
       // Отражение по оси Y (лево/право) - меч переходит на другую сторону
       child.offsetX = this.isMirrored ? -child.originalOffsetX : child.originalOffsetX;
     }
-    
-    // Для STICK режима также отражаем саму дочернюю сущность
-    if (this.childRotationType === 'stick') {
-      // Дочерняя сущность тоже отражается
-      child.isMirrored = this.isMirrored;
-    }
+    // Не назначаем зеркальные флаги на детях, чтобы не было двойного отражения через scale
   }
   
   /**
@@ -1021,11 +1031,29 @@ export class Entity {
     const slot = this.slots && this.slots[slotName];
     if (!slot) return null;
     const base = this.getWorldTransform();
+    // Применяем зеркальную трансформацию для слота (если включено зеркало у родителя)
+    let offX = slot.offsetX || 0;
+    let offY = slot.offsetY || 0;
+    let angOff = slot.angleOffset || 0;
+    if (this.typeRotate === 'mirror' && this.isMirrored) {
+      if (this.mirrorAxis === 'x') {
+        // Отражение по X: инвертируем Y и угол относительно X
+        offY = -offY;
+        angOff = -angOff;
+      } else { // 'y'
+        // Отражение по Y: инвертируем X и угол относительно Y
+        offX = -offX;
+        angOff = Math.PI - angOff;
+      }
+    }
     const cos = Math.cos(base.angle);
     const sin = Math.sin(base.angle);
-    const x = base.x + cos * slot.offsetX - sin * slot.offsetY;
-    const y = base.y + sin * slot.offsetX + cos * slot.offsetY;
-    const facing = base.angle + (slot.angleOffset || 0);
+    const x = base.x + cos * offX - sin * offY;
+    const y = base.y + sin * offX + cos * offY;
+    let facing = base.angle + angOff;
+    // Нормализуем угол facing в диапазон [-π, π]
+    while (facing > Math.PI) facing -= 2 * Math.PI;
+    while (facing < -Math.PI) facing += 2 * Math.PI;
     return { x, y, facing };
   }
 
