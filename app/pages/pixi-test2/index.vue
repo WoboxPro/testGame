@@ -486,11 +486,11 @@ onMounted(async () => {
         rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе
         rotationOffset: Math.PI/2,     // 🎯 Смещение угла: 90° = вниз по умолчанию
-        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
-        mirrorAxis: 'x',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        typeRotate: 'full',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
         mirrorMouse: true,             // 🖱️ В mirror+mouse тело не крутится, только отражается
         mirrorMouseDeadzone: 4,        // ⚖️ Порог переключения по оси (пиксели)
-        visionFollowMouseInMirror: true, // 👁️ В mirror-режиме конус продолжает следовать курсору
+        visionFollowMouseInMirror: false, // 👁️ В mirror-режиме конус продолжает следовать курсору
         stats: { 
           speed: 4, 
           health: 2, 

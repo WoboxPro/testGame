@@ -555,7 +555,7 @@ export class EntityController {
           }
           // Отдельно: vision может следовать мыши, даже если тело не крутится
           if (entity.visionFollowMouseInMirror !== false) {
-            // ничего: обработаем ниже в общем повороте дочернего vision
+            this._rotateVisionChildrenTowards(entity, targetX, targetY);
           }
           continue; // саму сущность не вращаем
         }
@@ -600,6 +600,24 @@ export class EntityController {
     if (entity.rotateChildren && step !== 0 && entity.rotateChildrenBy) {
       entity.rotateChildrenBy(step);
       if (entity.updateChildrenPositions) entity.updateChildrenPositions();
+    }
+  }
+
+  _rotateVisionChildrenTowards(entity, targetX, targetY) {
+    if (!entity?.world || entity.children.size === 0) return;
+    for (const childId of entity.children) {
+      const child = entity.world.getEntity(childId);
+      if (!child || child.type !== 'vision') continue;
+      const dx = targetX - child.x;
+      const dy = targetY - child.y;
+      let desired = Math.atan2(dy, dx);
+      const baseAngle = (child.visual && (child.visual.baseAngle != null)) ? child.visual.baseAngle : 0;
+      // Компенсируем baseAngle, чтобы сектор геометрически смотрел на курсор
+      desired -= baseAngle;
+      // Нормализация
+      while (desired > Math.PI) desired -= 2 * Math.PI;
+      while (desired < -Math.PI) desired += 2 * Math.PI;
+      child.rotation = desired;
     }
   }
   
