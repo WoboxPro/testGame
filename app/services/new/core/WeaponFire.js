@@ -5,7 +5,7 @@
 export class ProjectileConfig {
   constructor(input = {}) {
     const defaults = {
-      weaponType: 'projectile', // 'projectile' | 'laser' (hitscan)
+      weaponType: 'projectile', // 'projectile' | 'raycast' | 'laser' (laser alias)
       bulletSpeed: 10,          // px per tick step
       bulletsPerShot: 1,        // bullets spawned per shot
       maxRange: 400,            // px
@@ -16,11 +16,18 @@ export class ProjectileConfig {
       damage: 1,
       friendlyFire: false,
       validTargets: { block: ['building','structure'], hit: ['unit'] },
+      penetration: 1,           // for raycast: count of entities to pierce through (hit targets)
       // visuals
       size: 2, // legacy
       width: undefined,
       height: undefined,
       color: 0xFFD700,
+      // raycast visuals (tracer/beam)
+      raycastAnimation: 'laser', // 'laser' | 'impact' | 'none'
+      tracerWidth: 2,
+      tracerColor: 0xFF4444,
+      tracerAlpha: 0.9,
+      tracerTtlMs: 60,
       // new grouped configs
       sizeBullet: undefined,
       bulletConfigs: {
@@ -43,11 +50,17 @@ export class ProjectileConfig {
     this.damage = Number(cfg.damage) || defaults.damage;
     this.friendlyFire = !!cfg.friendlyFire;
     this.validTargets = (bc.validTargets) || cfg.validTargets || defaults.validTargets;
+    this.penetration = Math.max(0, Number(cfg.penetration != null ? cfg.penetration : defaults.penetration));
     // visuals
     this.sizeBullet = (cfg.sizeBullet != null) ? cfg.sizeBullet : ((cfg.size != null) ? cfg.size : defaults.size);
     this.width = cfg.width;
     this.height = cfg.height;
     this.color = (cfg.color != null) ? cfg.color : defaults.color;
+    this.raycastAnimation = cfg.raycastAnimation;
+    this.tracerWidth = Number(cfg.tracerWidth != null ? cfg.tracerWidth : defaults.tracerWidth);
+    this.tracerColor = (cfg.tracerColor != null) ? cfg.tracerColor : defaults.tracerColor;
+    this.tracerAlpha = (cfg.tracerAlpha != null) ? cfg.tracerAlpha : defaults.tracerAlpha;
+    this.tracerTtlMs = Math.max(0, Number(cfg.tracerTtlMs != null ? cfg.tracerTtlMs : defaults.tracerTtlMs));
     // collision behavior
     this.collideAsPoint = !!bc.collideAsPoint;
     this.collisionRadius = (bc.collisionRadius != null) ? bc.collisionRadius : null;
@@ -187,7 +200,12 @@ export class MuzzleFireController {
     switch (this.config.weaponType) {
       case 'laser':
         // Hitscan stub: instant effect along a ray of length maxRange
-        // Future: apply damage/effects; for now do nothing visual
+        // Future: apply damage/effects; for now treat as raycast with laser visuals
+        this._fireRaycast(t.x, t.y, facing);
+        break;
+      case 'raycast':
+        this._fireRaycast(t.x, t.y, facing);
+        this._lastFireMs = Date.now();
         break;
       case 'projectile':
       default:
@@ -256,6 +274,7 @@ export class MuzzleFireController {
       ownership: { entityId: shooter?.id, displayName: shooter?.name, factionId },
       friendlyFire: this.config.friendlyFire,
       validTargets: this.config.validTargets,
+      penetration: (this.config.penetration != null) ? Number(this.config.penetration) : 0,
       sizeBullet: visualSize != null ? visualSize : 2,
       collideAsPoint: this.config.collideAsPoint,
       collisionRadius: this.config.collisionRadius,
@@ -291,7 +310,11 @@ export class MuzzleFireController {
           const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
           if (t) {
             const facing = (t.facing != null) ? t.facing : (t.angle || 0);
-            this._fireOnceImmediate(t.x, t.y, facing);
+            if (this.config.weaponType === 'raycast' || this.config.weaponType === 'laser') {
+              this._fireRaycast(t.x, t.y, facing);
+            } else {
+              this._fireOnceImmediate(t.x, t.y, facing);
+            }
             this._lastFireMs = Date.now();
           }
           this._fireAccMs -= this.config.fireRate;
@@ -312,6 +335,162 @@ export class MuzzleFireController {
       }
     }
     // With shared ticker, no need to manage per-controller timers here
+  }
+
+  _fireRaycast(x, y, angle) {
+    const maxDist = this.config.maxRange;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const endX = x + dx * maxDist;
+    const endY = y + dy * maxDist;
+    const shooter = this.weapon?.parent ? this.world.getEntity(this.weapon.parent) : this.weapon;
+    const factionSystem = this.world?.factionSystem;
+    const vt = this.config.validTargets || {};
+    const blocks = new Set(vt.block || []);
+    const hits = new Set(vt.hit || []);
+
+    // Collect all intersections
+    const entities = this.world.getAllEntities();
+    const intersections = [];
+    for (const e of entities) {
+      if (!e || e.isDead || e.id === shooter?.id) continue;
+      if (!e.collision?.enabled) continue;
+      if (e.type === 'vision' || e.type === 'bullet') continue;
+      // Faction friendly-fire check (skip allies when friendlyFire=false)
+      if (this.config.friendlyFire === false && factionSystem) {
+        if (shooter && !factionSystem.canEntityAttack(shooter, e)) continue;
+      }
+      // Tag matching
+      const tags = new Set();
+      if (e.collision?.name) tags.add(e.collision.name);
+      if (e.type) tags.add(e.type);
+      const isBlock = [...blocks].some(t => tags.has(t));
+      const isHit = [...hits].some(t => tags.has(t));
+      if (!isBlock && !isHit) continue;
+
+      const tParam = this._intersectRayWithEntity(x, y, dx, dy, maxDist, e);
+      if (tParam == null) continue;
+      const ix = x + dx * tParam;
+      const iy = y + dy * tParam;
+      intersections.push({ t: tParam, x: ix, y: iy, entity: e, isBlock, isHit });
+    }
+    intersections.sort((a, b) => a.t - b.t);
+
+    // Apply hits along the ray
+    let remainingPen = Math.max(0, this.config.penetration || 0);
+    let rayEndX = endX;
+    let rayEndY = endY;
+    for (const hit of intersections) {
+      // Stop if beyond current ray end
+      const distToHit = hit.t;
+      const distCurrentEnd = Math.hypot(rayEndX - x, rayEndY - y);
+      if (distToHit > distCurrentEnd + 1e-6) break;
+
+      if (hit.isHit) {
+        const dmg = Number(this.config.damage) || 0;
+        if (dmg > 0 && hit.entity?.stats) {
+          hit.entity.stats.takeDamage(dmg, hit.entity);
+        }
+        if (remainingPen <= 0) {
+          rayEndX = hit.x; rayEndY = hit.y;
+          break;
+        } else {
+          remainingPen -= 1;
+        }
+      }
+      if (hit.isBlock) {
+        rayEndX = hit.x; rayEndY = hit.y;
+        break;
+      }
+    }
+
+    // Visual tracer
+    if (this.config.raycastAnimation !== 'none') {
+      // 🔒 Клэмп к границам мира, чтобы трассер не терялся за пределами карты
+      const b = this.world?.bounds;
+      if (b && isFinite(b.left) && isFinite(b.top) && isFinite(b.right) && isFinite(b.bottom)) {
+        const tExit = this._intersectRayAABB(x, y, dx, dy, maxDist, b.left, b.top, b.right, b.bottom);
+        if (tExit != null) {
+          const currentLen = Math.hypot(rayEndX - x, rayEndY - y);
+          if (tExit < currentLen) {
+            rayEndX = x + dx * tExit;
+            rayEndY = y + dy * tExit;
+          }
+        }
+      }
+      this._spawnTracer(x, y, rayEndX, rayEndY, angle);
+    }
+  }
+
+  _spawnTracer(x1, y1, x2, y2, angle) {
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    const tracer = this.world.addEntity({
+      x: cx,
+      y: cy,
+      type: 'effect',
+      form: 'rectangle',
+      width: Math.max(2, dist),
+      height: Math.max(1, this.config.tracerWidth || 2),
+      color: this.config.tracerColor || 0xFF4444,
+      rotation: angle,
+      collision: { enabled: false }
+    });
+    const ttl = Math.max(0, this.config.tracerTtlMs || 60);
+    if (ttl > 0) {
+      this.world.setGameTimeout(() => {
+        this.world.removeEntity(tracer.id);
+      }, ttl);
+    }
+  }
+
+  _intersectRayWithEntity(x, y, dx, dy, maxDist, entity) {
+    // returns distance t along ray (0..maxDist) or null
+    const coll = entity.collision;
+    if (!coll) return null;
+    if (coll.form === 'circle') {
+      const r = coll.radius || entity.size || 10;
+      return this._intersectRayCircle(x, y, dx, dy, maxDist, entity.x, entity.y, r);
+    } else if (coll.form === 'rect') {
+      const w = coll.width || entity.width || entity.size || 20;
+      const h = coll.height || entity.height || entity.size || 20;
+      return this._intersectRayAABB(x, y, dx, dy, maxDist, entity.x - w/2, entity.y - h/2, entity.x + w/2, entity.y + h/2);
+    }
+    return null;
+  }
+
+  _intersectRayCircle(ox, oy, dx, dy, maxDist, cx, cy, r) {
+    // Ray: p = o + t*d, t>=0
+    const lx = cx - ox;
+    const ly = cy - oy;
+    const tca = lx * dx + ly * dy; // projection length
+    const d2 = lx*lx + ly*ly - tca*tca;
+    const r2 = r*r;
+    if (d2 > r2) return null;
+    const thc = Math.sqrt(Math.max(0, r2 - d2));
+    const t0 = tca - thc;
+    const t1 = tca + thc;
+    const t = (t0 >= 0) ? t0 : (t1 >= 0 ? t1 : null);
+    if (t == null) return null;
+    if (t > maxDist) return null;
+    return t;
+  }
+
+  _intersectRayAABB(ox, oy, dx, dy, maxDist, minX, minY, maxX, maxY) {
+    const invDx = 1 / (dx === 0 ? 1e-9 : dx);
+    const invDy = 1 / (dy === 0 ? 1e-9 : dy);
+    let t1 = (minX - ox) * invDx;
+    let t2 = (maxX - ox) * invDx;
+    let t3 = (minY - oy) * invDy;
+    let t4 = (maxY - oy) * invDy;
+    const tmin = Math.max(Math.min(t1, t2), Math.min(t3, t4));
+    const tmax = Math.min(Math.max(t1, t2), Math.max(t3, t4));
+    if (tmax < 0) return null;
+    if (tmin > tmax) return null;
+    const t = tmin >= 0 ? tmin : tmax; // entry point
+    if (t < 0 || t > maxDist) return null;
+    return t;
   }
 }
 

@@ -727,7 +727,7 @@ export class CollisionSystem {
     };
 
     if (intersects(blocks)) {
-      // Останавливаем пулю (позже — рикошет)
+      // Блок: пуля останавливается всегда
       this.world.removeEntity(bullet.id);
       return;
     }
@@ -737,9 +737,14 @@ export class CollisionSystem {
       if (dmg > 0 && target.stats) {
         target.stats.takeDamage(dmg, target);
       }
-      // Для простоты сейчас пуля исчезает после первого хита
-      this.world.removeEntity(bullet.id);
-      // Статистика попаданий/убийств может логироваться здесь, используя c.ownership
+      // Пробитие: уменьшаем счетчик и либо удаляем пулю, либо даем лететь дальше
+      const penLeft = (typeof c.penetration === 'number') ? c.penetration : 0;
+      if (penLeft <= 0) {
+        this.world.removeEntity(bullet.id);
+        return;
+      }
+      // Сохранить уменьшенное пробитие на пуле
+      c.penetration = penLeft - 1;
       return;
     }
     // Иначе: игнор цели

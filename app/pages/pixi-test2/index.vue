@@ -426,53 +426,7 @@ onMounted(async () => {
         console.log(`🚪 ЗДАНИЕ: ${entityA.name} отошел от ${entityB.name}`);
       });
 // END: COLLISION -----------------------------------------------------------------------------------------------------------------
-      
-      // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
-      myWorld.addStructure(700, -700, { name: 'База 1 (Graphics)', form: 'building', size: 50, color: 0x0000FF  });
-      myWorld.addStructure(650, -700, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
-      
-      // 👥 ЮНИТЫ (будут видны в мини-карте) + АВТОМАТИЧЕСКИЕ КОЛЛИЗИИ!
-      myWorld.addUnit(-50, -400, { 
-        name: 'Солдат 1 (Auto)', 
-        form: 'soldier', 
-        size: 8,
-        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
-      });
 
-      // Триггерные объекты (НЕ блокируют движение, только события!)
-      myWorld.addEntity({
-        x: 620, y: -700,
-        name: 'Подарок 1 (Trigger)',
-        form: 'star',
-        size: 12,
-        color: 0xFF69B4,
-        type: 'decoration',
-        collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
-      });
-      
-      
-      // Прямоугольная сущность с width/height!
-      myWorld.addEntity({
-        x: 0, y: 100,
-        name: 'Прямоугольный Тест',
-        form: 'rectangle',
-        width: 40,    
-        height: 25,   
-        color: 0x444444, 
-        type: 'decoration',
-        collision: {
-          enabled: true,
-          name: 'building',
-          form: 'rect',          
-          width: 40,             
-          height: 25,            
-          collisionType: 'block', // 🚫 Блокирующая
-          isSolid: true,
-          layer: 'buildings'
-        }
-      });
-      
-      
 // PLAYER -----------------------------------------------------------------------------------------------------------------
       const controlledHero = myWorld.addUnit(-200, 0, { 
         name: 'Управляемый Герой',
@@ -481,16 +435,16 @@ onMounted(async () => {
         size: 12, 
         color: 0x00FF80,  // Ярко-зеленый для выделения
         collision: unitCollisionType.createEntityCollision(),
-        rotationBehavior: 'mouse',  // 🎯 Поворот на мышь (зеркало перехватит и отключит вращение тела)
+        rotationBehavior: 'mouse',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
-        rotateChildren: true,          // 🔄 Дочерние сущности поворачиваются вместе
-        childRotationType: 'stick',    // 🔗 'stick' = прилипли вместе
-        rotationOffset: Math.PI/2,     // 🎯 Смещение угла: 90° = вниз по умолчанию
+        rotateChildren: true,          //  Дочерние сущности поворачиваются вместе
+        childRotationType: 'stick',    //  'stick' = прилипли вместе
+        rotationOffset: Math.PI/2,     //  Смещение угла: 90° = вниз по умолчанию
         typeRotate: 'full',          // 'full' | 'mirror' — включаем зеркало
         mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
-        mirrorMouse: true,             // 🖱️ В mirror+mouse тело не крутится, только отражается
-        mirrorMouseDeadzone: 4,        // ⚖️ Порог переключения по оси (пиксели)
-        visionFollowMouseInMirror: false, // 👁️ В mirror-режиме конус продолжает следовать курсору
+        mirrorMouse: true,             //  В mirror+mouse тело не крутится, только отражается
+        mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
+        visionFollowMouseInMirror: false, //  В mirror-режиме конус продолжает следовать курсору
         stats: { 
           speed: 4, 
           health: 2, 
@@ -499,7 +453,7 @@ onMounted(async () => {
         // Система респауна
         respawn: true,        // Возрождение при смерти
         respawnTime: 3000,     // Воскрешение через 3 секунды
-        // 👁️ Видимость (визуальное кольцо создастся автоматически)
+        //  Видимость (визуальное кольцо создастся автоматически)
         vision: {
           type: 'cone',
           angle: 70,
@@ -538,8 +492,10 @@ onMounted(async () => {
         muzzle: {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
           bullet: {
-            weaponType: 'projectile',
+            weaponType: 'raycast', // 'projectile' | 'raycast'
+            raycastAnimation: 'laser',
             bulletSpeed: 5,
+            penetration: 0,
             bulletsPerShot: 1,
             maxRange: 600,
             fireRate: 120,
@@ -689,8 +645,47 @@ onMounted(async () => {
       myWorld.assignEntityToFaction(controlledHero2, playerFaction);      
 
 // END: PLAYER -----------------------------------------------------------------------------------------------------------------
-    myWorld.addEntity({ x: 570, y: -700, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
-           // Создаем ловушку с уроном при касании
+
+// ENTITY----------------------------------------------------------------------------------------------------------------------
+      // 🏗️ СТРУКТУРЫ (будут видны в мини-карте)
+      myWorld.addStructure(700, -700, { name: 'База 1 (Graphics)', form: 'building', size: 50, color: 0x0000FF  });
+      myWorld.addStructure(650, -700, { name: 'Башня (Graphics)', form: 'tower', size: 15, color: 0x654321 });
+
+      // Здание
+      myWorld.addEntity({ 
+        x: 0, y: 100,
+        name: 'Прямоугольный Тест',
+        form: 'rectangle',
+        width: 40,    
+        height: 25,   
+        color: 0x444444, 
+        type: 'decoration',
+        collision: {
+          enabled: true,
+          name: 'building',
+          form: 'rect',          
+          width: 40,             
+          height: 25,            
+          collisionType: 'block', // 🚫 Блокирующая
+          isSolid: true,
+          layer: 'buildings'
+        }
+      });
+      // Триггерные объекты (НЕ блокируют движение, только события!)
+      myWorld.addEntity({
+        x: 620, y: -700,
+        name: 'Подарок 1 (Trigger)',
+        form: 'star',
+        size: 12,
+        color: 0xFF69B4,
+        type: 'decoration',
+        collision: triggerCollisionType.createEntityCollision() // 📡 Триггер!
+      });
+      
+      myWorld.addEntity({ x: 570, y: -700, type: 'bullet', form: 'bullet', size: 2, name: 'Пуля 2', color: 0xFF6347 });
+
+      
+      // Создаем ловушку с уроном при касании
       const damageTrap = myWorld.addEntity({
         x: 50, y: 50,
         type: 'trap',
@@ -703,6 +698,16 @@ onMounted(async () => {
         // Урон при касании
         stats: { touchDamage: 1 }  // Наносит 1 урон при касании
       });
+
+      // 👥 ЮНИТЫ 
+      myWorld.addUnit(-200, -200, { 
+        name: 'Солдат 1 (Auto)', 
+        form: 'soldier', 
+        size: 8,
+        collision: autoCollisionType.createEntityCollision() // 🎯 Автоколлизия! radius = 8 * 1.2 = 9.6
+      });
+
+
      
      const aiAgent = {
           action: true,
