@@ -1,10 +1,11 @@
 <template>
   <div class="container">
-    <div class="info">
+   <!--<div class="info">
       <h1>🎮 PixiGame 2.0 - Гибридная система + Биомы + Зоны + Фракции + Коллизии</h1>
       <p>🎮 <strong>Управление камерой (Numpad):</strong> 📍 1(⬅️),2(⬇️),3(➡️),5(⬆️) • 🔍 +/- (зум) • 📷 */÷ (переключение камер) • 📹 Основная камера автоследит героя!</p>
       <p>🏃 <strong>Управление героями (WASD):</strong> 📍 W(⬆️),A(⬅️),S(⬇️),D(➡️) • ⚡ Shift (ускорение) • 🐌 Ctrl (замедление) • 🔄 Tab (переключение) • 🎯 <strong>НОВИНКА:</strong> Прямоугольные коллизии!</p>
     </div>
+    -->
     <div class="canvas-row">
       <div id="game-container" class="game-area"></div>
       <div id="game-container2" class="game-area"></div>
@@ -29,6 +30,9 @@ let leftFire = null;
 let leftFire2 = null;
 let inputRouter = null;
 
+const width = 1200;
+const height = 900;
+
 onMounted(async () => {
   if (process.client) {
     try {
@@ -50,8 +54,8 @@ onMounted(async () => {
 
 // CANVAS -----------------------------------------------------------------------------------------------------------------
       const myCanvas = game.createCanvas({
-        width: 800,
-        height: 600,
+        width: width,
+        height: height,
         backgroundColor: '#333333', // Серый фон незанятых областей
         containerId: 'game-container'  //  ID DOM элемента куда помещать канвас
       });
@@ -60,70 +64,7 @@ onMounted(async () => {
       // ⏱️ Масштаб времени игры (1 = нормальная скорость)
       game.setTimeScale(1);
 
-// CAMERA -----------------------------------------------------------------------------------------------------------------
-      // 📷 Создаем первую камеру (основная, занимает левую половину)
-      const myCamera1 = game.createCamera({
-        id: 'main_camera',
-        width: 400,           // Половина канваса
-        height: 600,          // Вся высота
-        x: 0,                 // Левая половина канваса
-        y: 0,
-        focusX: 0,            // Смотрит на центр мира
-        focusY: 0,
-        world: myWorld,
-        canvas: myCanvas,
-        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
-        priority: 1,
-        respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
-        style: {
-          border: {
-            enabled: true,
-            width: 2,
-            color: 0x00FF00  // Зеленый для основной камеры
-          }
-        }
-      });
-      
-      //  📷 Создаем третью камеру (детали, правый низ)
-      const myCamera3 = game.createCamera({
-        id: 'detail_camera',
-        width: 400,
-        height: 600,
-        x: 400,              // Правая часть
-        y: 0,              // Низ
-        focusX: 0,           // 🎯 Тоже смотрит на центр мира
-        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
-        world: myWorld,      // ТОТ ЖЕ МИР!
-        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-        zoom: 1.3,           // Слегка увеличенный зум (было 2.0)
-        priority: 3,
-        respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
-        hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border','vision'],    // Скрываем пули, эффекты, частицы
-        style: {
-          border: {
-            enabled: true,
-            width: 2,
-            color: 0xFF8000  // Оранжевый для детальной камеры
-          }
-        }
-      });
 
-      // Создаем контроллер управления камерой
-      const controller = game.createCameraController({
-        moveSpeed: 2,            // 🎯  пикселей за шаг (плавно!)
-       // smoothMove: true,        // 🎯 плавное движение включено :: НЕ РЕАЛИЗОВАНО
-        zoomStep: 0.02,          // Более плавный зум
-        minZoom: 0.2,            // Минимальный зум
-        maxZoom: 5.0             // Максимальный зум
-      });
-      
-      // Принудительное включение контроллера
-      controller.enable();
-
-      // Выбираем основную камеру для демонстрации
-      game.selectCamera(myCamera1);
-
-// END: CAMERA -----------------------------------------------------------------------------------------------------------------
 
 // BIOME -----------------------------------------------------------------------------------------------------------------
       
@@ -613,9 +554,7 @@ onMounted(async () => {
       });
 
       
-      //  Камера автоматически следит за управляемым героем!
-      myCamera1.followEntity(controlledHero);
-      myCamera3.followEntity(controlledHero2);
+
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
         controlType: 'keyboard', //'keyboard' | 'touch' | 'both'
@@ -781,6 +720,73 @@ onMounted(async () => {
         ai: aiAgent
       });
 
+
+// CAMERA -----------------------------------------------------------------------------------------------------------------
+      // 📷 Создаем первую камеру (основная, занимает левую половину)
+      const myCamera1 = game.createCamera({
+        id: 'main_camera',
+        width: width,           // Половина канваса
+        height: height,          // Вся высота
+        x: 0,                 // Левая половина канваса
+        y: 0,
+        focusX: 0,            // Смотрит на центр мира
+        focusY: 0,
+        world: myWorld,
+        canvas: myCanvas,
+        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
+        priority: 1,
+        respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0x00FF00  // Зеленый для основной камеры
+          }
+        }
+      });
+      
+      //  📷 Создаем третью камеру (детали, правый низ)
+      // const myCamera3 = game.createCamera({
+      //   id: 'detail_camera',
+      //   width: 400,
+      //   height: 600,
+      //   x: 400,              // Правая часть
+      //   y: 0,              // Низ
+      //   focusX: 0,           // 🎯 Тоже смотрит на центр мира
+      //   focusY: 0,           // 🎯 Тоже смотрит на центр мира  
+      //   world: myWorld,      // ТОТ ЖЕ МИР!
+      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+      //   zoom: 1.3,           // Слегка увеличенный зум (было 2.0)
+      //   priority: 3,
+      //   respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
+      //   hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border','vision'],    // Скрываем пули, эффекты, частицы
+      //   style: {
+      //     border: {
+      //       enabled: true,
+      //       width: 2,
+      //       color: 0xFF8000  // Оранжевый для детальной камеры
+      //     }
+      //   }
+      // });
+
+      // Создаем контроллер управления камерой
+      const controller = game.createCameraController({
+        moveSpeed: 2,            // 🎯  пикселей за шаг (плавно!)
+       // smoothMove: true,        // 🎯 плавное движение включено :: НЕ РЕАЛИЗОВАНО
+        zoomStep: 0.02,          // Более плавный зум
+        minZoom: 0.2,            // Минимальный зум
+        maxZoom: 5.0             // Максимальный зум
+      });
+      
+      // Принудительное включение контроллера
+      controller.enable();
+
+      // Выбираем основную камеру для демонстрации
+      game.selectCamera(myCamera1);
+      //  Камера автоматически следит за управляемым героем!
+      myCamera1.followEntity(controlledHero);
+      //myCamera3.followEntity(controlledHero2);
+// END: CAMERA -----------------------------------------------------------------------------------------------------------------
 
 
     } catch (error) {
