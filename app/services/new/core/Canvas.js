@@ -40,11 +40,20 @@ export class Canvas {
         width: this.width,
         height: this.height,
         backgroundColor: this.backgroundColor,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true
+        //   powerPreference: 'high-performance', // подсказка браузеру выбрать производительный адаптер
+        antialias: false, // быстрее рендер на слабой GPU если false. Влияет на сглаживание
+        resolution: window.devicePixelRatio || 1, // DPI (чем выше, тем четче, но медленнее)
+        autoDensity: true, // адаптация к экранам с высоким DPI
+       // preference: "webgpu", // webgl | webgpu
+       //roundPixels: true,
+       //resizeTo: window,
       });
       
+      // Чётче позиционирование при пониженной resolution
+      // if (this.app?.renderer) {
+      //   this.app.renderer.roundPixels = true;
+      // }
+
       // 📱 Определяем куда добавлять канвас
       let targetContainer = domContainer;
       
