@@ -734,6 +734,8 @@ export class CollisionSystem {
 
     if (intersects(hits)) {
       const dmg = Number(c.damage) || 0;
+      // 🏳️ Если у цели нет фракции и хотим считать её нейтральной, можно пропустить урон,
+      // но по текущей логике (без фракций) урон наносится всем hit-целям.
       if (dmg > 0 && target.stats) {
         target.stats.takeDamage(dmg, target);
       }

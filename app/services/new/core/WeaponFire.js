@@ -356,10 +356,6 @@ export class MuzzleFireController {
       if (!e || e.isDead || e.id === shooter?.id) continue;
       if (!e.collision?.enabled) continue;
       if (e.type === 'vision' || e.type === 'bullet') continue;
-      // Faction friendly-fire check (skip allies when friendlyFire=false)
-      if (this.config.friendlyFire === false && factionSystem) {
-        if (shooter && !factionSystem.canEntityAttack(shooter, e)) continue;
-      }
       // Tag matching
       const tags = new Set();
       if (e.collision?.name) tags.add(e.collision.name);
@@ -367,6 +363,14 @@ export class MuzzleFireController {
       const isBlock = [...blocks].some(t => tags.has(t));
       const isHit = [...hits].some(t => tags.has(t));
       if (!isBlock && !isHit) continue;
+      // 🏳️ Если цель без фракции и это hit-цель, а friendlyFire=false — пропускаем (не враг)
+      if (isHit && this.config.friendlyFire === false && factionSystem) {
+        const targetFaction = factionSystem.getEntityFaction(e);
+        if (!targetFaction) {
+          continue;
+        }
+        if (shooter && !factionSystem.canEntityAttack(shooter, e)) continue;
+      }
 
       const tParam = this._intersectRayWithEntity(x, y, dx, dy, maxDist, e);
       if (tParam == null) continue;
