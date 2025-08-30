@@ -372,6 +372,8 @@ onMounted(async () => {
       const bulletSuperSpeed = {
             weaponType: 'projectile',
             bulletSpeed: 3,
+            penetration: 0,
+
             bulletsPerShot: 1,
             maxRange: 500,
             fireRate: 100,
