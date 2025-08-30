@@ -369,6 +369,62 @@ onMounted(async () => {
 // END: COLLISION -----------------------------------------------------------------------------------------------------------------
 
 // PLAYER -----------------------------------------------------------------------------------------------------------------
+      const bulletSuperSpeed = {
+            weaponType: 'projectile',
+            bulletSpeed: 3,
+            bulletsPerShot: 1,
+            maxRange: 500,
+            fireRate: 100,
+            bulletLifetime: 2.0,
+            damage: 1,
+            sizeBullet: 1, // радиус пули
+            bulletConfigs: {
+              collideAsPoint: false, // если true, то пуля будет считаться точкой, а не кругом
+              collisionRadius: null, // радиус коллизии пули
+              useCCD: false, // Логика не реализована - нужно чтоб пули на высоких скоростях не проходили сквозь стены
+              validTargets: { block: ['building','structure'], hit: ['unit'] } // блок - стены, hit - юниты
+            },
+            autoFire: false
+          };
+      const raycastBullet = {
+            weaponType: 'raycast', // 'projectile' | 'raycast'
+            raycastAnimation: 'laser',
+            bulletSpeed: 5,
+            penetration: 0,
+            bulletsPerShot: 1,
+            maxRange: 600,
+            fireRate: 120,
+            bulletLifetime: 2.0,
+            damage: 1,
+            sizeBullet: 1,
+            color: 0xFF0000,
+            bulletConfigs: {
+              collideAsPoint: false,
+              collisionRadius: null,
+              useCCD: false,
+              validTargets: { block: ['building','structure'], hit: ['unit'] }
+            },
+            autoFire: false
+          };
+
+        const bigBullet = {
+            weaponType: 'projectile',
+            bulletSpeed: 4,
+            bulletsPerShot: 1,
+            maxRange: 500,
+            fireRate: 500,
+            bulletLifetime: 2.0,
+            damage: 1,
+            sizeBullet: 3,
+            color: 0x00ff00,
+            bulletConfigs: {
+              collideAsPoint: false,
+              collisionRadius: null,
+              useCCD: false,
+              validTargets: { block: ['building','structure'], hit: ['unit'] }
+            },
+            autoFire: false
+          };
       const controlledHero = myWorld.addUnit(-200, 0, { 
         name: 'Управляемый Герой',
         type: 'unit',
@@ -432,26 +488,7 @@ onMounted(async () => {
       heroWeapon.defineSlots({
         muzzle: {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
-          bullet: {
-            weaponType: 'raycast', // 'projectile' | 'raycast'
-            raycastAnimation: 'laser',
-            bulletSpeed: 5,
-            penetration: 0,
-            bulletsPerShot: 1,
-            maxRange: 600,
-            fireRate: 120,
-            bulletLifetime: 2.0,
-            damage: 1,
-            sizeBullet: 1,
-            color: 0xFF0000,
-            bulletConfigs: {
-              collideAsPoint: false,
-              collisionRadius: null,
-              useCCD: false,
-              validTargets: { block: ['building','structure'], hit: ['unit'] }
-            },
-            autoFire: false
-          },
+          bullet: raycastBullet,
           input: { mouse: 'RMB' }
         }
       });
@@ -467,46 +504,13 @@ onMounted(async () => {
       heroWeapon2.defineSlots({
         muzzle: {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
-          bullet: {
-            weaponType: 'projectile',
-            bulletSpeed: 7,
-            bulletsPerShot: 1,
-            maxRange: 500,
-            fireRate: 200,
-            bulletLifetime: 2.0,
-            damage: 1,
-            sizeBullet: 1, // радиус пули
-            bulletConfigs: {
-              collideAsPoint: false, // если true, то пуля будет считаться точкой, а не кругом
-              collisionRadius: null, // радиус коллизии пули
-              useCCD: false, // Логика не реализована - нужно чтоб пули на высоких скоростях не проходили сквозь стены
-              validTargets: { block: ['building','structure'], hit: ['unit'] } // блок - стены, hit - юниты
-            },
-            autoFire: false
-          },
+          bullet: bulletSuperSpeed,
           input: { mouse: 'LMB' }
         },
         // Второй ствол (смещен по X для визуального разделения)
         muzzle2: {
           offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
-          bullet: {
-            weaponType: 'projectile',
-            bulletSpeed: 4,
-            bulletsPerShot: 1,
-            maxRange: 500,
-            fireRate: 500,
-            bulletLifetime: 2.0,
-            damage: 1,
-            sizeBullet: 3,
-            color: 0x00ff00,
-            bulletConfigs: {
-              collideAsPoint: false,
-              collisionRadius: null,
-              useCCD: false,
-              validTargets: { block: ['building','structure'], hit: ['unit'] }
-            },
-            autoFire: false
-          },
+          bullet: bigBullet,
           input: { keys: 'KeyF' }
         }
       });
