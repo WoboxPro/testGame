@@ -704,14 +704,6 @@ export class CollisionSystem {
     if (c.ttlMs != null && c.ttlMs <= 0) return;
     if (c.rangeLeft != null && c.rangeLeft <= 0) return;
 
-    // Дружественный огонь
-    if (c.friendlyFire === false && this.world?.factionSystem) {
-      const shooterEntity = this.world.getEntity(c.ownership?.entityId);
-      if (shooterEntity && !this.world.factionSystem.canEntityAttack(shooterEntity, target)) {
-        return;
-      }
-    }
-
     // Классификация цели: по collision.name и type
     const targetTags = new Set();
     if (target.collision?.name) targetTags.add(target.collision.name);
@@ -726,13 +718,31 @@ export class CollisionSystem {
       return false;
     };
 
-    if (intersects(blocks)) {
+    const isBlock = intersects(blocks);
+    const isHit = intersects(hits);
+
+    if (isBlock) {
       // Блок: пуля останавливается всегда
       this.world.removeEntity(bullet.id);
       return;
     }
 
-    if (intersects(hits)) {
+    if (isHit) {
+      // 🏳️ Фракционная фильтрация как в raycast: игнорируем нейтралов и союзников при FF=false
+      const factionSystem = this.world?.factionSystem;
+      if (c.friendlyFire === false && factionSystem) {
+        const shooterEntity = this.world.getEntity(c.ownership?.entityId);
+        const targetFaction = factionSystem.getEntityFaction(target);
+        // Если у цели нет фракции — считаем нейтралом и пропускаем
+        if (!targetFaction) {
+          return;
+        }
+        // Если стрелок не может атаковать цель — пропускаем
+        if (shooterEntity && !factionSystem.canEntityAttack(shooterEntity, target)) {
+          return;
+        }
+      }
+
       const dmg = Number(c.damage) || 0;
       // 🏳️ Если у цели нет фракции и хотим считать её нейтральной, можно пропустить урон,
       // но по текущей логике (без фракций) урон наносится всем hit-целям.
