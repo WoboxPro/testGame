@@ -374,7 +374,7 @@ onMounted(async () => {
             bulletSpeed: 3,
             penetration: 0,
 
-            bulletsPerShot: 1,
+            bulletsPerShot: 0,
             maxRange: 500,
             fireRate: 100,
             bulletLifetime: 2.0,
@@ -413,6 +413,8 @@ onMounted(async () => {
             weaponType: 'projectile',
             bulletSpeed: 4,
             bulletsPerShot: 1,
+            penetration: 0,
+
             maxRange: 500,
             fireRate: 500,
             bulletLifetime: 2.0,
