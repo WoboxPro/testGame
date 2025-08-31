@@ -373,7 +373,6 @@ onMounted(async () => {
             weaponType: 'projectile',
             bulletSpeed: 3,
             penetration: 0,
-
             bulletsPerShot: 0,
             maxRange: 500,
             fireRate: 100,
@@ -430,12 +429,16 @@ onMounted(async () => {
             autoFire: false
           };
       const controlledHero = myWorld.addUnit(-200, 0, { 
-        name: 'Управляемый Герой',
-        type: 'unit',
-        form: 'soldier', 
-        size: 12, 
-        color: 0x00FF80,  // Ярко-зеленый для выделения
-        collision: unitCollisionType.createEntityCollision(),
+        name: 'Герой', 
+        form: 'unit', 
+        faction: playerFaction,
+        collision: unitCollisionType.createEntityCollision(), 
+        // 🎯 Слоты теперь прямо здесь! (удаляем отдельный defineSlots)
+        slots: {
+          right_gun: { offsetX: 8,  offsetY: -5, angleOffset: 0, maxWeapons: 1 },
+          left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
+        },
+        size: 12,
         rotationBehavior: 'mouse',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          //  Дочерние сущности поворачиваются вместе
@@ -471,12 +474,6 @@ onMounted(async () => {
               blockedBy: ['building', 'structure'] // по collision.name или по entity.type
             }
         }
-      });
-      
-      // 🎯 Система слотов на герое (для оружия)
-      controlledHero.defineSlots({
-        right_gun: { offsetX: 8,  offsetY: -5, angleOffset: 0, maxWeapons: 1 },
-        left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
       });
       
       // 🔗 Создаем оружие и привязываем к слотам героя
@@ -727,7 +724,6 @@ onMounted(async () => {
         vision: visionAgent,
         ai: aiAgent
       });
-
 
 // CAMERA -----------------------------------------------------------------------------------------------------------------
       // 📷 Создаем первую камеру (основная, занимает левую половину)

@@ -118,6 +118,11 @@ export class Entity {
     for (const name of Object.keys(this.slots)) {
       this.slotAttachments[name] = new Set();
     }
+
+    // 🎯 НОВАЯ ЧАСТЬ: Автоматически определяем слоты, если переданы в options
+    if (options.slots && typeof options.slots === 'object') {
+      this.defineSlots(options.slots);
+    }
     
   }
   
