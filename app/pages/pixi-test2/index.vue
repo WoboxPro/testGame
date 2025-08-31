@@ -483,48 +483,51 @@ onMounted(async () => {
         form: 'rectangle',
         width: 3,
         height: 20,
-        color: 0x002299
-      });
-      // 🔫 Дуло правого оружия + конфиг выстрела
-      heroWeapon.defineSlots({
-        muzzle: {
-          offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
-          bullet: raycastBullet,
-          input: { mouse: 'RMB' }
+        color: 0x002299,
+        slots: {
+          muzzle: {
+            offsetX: 0, offsetY: -12, angleOffset: -Math.PI / 2,
+            bullet: raycastBullet,
+            input: { mouse: 'RMB' }
+          }
         }
       });
+      controlledHero.attachEntityToSlot(heroWeapon, 'right_gun');
+
       const heroWeapon2 = myWorld.addEntity({
         name: 'Левое оружие',
         type: 'weapon',
         form: 'rectangle',
         width: 3,
         height: 20,
-        color: 0x990000
-      });
-      // 🔫 Дуло левого оружия + конфиг (отличается скоростью/темпом)
-      heroWeapon2.defineSlots({
-        muzzle: {
-          offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
-          bullet: bulletSuperSpeed,
-          input: { mouse: 'LMB' }
-        },
-        // Второй ствол (смещен по X для визуального разделения)
-        muzzle2: {
-          offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
-          bullet: bigBullet,
-          input: { keys: 'KeyF' }
+        color: 0x990000,
+        slots: {
+          muzzle: {
+            offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
+            bullet: bulletSuperSpeed,
+            input: { mouse: 'LMB' }
+          },
+          // Второй ствол (смещен по X для визуального разделения)
+          muzzle2: {
+            offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
+            bullet: bigBullet,
+            input: { keys: 'KeyF' }
+          }
         }
       });
-      controlledHero.attachEntityToSlot(heroWeapon, 'right_gun');
+
       controlledHero.attachEntityToSlot(heroWeapon2, 'left_gun');
       // Мгновенная синхронизация трансформов (на всякий случай)
       controlledHero.updateAttachedSlots();
 
       // 🔥 Авто-огонь из дул согласно конфигу слота
       const rightCfg = new ProjectileConfig(heroWeapon.slots.muzzle?.bullet || {});
-      const leftCfg = new ProjectileConfig(heroWeapon2.slots.muzzle?.bullet || {});
       rightFire = new MuzzleFireController(myWorld, heroWeapon, 'muzzle', rightCfg);
+
+
+      const leftCfg = new ProjectileConfig(heroWeapon2.slots.muzzle?.bullet || {});
       leftFire = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle', leftCfg);
+      
       const leftCfg2 = new ProjectileConfig(heroWeapon2.slots.muzzle2?.bullet || {});
       leftFire2 = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle2', leftCfg2);
 
