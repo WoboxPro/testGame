@@ -714,9 +714,9 @@ onMounted(async () => {
       // 📷 Создаем первую камеру (основная, занимает левую половину)
       const myCamera1 = game.createCamera({
         id: 'main_camera',
-         width: width,           // Половина канваса
+        // width: width,           // Половина канваса
         // height: height,          // Вся высота
-        //width: 400,           // Половина канваса
+        width: 400,           // Половина канваса
         height: height,          // Вся высота
 
         x: 0,                 // Левая половина канваса
@@ -738,28 +738,28 @@ onMounted(async () => {
       });
       
       //  📷 Создаем третью камеру (детали, правый низ)
-      // const myCamera3 = game.createCamera({
-      //   id: 'detail_camera',
-      //   width: 400,
-      //   height: 600,
-      //   x: 400,              // Правая часть
-      //   y: 0,              // Низ
-      //   focusX: 0,           // 🎯 Тоже смотрит на центр мира
-      //   focusY: 0,           // 🎯 Тоже смотрит на центр мира  
-      //   world: myWorld,      // ТОТ ЖЕ МИР!
-      //   canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
-      //   zoom: 1.3,           // Слегка увеличенный зум (было 2.0)
-      //   priority: 3,
-      //   respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
-      //   hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border','vision'],    // Скрываем пули, эффекты, частицы
-      //   style: {
-      //     border: {
-      //       enabled: true,
-      //       width: 2,
-      //       color: 0xFF8000  // Оранжевый для детальной камеры
-      //     }
-      //   }
-      // });
+      const myCamera3 = game.createCamera({
+        id: 'detail_camera',
+        width: 400,
+        height: 600,
+        x: 400,              // Правая часть
+        y: 0,              // Низ
+        focusX: 0,           // 🎯 Тоже смотрит на центр мира
+        focusY: 0,           // 🎯 Тоже смотрит на центр мира  
+        world: myWorld,      // ТОТ ЖЕ МИР!
+        canvas: myCanvas,    // ТОТ ЖЕ КАНВАС!
+        zoom: 1.3,           // Слегка увеличенный зум (было 2.0)
+        priority: 3,
+        respectWorldBounds: false,  // 🌍 И детальная камера тоже ограничена
+        hiddenTypes: ['resource', 'zone_boundary', 'biome_border', 'zone_border','vision'],    // Скрываем пули, эффекты, частицы
+        style: {
+          border: {
+            enabled: true,
+            width: 2,
+            color: 0xFF8000  // Оранжевый для детальной камеры
+          }
+        }
+      });
 
       // Создаем контроллер управления камерой
       const controller = game.createCameraController({
@@ -777,7 +777,7 @@ onMounted(async () => {
       game.selectCamera(myCamera1);
       //  Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
-      //myCamera3.followEntity(controlledHero2);
+      myCamera3.followEntity(controlledHero2);
 // END: CAMERA -----------------------------------------------------------------------------------------------------------------
 
 
