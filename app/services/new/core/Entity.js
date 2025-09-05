@@ -583,7 +583,42 @@ export class Entity {
     const graphics = new PIXI.Graphics();
     
     // 🎨 Рендерим по форме
-    switch (this.visual.form) {
+    const formDef = this.visual.form;
+    // Поддержка объектной формы для визуала: { type: 'polygon', points: [{x,y}, ...] }
+    if (formDef && typeof formDef === 'object') {
+      const t = String(formDef.type || '').toLowerCase();
+      if (t === 'polygon' && Array.isArray(formDef.points) && formDef.points.length >= 3) {
+        // Нормализуем в массив чисел [x1,y1,x2,y2,...]
+        const pts = [];
+        for (const p of formDef.points) {
+          if (p && typeof p.x === 'number' && typeof p.y === 'number') {
+            pts.push(p.x, p.y);
+          }
+        }
+        if (pts.length >= 6) {
+          graphics.poly(pts);
+          // Стили заливки/обводки применятся ниже как обычно
+          const v = this.visual || {};
+          if (v.onlyStroke) {
+            const strokeColor = v.strokeColor !== undefined ? v.strokeColor : v.color;
+            const strokeWidth = v.strokeWidth !== undefined ? v.strokeWidth : 2;
+            const strokeAlpha = v.strokeAlpha !== undefined ? v.strokeAlpha : 1.0;
+            graphics.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
+          } else {
+            graphics.fill({ color: (formDef.fill != null ? formDef.fill : (this.visual.color)) });
+          }
+          // Обводка из form (приоритетнее визуальной, если указана)
+          if (formDef.stroke) {
+            const s = formDef.stroke;
+            graphics.stroke({ color: s.color != null ? s.color : this.visual.color, width: s.width != null ? s.width : 1, alpha: s.alpha != null ? s.alpha : 1 });
+          }
+          container.addChild(graphics);
+          return;
+        }
+      }
+      // Если объектная форма неизвестна — продолжаем обычный switch как fallback
+    }
+    switch (formDef) {
       case 'circle':
         graphics.circle(0, 0, this.visual.size);
         break;

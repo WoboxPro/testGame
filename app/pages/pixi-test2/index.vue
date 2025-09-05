@@ -426,7 +426,12 @@ onMounted(async () => {
           };
       const controlledHero = myWorld.addUnit(-200, 0, { 
         name: 'Герой', 
-        form: 'unit', 
+        form: {
+          type: 'polygon',
+          points: [{x:-10,y:-8},{x:10,y:9},{x:-9,y:7}],
+          fill: 0x66CCFF,                 // опционально; иначе берётся entity.visual.color
+          stroke: { color: 0x003355, width: 1, alpha: 1 } // опционально
+        }, 
         faction: playerFaction,
         collision: unitCollisionType.createEntityCollision(), 
         // 🎯 Слоты теперь прямо здесь! (удаляем отдельный defineSlots)
