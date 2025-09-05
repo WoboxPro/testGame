@@ -10,6 +10,8 @@ import { ZoneSystem } from './ZoneSystem.js';
 import { FactionSystem } from './FactionSystem.js';
 import { CollisionSystem } from './CollisionSystem.js';
 import { SimpleEventEmitter, GAME_EVENTS } from '~/utils/EventEmitter.js';
+import { MuzzleFireController, ProjectileConfig } from './WeaponFire.js';
+import { MuzzleInputRouter } from './MuzzleInputRouter.js';
 
 export class World extends SimpleEventEmitter {
   constructor(options = {}) {
@@ -65,6 +67,9 @@ export class World extends SimpleEventEmitter {
     
     // ⏱️ Простые игровые таймеры (подчиняются dt)
     this._timers = new Set(); // {remainingMs, callback, repeat}
+
+    // 🔫 Пер-мирный роутер ввода для оружия (ленивая инициализация)
+    this._weaponInputRouter = null;
     
     console.log(`🌍 World создан: ${this.width}×${this.height}, центр в (0,0), границы [${this.bounds.left},${this.bounds.right}] × [${this.bounds.top},${this.bounds.bottom}]`);
     
@@ -99,6 +104,12 @@ export class World extends SimpleEventEmitter {
     
     // 📦 Добавляем в мир
     this.entities.set(entity.id, entity);
+    // 🔌 Автопроводка оружия: если entity.type === 'weapon' и autoWire=true
+    try {
+      this._maybeAutoWireWeapon(entity);
+    } catch (e) {
+      console.warn('autoWire failed:', e);
+    }
     
     // 🔗 Устанавливаем parent-child связи
     if (entity.parent) {
@@ -241,6 +252,18 @@ export class World extends SimpleEventEmitter {
    * 🗑️ Удалить сущность
    */
   removeEntity(id) {
+    const entity = this.entities.get(id);
+    // 🧹 Если это оружие с автопроводкой — отключим контроллеры и дерегистрации
+    if (entity && entity.type === 'weapon' && entity._muzzleControllers) {
+      const ctrls = Array.from(entity._muzzleControllers.values());
+      if (this._weaponInputRouter) {
+        for (const ctrl of ctrls) {
+          try { this._weaponInputRouter.unregisterFromSlot(entity, ctrl.getSlotName?.(), ctrl); } catch(_) {}
+        }
+      }
+      for (const ctrl of ctrls) { try { ctrl.destroy(); } catch(_) {} }
+      entity._muzzleControllers.clear();
+    }
     const removed = this.entities.delete(id);
     if (removed) {
       //console.log(`🗑️ Entity удален: ID=${id}`);
@@ -490,10 +513,43 @@ export class World extends SimpleEventEmitter {
     
     // Очищаем сущности
     this.entities.clear();
+    if (this._weaponInputRouter) {
+      try { this._weaponInputRouter.detach(); } catch(_) {}
+      this._weaponInputRouter = null;
+    }
     
     // Очищаем события
     this.removeAllListeners();
     
     console.log('✅ World уничтожен');
+  }
+
+  // === AUTO-WIRE WEAPONS ===
+  _ensureWeaponInputRouter() {
+    if (this._weaponInputRouter) return this._weaponInputRouter;
+    const target = (typeof document !== 'undefined' ? document : (typeof window !== 'undefined' ? window : null));
+    this._weaponInputRouter = new MuzzleInputRouter({ target, preventContextMenu: true });
+    try { this._weaponInputRouter.attach(); } catch(_) {}
+    return this._weaponInputRouter;
+  }
+
+  _maybeAutoWireWeapon(entity) {
+    if (!entity || entity.type !== 'weapon') return;
+    if (!entity.autoWire) return;
+    if (!entity.slots || Object.keys(entity.slots).length === 0) return;
+    if (!entity.world) entity.world = this;
+    if (!entity._muzzleControllers) entity._muzzleControllers = new Map();
+    const router = this._ensureWeaponInputRouter();
+    for (const [slotName, slotCfg] of Object.entries(entity.slots)) {
+      if (!slotCfg || !slotCfg.bullet) continue;
+      if (entity._muzzleControllers.has(slotName)) continue; // idempotent
+      const cfg = new ProjectileConfig(slotCfg.bullet);
+      const ctrl = new MuzzleFireController(this, entity, slotName, cfg);
+      entity._muzzleControllers.set(slotName, ctrl);
+      // If input binding exists — register to router
+      if (slotCfg.input) {
+        try { router.registerFromSlot(entity, slotName, ctrl); } catch(_) {}
+      }
+    }
   }
 }

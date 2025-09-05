@@ -21,14 +21,10 @@ import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 import { CreateZone } from '~/services/new/core/CreateZone.js';
 import { CreateFaction } from '~/services/new/core/CreateFaction.js';
 import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } from '~/services/new/core/CreateCollision.js';
-import { MuzzleFireController, ProjectileConfig } from '~/services/new/core/WeaponFire.js';
-import { MuzzleInputRouter } from '~/services/new/core/MuzzleInputRouter.js';
+// Автопроводка оружия вшита в World; прямые импорты контроллеров/роутера больше не нужны
 
 let game = null;
-let rightFire = null;
-let leftFire = null;
-let leftFire2 = null;
-let inputRouter = null;
+// Ручные контроллеры и роутер больше не нужны с авто-проводкой
 
 const width = 800;
 const height = 600;
@@ -484,6 +480,7 @@ onMounted(async () => {
         width: 3,
         height: 20,
         color: 0x002299,
+        autoWire: true,
         slots: {
           muzzle: {
             offsetX: 0, offsetY: -12, angleOffset: -Math.PI / 2,
@@ -501,6 +498,7 @@ onMounted(async () => {
         width: 3,
         height: 20,
         color: 0x990000,
+        autoWire: true,
         slots: {
           muzzle: {
             offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
@@ -520,23 +518,7 @@ onMounted(async () => {
       // Мгновенная синхронизация трансформов (на всякий случай)
       controlledHero.updateAttachedSlots();
 
-      // 🔥 Авто-огонь из дул согласно конфигу слота
-      const rightCfg = new ProjectileConfig(heroWeapon.slots.muzzle?.bullet || {});
-      rightFire = new MuzzleFireController(myWorld, heroWeapon, 'muzzle', rightCfg);
-
-
-      const leftCfg = new ProjectileConfig(heroWeapon2.slots.muzzle?.bullet || {});
-      leftFire = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle', leftCfg);
-      
-      const leftCfg2 = new ProjectileConfig(heroWeapon2.slots.muzzle2?.bullet || {});
-      leftFire2 = new MuzzleFireController(myWorld, heroWeapon2, 'muzzle2', leftCfg2);
-
-      // Роутер ввода для слотов
-      inputRouter = new MuzzleInputRouter({ target: window, preventContextMenu: true });
-      inputRouter.attach();
-      inputRouter.registerFromSlot(heroWeapon, 'muzzle', rightFire);
-      inputRouter.registerFromSlot(heroWeapon2, 'muzzle', leftFire);
-      inputRouter.registerFromSlot(heroWeapon2, 'muzzle2', leftFire2);
+      // Стрельба будет подключена автоматически через autoWire и слоты (bullet/input)
       
       const controlledHero2 = myWorld.addEntity({ 
         x: -20, y: 10, 

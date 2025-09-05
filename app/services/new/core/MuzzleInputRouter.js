@@ -6,6 +6,8 @@ export class MuzzleInputRouter {
     this.keyBindings = new Map(); // code -> Set
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
     this._onContextMenu = this._onContextMenu.bind(this);
@@ -14,6 +16,9 @@ export class MuzzleInputRouter {
 
   attach() {
     if (!this.target || this._attached) return;
+    // Pointer events first (PIXІ InteractionManager may prevent mouse compat events)
+    this.target.addEventListener('pointerdown', this._onPointerDown);
+    this.target.addEventListener('pointerup', this._onPointerUp);
     this.target.addEventListener('mousedown', this._onMouseDown);
     this.target.addEventListener('mouseup', this._onMouseUp);
     this.target.addEventListener('keydown', this._onKeyDown);
@@ -24,12 +29,35 @@ export class MuzzleInputRouter {
 
   detach() {
     if (!this.target || !this._attached) return;
+    this.target.removeEventListener('pointerdown', this._onPointerDown);
+    this.target.removeEventListener('pointerup', this._onPointerUp);
     this.target.removeEventListener('mousedown', this._onMouseDown);
     this.target.removeEventListener('mouseup', this._onMouseUp);
     this.target.removeEventListener('keydown', this._onKeyDown);
     this.target.removeEventListener('keyup', this._onKeyUp);
     if (this.preventContextMenu) this.target.removeEventListener('contextmenu', this._onContextMenu);
     this._attached = false;
+  }
+
+  unregisterController(controller) {
+    if (!controller) return;
+    // Remove from mouse bindings
+    for (const key of Object.keys(this.mouseBindings)) {
+      const set = this.mouseBindings[key];
+      if (set && set.has(controller)) set.delete(controller);
+    }
+    // Remove from key bindings
+    for (const [code, set] of this.keyBindings.entries()) {
+      if (set.has(controller)) {
+        set.delete(controller);
+        if (set.size === 0) this.keyBindings.delete(code);
+      }
+    }
+  }
+
+  unregisterFromSlot(weaponEntity, slotName, controller) {
+    // We don't need the slot details to unregister; remove controller from all bindings
+    this.unregisterController(controller);
   }
 
   registerController(controller, binding = {}) {
@@ -70,6 +98,25 @@ export class MuzzleInputRouter {
   }
 
   _onMouseUp(e) {
+    const key = e.button === 0 ? 'LMB' : e.button === 1 ? 'MMB' : e.button === 2 ? 'RMB' : null;
+    if (!key) return;
+    const set = this.mouseBindings[key];
+    if (!set || set.size === 0) return;
+    for (const ctrl of set) ctrl?.stopAuto?.();
+  }
+
+  _onPointerDown(e) {
+    const key = e.button === 0 ? 'LMB' : e.button === 1 ? 'MMB' : e.button === 2 ? 'RMB' : null;
+    if (!key) return;
+    const set = this.mouseBindings[key];
+    if (!set || set.size === 0) return;
+    for (const ctrl of set) {
+      ctrl?.fireOnceRespectingRate?.();
+      ctrl?.startAuto?.();
+    }
+  }
+
+  _onPointerUp(e) {
     const key = e.button === 0 ? 'LMB' : e.button === 1 ? 'MMB' : e.button === 2 ? 'RMB' : null;
     if (!key) return;
     const set = this.mouseBindings[key];

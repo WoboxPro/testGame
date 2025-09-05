@@ -148,6 +148,10 @@ export class MuzzleFireController {
     }
   }
 
+  getSlotName() {
+    return this.slotName;
+  }
+
   startAuto() {
     if (!this.world || !this.weapon) return;
     // Use accumulator with shared world ticker
@@ -186,6 +190,8 @@ export class MuzzleFireController {
     if (this._stepTimer && this.world) this.world.clearGameTimer(this._stepTimer);
     this._stepTimer = null;
     this._activeProjectiles.length = 0;
+    this.world = null;
+    this.weapon = null;
   }
 
   fireOnce() {

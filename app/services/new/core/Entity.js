@@ -22,6 +22,8 @@ export class Entity {
     this.rotateChildren = options.rotateChildren !== false;     // Поворачивать дочерние вместе
     this.childRotationType = options.childRotationType || 'stick'; // 'stick' | 'orbit'
     this.rotationOffset = options.rotationOffset || -Math.PI/2; // Смещение угла (по умолчанию -90° = вверх)
+    // 🔌 Флаг автопроводки (для оружия и других модулей)
+    this.autoWire = !!options.autoWire;
     
     // 🪞 Зеркальное отражение (как в Vampire Survivors)
     this.typeRotate = options.typeRotate || 'full';   // 'full' | 'mirror'

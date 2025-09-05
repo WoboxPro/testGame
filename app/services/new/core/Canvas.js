@@ -42,7 +42,7 @@ export class Canvas {
         backgroundColor: this.backgroundColor,
         //   powerPreference: 'high-performance', // подсказка браузеру выбрать производительный адаптер
         antialias: false, // быстрее рендер на слабой GPU если false. Влияет на сглаживание
-        resolution: window.devicePixelRatio || 1, // DPI (чем выше, тем четче, но медленнее)
+        resolution: 1, // DPI (чем выше, тем четче, но медленнее)
         autoDensity: true, // адаптация к экранам с высоким DPI
        // preference: "webgpu", // webgl | webgpu
        //roundPixels: true,
