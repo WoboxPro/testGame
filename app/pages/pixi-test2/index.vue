@@ -430,7 +430,9 @@ onMounted(async () => {
           type: 'polygon',
           points: [{x:-10,y:-8},{x:10,y:9},{x:-9,y:7}],
           fill: 0x66CCFF,                 // опционально; иначе берётся entity.visual.color
-          stroke: { color: 0x003355, width: 1, alpha: 1 } // опционально
+          stroke: { color: 0x003355, width: 1, alpha: 1 }, // опционально
+          scale: 1
+          
         }, 
         faction: playerFaction,
         collision: unitCollisionType.createEntityCollision(), 
@@ -439,7 +441,7 @@ onMounted(async () => {
           right_gun: { offsetX: 8,  offsetY: -5, angleOffset: 0, maxWeapons: 1 },
           left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
         },
-        size: 12,
+        size: 15,
         rotationBehavior: 'mouse',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          //  Дочерние сущности поворачиваются вместе

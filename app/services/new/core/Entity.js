@@ -588,11 +588,19 @@ export class Entity {
     if (formDef && typeof formDef === 'object') {
       const t = String(formDef.type || '').toLowerCase();
       if (t === 'polygon' && Array.isArray(formDef.points) && formDef.points.length >= 3) {
+        // Масштаб: visual.size * form.scale * form.scaleX/scaleY (по умолчанию 1)
+        const vis = this.visual || {};
+        const useSize = !!formDef.useSize;
+        const baseSize = (typeof vis.size === 'number' && isFinite(vis.size)) ? vis.size : 1;
+        const sizeScale = useSize ? baseSize : 1;
+        const uniScale = (formDef.scale != null && isFinite(formDef.scale)) ? Number(formDef.scale) : 1;
+        const sx = ((formDef.scaleX != null && isFinite(formDef.scaleX)) ? Number(formDef.scaleX) : 1) * sizeScale * uniScale;
+        const sy = ((formDef.scaleY != null && isFinite(formDef.scaleY)) ? Number(formDef.scaleY) : 1) * sizeScale * uniScale;
         // Нормализуем в массив чисел [x1,y1,x2,y2,...]
         const pts = [];
         for (const p of formDef.points) {
           if (p && typeof p.x === 'number' && typeof p.y === 'number') {
-            pts.push(p.x, p.y);
+            pts.push(p.x * sx, p.y * sy);
           }
         }
         if (pts.length >= 6) {
