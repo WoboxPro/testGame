@@ -27,8 +27,8 @@ import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } 
 let game = null;
 // Ручные контроллеры и роутер больше не нужны с авто-проводкой
 
-const width = 800;
-const height = 600;
+const width = 1920;
+const height = 1080;
 
 onMounted(async () => {
   if (process.client) {
@@ -63,8 +63,11 @@ onMounted(async () => {
 
       // Предзагрузка спрайта, чтобы избежать предупреждений Assets Cache
       await PIXI.Assets.load('/person.png');
-
-
+      // Предзагрузка атласа анимации (JSON + PNG в public/assets)
+      const walkSheet = await PIXI.Assets.load('/assets/sprites.json');
+      const walkFrames = Object.keys(walkSheet.textures)
+        .filter(n => n.startsWith('sprite'))
+        .sort((a, b) => Number(a.replace(/\D+/g, '')) - Number(b.replace(/\D+/g, '')));
 
 // BIOME -----------------------------------------------------------------------------------------------------------------
       
@@ -430,20 +433,28 @@ onMounted(async () => {
           };
       const controlledHero = myWorld.addUnit(-200, 0, { 
         name: 'Герой', 
-        form: {
-          type: 'sprite',
-          // points: [{x:-10,y:-8},{x:10,y:9},{x:-9,y:7}],
-          // fill: 0x66CCFF,                 // опционально; иначе берётся entity.visual.color
-          // stroke: { color: 0x003355, width: 1, alpha: 1 }, 
-          // scale: 1
-          texture: '/person.png',   // или frame из атласа
-          anchor: [0.5, 0.5],
-          scale: 2,                      // можно scaleX/scaleY
-          tint: 0xFFFFFF,
-          mirror: true,
-          alpha: 1
+        // form: {
+        //   type: 'sprite',
+        //   // points: [{x:-10,y:-8},{x:10,y:9},{x:-9,y:7}],
+        //   // fill: 0x66CCFF,                 // опционально; иначе берётся entity.visual.color
+        //   // stroke: { color: 0x003355, width: 1, alpha: 1 }, 
+        //   // scale: 1
+        //   texture: '/person.png',   // или frame из атласа
+        //   anchor: [0.5, 0.5],
+        //   scale: 2,                      // можно scaleX/scaleY
+        //   tint: 0xFFFFFF,
+        //   mirror: true,
+        //   alpha: 1
           
-        }, 
+        // }, 
+        form: {
+          type: 'animated',
+          frames: walkFrames,
+          fps: 8,
+          loop: true,
+          anchor: [0.5, 0.5],
+          scale: 0.3
+        },
         faction: playerFaction,
         collision: unitCollisionType.createEntityCollision(), 
         // 🎯 Слоты теперь прямо здесь! (удаляем отдельный defineSlots)
@@ -452,13 +463,13 @@ onMounted(async () => {
           left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
         },
         size: 15,
-        rotationBehavior: 'mouse',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
+        rotationBehavior: 'movement',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          //  Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    //  'stick' = прилипли вместе
         rotationOffset: 2 * Math.PI,     //  Смещение угла: 90° = вниз по умолчанию
-        typeRotate: 'full',          // 'full' | 'mirror' — включаем зеркало
-        mirrorAxis: 'x',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
         mirrorMouse: true,             //  В mirror+mouse тело не крутится, только отражается
         mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
         visionFollowMouseInMirror: false, //  В mirror-режиме конус продолжает следовать курсору
@@ -488,6 +499,21 @@ onMounted(async () => {
             }
         }
       });
+      
+      // 👣 Демонстрационный юнит с анимацией из спрайтшита
+      // const animatedWalker = myWorld.addUnit(-80, -40, {
+      //   name: 'Анимированный Персонаж',
+      //   form: {
+      //     type: 'animated',
+      //     frames: walkFrames,
+      //     fps: 8,
+      //     loop: true,
+      //     anchor: [0.5, 0.5],
+      //     scale: 0.8
+      //   },
+      //   type: 'unit',
+      //   collision: unitCollisionType.createEntityCollision({ radius: 10 })
+      // });
       
       // 🔗 Создаем оружие и привязываем к слотам героя
       const heroWeapon = myWorld.addEntity({

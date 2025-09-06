@@ -669,9 +669,15 @@ export class Entity {
       } else if (t === 'animated') {
         // Выбираем кадры: либо formDef.frames, либо formDef.clips[formDef.clip]
         let frames = Array.isArray(formDef.frames) ? formDef.frames : null;
-        if (!frames && formDef.clips && typeof formDef.clips === 'object') {
-          const clipName = formDef.clip || Object.keys(formDef.clips)[0];
-          if (clipName && Array.isArray(formDef.clips[clipName])) frames = formDef.clips[clipName];
+        let clipName = null;
+        if (!frames) {
+          const clipsMap = (formDef.clips && typeof formDef.clips === 'object')
+            ? formDef.clips
+            : ((formDef.animations && typeof formDef.animations === 'object') ? formDef.animations : null);
+          if (clipsMap) {
+            clipName = (formDef.clip || formDef.animation) || Object.keys(clipsMap)[0];
+            if (clipName && Array.isArray(clipsMap[clipName])) frames = clipsMap[clipName];
+          }
         }
         if (frames && frames.length > 0) {
           const textures = frames.map(f => PIXI.Texture.from(f));
@@ -692,9 +698,21 @@ export class Entity {
           const sy = doMirror && axis === 'x' ? -Math.abs(sy0) : sy0;
           anim.scale.set(sx, sy);
           // Playback
-          const fps = (formDef.fps != null && isFinite(formDef.fps)) ? Number(formDef.fps) : 12;
-          anim.animationSpeed = fps / 60;
-          anim.loop = formDef.loop !== false;
+          let fpsVal = 12;
+          if (typeof formDef.fps === 'number' && isFinite(formDef.fps)) {
+            fpsVal = Number(formDef.fps);
+          } else if (formDef.fps && typeof formDef.fps === 'object' && clipName) {
+            const v = formDef.fps[clipName];
+            if (typeof v === 'number' && isFinite(v)) fpsVal = Number(v);
+          }
+          anim.animationSpeed = fpsVal / 60;
+          let loopVal = true;
+          if (typeof formDef.loop === 'boolean') {
+            loopVal = formDef.loop;
+          } else if (formDef.loop && typeof formDef.loop === 'object' && clipName) {
+            loopVal = !!formDef.loop[clipName];
+          }
+          anim.loop = loopVal;
           if (formDef.tint != null) anim.tint = formDef.tint;
           if (formDef.alpha != null) anim.alpha = formDef.alpha;
           anim.play();
