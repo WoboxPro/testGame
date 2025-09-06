@@ -16,6 +16,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
+import * as PIXI from 'pixi.js';
 import { PixiGame } from '~/services/new/pixiGame.js';
 import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 import { CreateZone } from '~/services/new/core/CreateZone.js';
@@ -59,6 +60,9 @@ onMounted(async () => {
       await game.startCanvas(myCanvas);
       // ⏱️ Масштаб времени игры (1 = нормальная скорость)
       game.setTimeScale(1);
+
+      // Предзагрузка спрайта, чтобы избежать предупреждений Assets Cache
+      await PIXI.Assets.load('/person.png');
 
 
 
@@ -427,11 +431,17 @@ onMounted(async () => {
       const controlledHero = myWorld.addUnit(-200, 0, { 
         name: 'Герой', 
         form: {
-          type: 'polygon',
-          points: [{x:-10,y:-8},{x:10,y:9},{x:-9,y:7}],
-          fill: 0x66CCFF,                 // опционально; иначе берётся entity.visual.color
-          stroke: { color: 0x003355, width: 1, alpha: 1 }, // опционально
-          scale: 1
+          type: 'sprite',
+          // points: [{x:-10,y:-8},{x:10,y:9},{x:-9,y:7}],
+          // fill: 0x66CCFF,                 // опционально; иначе берётся entity.visual.color
+          // stroke: { color: 0x003355, width: 1, alpha: 1 }, 
+          // scale: 1
+          texture: '/person.png',   // или frame из атласа
+          anchor: [0.5, 0.5],
+          scale: 2,                      // можно scaleX/scaleY
+          tint: 0xFFFFFF,
+          mirror: true,
+          alpha: 1
           
         }, 
         faction: playerFaction,
@@ -442,12 +452,12 @@ onMounted(async () => {
           left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
         },
         size: 15,
-        rotationBehavior: 'mouse',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
+        rotationBehavior: 'movement',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          //  Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    //  'stick' = прилипли вместе
-        rotationOffset: Math.PI/2,     //  Смещение угла: 90° = вниз по умолчанию
-        typeRotate: 'full',          // 'full' | 'mirror' — включаем зеркало
+        rotationOffset: 2 * Math.PI,     //  Смещение угла: 90° = вниз по умолчанию
+        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
         mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
         mirrorMouse: true,             //  В mirror+mouse тело не крутится, только отражается
         mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)

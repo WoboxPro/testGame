@@ -623,6 +623,66 @@ export class Entity {
           container.addChild(graphics);
           return;
         }
+      } else if (t === 'sprite') {
+        const tex = formDef.texture || formDef.frame;
+        if (tex) {
+          const sprite = PIXI.Sprite.from(tex);
+          // Anchor
+          if (Array.isArray(formDef.anchor) && formDef.anchor.length >= 2) {
+            sprite.anchor.set(Number(formDef.anchor[0]) || 0.5, Number(formDef.anchor[1]) || 0.5);
+          } else {
+            sprite.anchor.set(0.5, 0.5);
+          }
+          // Scale
+          const uni = (formDef.scale != null && isFinite(formDef.scale)) ? Number(formDef.scale) : 1;
+          const sx0 = ((formDef.scaleX != null && isFinite(formDef.scaleX)) ? Number(formDef.scaleX) : 1) * uni;
+          const sy0 = ((formDef.scaleY != null && isFinite(formDef.scaleY)) ? Number(formDef.scaleY) : 1) * uni;
+          const doMirror = !!formDef.mirror;
+          const axis = (formDef.mirrorAxis === 'x' || formDef.mirrorAxis === 'y') ? formDef.mirrorAxis : 'y';
+          const sx = doMirror && axis === 'y' ? -Math.abs(sx0) : sx0;
+          const sy = doMirror && axis === 'x' ? -Math.abs(sy0) : sy0;
+          sprite.scale.set(sx, sy);
+          // Tint/alpha
+          if (formDef.tint != null) sprite.tint = formDef.tint;
+          if (formDef.alpha != null) sprite.alpha = formDef.alpha;
+          container.addChild(sprite);
+          return;
+        }
+      } else if (t === 'animated') {
+        // Выбираем кадры: либо formDef.frames, либо formDef.clips[formDef.clip]
+        let frames = Array.isArray(formDef.frames) ? formDef.frames : null;
+        if (!frames && formDef.clips && typeof formDef.clips === 'object') {
+          const clipName = formDef.clip || Object.keys(formDef.clips)[0];
+          if (clipName && Array.isArray(formDef.clips[clipName])) frames = formDef.clips[clipName];
+        }
+        if (frames && frames.length > 0) {
+          const textures = frames.map(f => PIXI.Texture.from(f));
+          const anim = new PIXI.AnimatedSprite(textures);
+          // Anchor
+          if (Array.isArray(formDef.anchor) && formDef.anchor.length >= 2) {
+            anim.anchor.set(Number(formDef.anchor[0]) || 0.5, Number(formDef.anchor[1]) || 0.5);
+          } else {
+            anim.anchor.set(0.5, 0.5);
+          }
+          // Scale
+          const uni = (formDef.scale != null && isFinite(formDef.scale)) ? Number(formDef.scale) : 1;
+          const sx0 = ((formDef.scaleX != null && isFinite(formDef.scaleX)) ? Number(formDef.scaleX) : 1) * uni;
+          const sy0 = ((formDef.scaleY != null && isFinite(formDef.scaleY)) ? Number(formDef.scaleY) : 1) * uni;
+          const doMirror = !!formDef.mirror;
+          const axis = (formDef.mirrorAxis === 'x' || formDef.mirrorAxis === 'y') ? formDef.mirrorAxis : 'y';
+          const sx = doMirror && axis === 'y' ? -Math.abs(sx0) : sx0;
+          const sy = doMirror && axis === 'x' ? -Math.abs(sy0) : sy0;
+          anim.scale.set(sx, sy);
+          // Playback
+          const fps = (formDef.fps != null && isFinite(formDef.fps)) ? Number(formDef.fps) : 12;
+          anim.animationSpeed = fps / 60;
+          anim.loop = formDef.loop !== false;
+          if (formDef.tint != null) anim.tint = formDef.tint;
+          if (formDef.alpha != null) anim.alpha = formDef.alpha;
+          anim.play();
+          container.addChild(anim);
+          return;
+        }
       }
       // Если объектная форма неизвестна — продолжаем обычный switch как fallback
     }
