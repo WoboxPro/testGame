@@ -452,13 +452,13 @@ onMounted(async () => {
           left_gun:  { offsetX: -8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
         },
         size: 15,
-        rotationBehavior: 'movement',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
+        rotationBehavior: 'mouse',  //  Поворот на мышь (зеркало перехватит и отключит вращение тела)
         rotationSpeed: 0.15,           // Скорость поворота
         rotateChildren: true,          //  Дочерние сущности поворачиваются вместе
         childRotationType: 'stick',    //  'stick' = прилипли вместе
         rotationOffset: 2 * Math.PI,     //  Смещение угла: 90° = вниз по умолчанию
-        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
-        mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        typeRotate: 'full',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'x',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
         mirrorMouse: true,             //  В mirror+mouse тело не крутится, только отражается
         mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
         visionFollowMouseInMirror: false, //  В mirror-режиме конус продолжает следовать курсору
@@ -745,6 +745,7 @@ onMounted(async () => {
         zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
+        hiddenTypes: ['vision'],
         style: {
           border: {
             enabled: true,

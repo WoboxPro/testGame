@@ -33,6 +33,10 @@ export class Entity {
     this.mirrorMouse = options.mirrorMouse !== false; // В режиме mouse + mirror не крутить, а только отражать
     this.mirrorMouseDeadzone = options.mirrorMouseDeadzone || 0; // Порог для переключения, px
     this.visionFollowMouseInMirror = options.visionFollowMouseInMirror !== false; // В mirror-режиме пусть vision следует мыши
+    // Порог для определения доминирующего направления при зеркале (0..1)
+    this.mirrorMoveThreshold = (options.mirrorMoveThreshold != null && isFinite(options.mirrorMoveThreshold))
+      ? Number(options.mirrorMoveThreshold)
+      : 0.25;
     
     // 🔗 Parent-Child система
     this.parent = options.parent || null;           // ID родительской сущности
@@ -341,14 +345,28 @@ export class Entity {
   _updateMirrorRotation(deltaX, deltaY) {
     const oldMirrored = this.isMirrored;
     
-    // Определяем направление по выбранной оси
-    let shouldMirror = false;
+    // Длина вектора движения
+    const magnitude = Math.hypot(deltaX, deltaY);
+    if (magnitude < 1e-6) return; // нет движения — ничего не меняем
+
+    const horizontalShare = Math.abs(deltaX) / magnitude; // доля по X
+    const verticalShare = Math.abs(deltaY) / magnitude;   // доля по Y
+
+    // Определяем направление по выбранной оси с учётом порога
+    let shouldMirror = this.isMirrored;
+    const threshold = Math.max(0, Math.min(1, this.mirrorMoveThreshold));
     if (this.mirrorAxis === 'x') {
-      shouldMirror = deltaY > 0; // Движение вниз = отражение (вверх = без отражения)
+      // Отражение по оси X (вверх/вниз) — реагируем только если движение преимущественно вертикальное
+      if (verticalShare >= threshold) {
+        shouldMirror = (deltaY > 0); // вниз = отражение, вверх = нет
+      }
     } else { // mirrorAxis === 'y'
-      shouldMirror = deltaX < 0; // Движение влево = отражение
+      // Отражение по оси Y (влево/вправо) — реагируем только если движение преимущественно горизонтальное
+      if (horizontalShare >= threshold) {
+        shouldMirror = (deltaX < 0); // влево = отражение, вправо = нет
+      }
     }
-    
+
     // Обновляем состояние отражения
     this.isMirrored = shouldMirror;
     
