@@ -287,6 +287,10 @@ export class AIController {
       newY = Math.max(this.world.bounds.top, Math.min(this.world.bounds.bottom, newY));
     }
 
+    // Зеркало/поворот по движению (для сущностей с rotationBehavior='movement')
+    if (typeof entity.updateRotationFromMovement === 'function') {
+      entity.updateRotationFromMovement(deltaX, deltaY);
+    }
     entity.setPosition(newX, newY);
     if (this.world?.biomeSystem) this.world.updateEntityPosition(entity, newX, newY);
   }
@@ -376,16 +380,40 @@ export class AIController {
       newX = Math.max(this.world.bounds.left, Math.min(this.world.bounds.right, newX));
       newY = Math.max(this.world.bounds.top, Math.min(this.world.bounds.bottom, newY));
     }
+    // Зеркало/поворот по движению
+    if (typeof entity.updateRotationFromMovement === 'function') {
+      entity.updateRotationFromMovement(deltaX, deltaY);
+    }
     entity.setPosition(newX, newY);
     if (this.world?.biomeSystem) this.world.updateEntityPosition(entity, newX, newY);
     return true;
   }
 
   _rotateTowardsTarget(entity, target, dtMs) {
-    // Целевой угол в мировых координатах
+    // Целевой угол/направление в мировых координатах
     const dx = target.x - entity.x;
     const dy = target.y - entity.y;
     const targetAngleWorld = Math.atan2(dy, dx);
+
+    // 🔁 Режим зеркала: не вращаем, только флип по оси
+    if (entity.typeRotate === 'mirror') {
+      const dead = Math.max(0, entity.mirrorMouseDeadzone || 0);
+      let shouldMirror = entity.isMirrored;
+      if (entity.mirrorAxis === 'y') {
+        if (Math.abs(dx) > dead) shouldMirror = dx < 0;
+      } else { // 'x'
+        if (Math.abs(dy) > dead) shouldMirror = dy > 0;
+      }
+      if (shouldMirror !== entity.isMirrored) {
+        const old = entity.isMirrored;
+        entity.isMirrored = shouldMirror;
+        if (entity.rotateChildren && old !== shouldMirror) {
+          entity.rotateChildrenBy(0, true);
+          entity.updateChildrenPositions();
+        }
+      }
+      return; // не меняем rotation для зеркала
+    }
 
     // Угол, который должен иметь entity.rotation, чтобы направление взгляда совпадало с targetAngleWorld
     // facing = (rotation - rotationOffset) + directionOffset

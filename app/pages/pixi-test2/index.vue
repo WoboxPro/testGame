@@ -449,9 +449,13 @@ onMounted(async () => {
         // }, 
         form: {
           type: 'animated',
-          frames: walkFrames,
-          fps: 8,
-          loop: true,
+          clips: {
+            walk: walkFrames,
+            idle: [walkFrames[6]]
+          },
+          animation: 'walk',
+          fps: { walk: 8, idle: 0 },
+          loop: { walk: true, idle: true },
           anchor: [0.5, 0.5],
           scale: 0.3
         },
@@ -509,7 +513,7 @@ onMounted(async () => {
       //     fps: 8,
       //     loop: true,
       //     anchor: [0.5, 0.5],
-      //     scale: 0.8
+      //     scale: 0.2
       //   },
       //   type: 'unit',
       //   collision: unitCollisionType.createEntityCollision({ radius: 10 })
@@ -709,7 +713,14 @@ onMounted(async () => {
       
       const enemy1 = myWorld.addUnit(150, -100, { 
         name: 'Враг 1', 
-        form: 'soldier', 
+        form: {
+          type: 'animated',
+          frames: walkFrames,
+          fps: 8,
+          loop: true,
+          anchor: [0.5, 0.5],
+          scale: 0.2
+        },
         faction: enemyFaction,
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
@@ -735,7 +746,12 @@ onMounted(async () => {
             blockedBy: ['building', 'structure'] // по collision.name или по entity.type
           }
         },
-        ai: aiAgent
+        ai: aiAgent,
+        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
+        rotationBehavior: 'movement', 
+
       });
       const enemy2 = myWorld.addUnit(-250, 230, { 
         name: 'Враг 2', 

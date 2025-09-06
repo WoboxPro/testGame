@@ -409,6 +409,11 @@ export class EntityController {
     
     // 📍 Перемещаем выбранные сущности
     entitiesToMove.forEach(entity => {
+      // Если сущность поддерживает actions.walking — выставляем флаг на основе намерения движения
+      if (entity && entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+        const intendedSpeed = Math.hypot(deltaX, deltaY);
+        entity.actions.walking = intendedSpeed > 0.0001;
+      }
       this._moveEntity(entity, deltaX, deltaY);
     });
   }
@@ -505,6 +510,30 @@ export class EntityController {
       
       // Обновляем скорость на случай изменения модификаторов
       this._updateSpeed();
+      // Определяем намерение движения (клавиатура/тач)
+      let intendMove = false;
+      if (this.settings.controlType === 'keyboard' || this.settings.controlType === 'both') {
+        for (const action of this.pressedKeys) {
+          if (action.startsWith('move_')) { intendMove = true; break; }
+        }
+      }
+      if (!intendMove && (this.settings.controlType === 'touch' || this.settings.controlType === 'both')) {
+        if (this._touchActive) {
+          const len = Math.hypot(this._touchVector.x, this._touchVector.y);
+          if (len > 0.001) intendMove = true;
+        }
+      }
+      // Применяем к actions.walking и обновляем клипы, если сущность это поддерживает
+      const allEntities = this.getControlledEntities();
+      for (const entity of allEntities) {
+        if (!entity) continue;
+        if (entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+          entity.actions.walking = intendMove;
+          if (typeof entity._updateMovementAnimation === 'function') {
+            entity._updateMovementAnimation(0, 0);
+          }
+        }
+      }
       
       if (this.settings.controlType === 'touch' || this.settings.controlType === 'both') {
         // Аналоговое движение по вектору тача

@@ -37,6 +37,12 @@ export class Entity {
     this.mirrorMoveThreshold = (options.mirrorMoveThreshold != null && isFinite(options.mirrorMoveThreshold))
       ? Number(options.mirrorMoveThreshold)
       : 0.25;
+    // Порог скорости для переключения анимации ходьбы/простоя
+    this.movementAnimationThreshold = (options.movementAnimationThreshold != null && isFinite(options.movementAnimationThreshold))
+      ? Number(options.movementAnimationThreshold)
+      : 0.05;
+    // Текущий клип визуальной анимации (для form.type='animated')
+    this._currentClipName = null;
     
     // 🔗 Parent-Child система
     this.parent = options.parent || null;           // ID родительской сущности
@@ -81,6 +87,11 @@ export class Entity {
     // 📋 Дополнительные свойства
     this.name = options.name || `${this.type}_${this.id}`;
     this.data = options.data || {};             // Произвольные данные
+    // 🎬 Действия/состояния для управления анимацией и поведением
+    this.actions = {
+      walking: false,
+      ...(options.actions || {})
+    };
     
     // 🎮 Контроллер для управления сущностью
     this.controller = null;
@@ -152,6 +163,13 @@ export class Entity {
     this.previousPosition.y = this.y;
     this.x = x;
     this.y = y;
+    // Переключение визуальной анимации
+    // Если управляем через actions.walking — не используем авто по движению
+    const dx = this.x - this.previousPosition.x;
+    const dy = this.y - this.previousPosition.y;
+    if (!(this.actions && Object.prototype.hasOwnProperty.call(this.actions, 'walking'))) {
+      this._updateMovementAnimation(dx, dy);
+    }
   }
   
   /**
@@ -376,6 +394,51 @@ export class Entity {
       this.updateChildrenPositions(); // Обновляем позиции после зеркалирования
     }
   }
+
+  /**
+   * 🎬 Автопереключение клипа анимации по скорости движения (для form.type='animated' + clips)
+   */
+  _updateMovementAnimation(deltaX, deltaY) {
+    if (!this._anim) return;
+    let moving;
+    if (this.actions && Object.prototype.hasOwnProperty.call(this.actions, 'walking')) {
+      moving = !!this.actions.walking;
+    } else {
+      const speed = Math.hypot(deltaX, deltaY);
+      moving = speed > (this.movementAnimationThreshold || 0.05);
+    }
+    // Клип-имена по умолчанию: 'walk' и 'idle'
+    const desired = moving ? 'walk' : 'idle';
+    if (!this._animClips || !this._animClips[desired]) return;
+    if (this._currentClipName === desired) return;
+    // Переключаем
+    const targetNames = this._animClips[desired];
+    const textures = targetNames.map(f => PIXI.Texture.from(f));
+    this._anim.textures = textures;
+    // fps/loop могут быть числом или словарём
+    let fpsVal = 12;
+    if (typeof this._animFps === 'number' && isFinite(this._animFps)) {
+      fpsVal = Number(this._animFps);
+    } else if (this._animFps && typeof this._animFps === 'object') {
+      const v = this._animFps[desired];
+      if (typeof v === 'number' && isFinite(v)) fpsVal = Number(v);
+    }
+    this._anim.animationSpeed = fpsVal / 60;
+    let loopVal = true;
+    if (typeof this._animLoop === 'boolean') {
+      loopVal = this._animLoop;
+    } else if (this._animLoop && typeof this._animLoop === 'object') {
+      loopVal = !!this._animLoop[desired];
+    }
+    this._anim.loop = loopVal;
+    this._currentClipName = desired;
+    // Если клип idle из 1 кадра и fps=0, просто остановим на кадре 0; иначе play
+    if (desired === 'idle' && (fpsVal <= 0 || textures.length <= 1)) {
+      this._anim.gotoAndStop(0);
+    } else {
+      this._anim.gotoAndPlay(0);
+    }
+  }
   
   /**
    * 🔄 Повернуть дочерние сущности на указанный угол
@@ -498,6 +561,15 @@ export class Entity {
     this.isDead = false;
     this.velocity = { x: 0, y: 0 };
     this.isMovementBlocked = false;
+    // Сбрасываем действия
+    if (this.actions && Object.prototype.hasOwnProperty.call(this.actions, 'walking')) {
+      this.actions.walking = false;
+    }
+    // Обновляем визуальный клип в idle
+    if (typeof this._updateMovementAnimation === 'function') {
+      this._currentClipName = null;
+      this._updateMovementAnimation(0, 0);
+    }
     // 🔄 Включаем коллизию и возвращаем в сетку
     if (this.collision) this.collision.enabled = true;
     if (this.world?.collisionSystem?.spatialGrid) {
@@ -715,7 +787,18 @@ export class Entity {
           anim.loop = loopVal;
           if (formDef.tint != null) anim.tint = formDef.tint;
           if (formDef.alpha != null) anim.alpha = formDef.alpha;
-          anim.play();
+          // Сохраняем ссылки для динамического переключения клипов
+          this._anim = anim;
+          this._animClips = (formDef.clips && typeof formDef.clips === 'object') ? formDef.clips : ((formDef.animations && typeof formDef.animations === 'object') ? formDef.animations : null);
+          this._animFps = formDef.fps;
+          this._animLoop = formDef.loop;
+          // Инициализация: если есть клипы — выбираем по движению (idle), иначе запускаем прямую анимацию
+          this._currentClipName = null;
+          if (this._animClips) {
+            this._updateMovementAnimation(0, 0);
+          } else {
+            anim.play();
+          }
           container.addChild(anim);
           return;
         }
