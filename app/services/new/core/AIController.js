@@ -52,6 +52,13 @@ export class AIController {
         if (ai.idleScan) {
           this._idleScan(entity, dtMs);
         }
+        // idle: не идем
+        if (entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+          entity.actions.walking = false;
+          if (typeof entity._updateMovementAnimation === 'function') {
+            entity._updateMovementAnimation(0, 0);
+          }
+        }
         continue; // не двигаемся
       }
 
@@ -293,6 +300,13 @@ export class AIController {
     }
     entity.setPosition(newX, newY);
     if (this.world?.biomeSystem) this.world.updateEntityPosition(entity, newX, newY);
+    // walking = true
+    if (entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+      entity.actions.walking = true;
+      if (typeof entity._updateMovementAnimation === 'function') {
+        entity._updateMovementAnimation(0, 0);
+      }
+    }
   }
 
   _moveTowards(entity, target, dtMs) {
@@ -303,7 +317,13 @@ export class AIController {
     const len = Math.hypot(dx, dy) || 1;
     const deltaX = (dx / len) * step;
     const deltaY = (dy / len) * step;
-    this._moveWithAvoidance(entity, deltaX, deltaY, step);
+    const moved = this._moveWithAvoidance(entity, deltaX, deltaY, step);
+    if (entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+      entity.actions.walking = !!moved;
+      if (typeof entity._updateMovementAnimation === 'function') {
+        entity._updateMovementAnimation(0, 0);
+      }
+    }
   }
 
   _moveTowardsPosition(entity, x, y, dtMs) {
@@ -314,7 +334,13 @@ export class AIController {
     const len = Math.hypot(dx, dy) || 1;
     const deltaX = (dx / len) * step;
     const deltaY = (dy / len) * step;
-    this._moveWithAvoidance(entity, deltaX, deltaY, step);
+    const moved = this._moveWithAvoidance(entity, deltaX, deltaY, step);
+    if (entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+      entity.actions.walking = !!moved;
+      if (typeof entity._updateMovementAnimation === 'function') {
+        entity._updateMovementAnimation(0, 0);
+      }
+    }
   }
 
   _moveWithAvoidance(entity, deltaX, deltaY, step) {
@@ -386,6 +412,12 @@ export class AIController {
     }
     entity.setPosition(newX, newY);
     if (this.world?.biomeSystem) this.world.updateEntityPosition(entity, newX, newY);
+    if (entity.actions && Object.prototype.hasOwnProperty.call(entity.actions, 'walking')) {
+      entity.actions.walking = true;
+      if (typeof entity._updateMovementAnimation === 'function') {
+        entity._updateMovementAnimation(0, 0);
+      }
+    }
     return true;
   }
 

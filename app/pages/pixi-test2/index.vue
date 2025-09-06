@@ -715,11 +715,15 @@ onMounted(async () => {
         name: 'Враг 1', 
         form: {
           type: 'animated',
-          frames: walkFrames,
-          fps: 8,
-          loop: true,
+          clips: {
+            walk: walkFrames,
+            idle: [walkFrames[6]]
+          },
+          animation: 'walk',
+          fps: { walk: 8, idle: 0 },
+          loop: { walk: true, idle: true },
           anchor: [0.5, 0.5],
-          scale: 0.2
+          scale: 0.3
         },
         faction: enemyFaction,
         collision: unitCollisionType.createEntityCollision(), 
