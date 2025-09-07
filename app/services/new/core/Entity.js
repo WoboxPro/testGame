@@ -413,7 +413,7 @@ export class Entity {
     if (this._currentClipName === desired) return;
     // Переключаем
     const targetNames = this._animClips[desired];
-    const textures = targetNames.map(f => PIXI.Texture.from(f));
+    const textures = targetNames.map(f => (f && typeof f === 'object' && f.baseTexture ? f : PIXI.Texture.from(f)));
     this._anim.textures = textures;
     // fps/loop могут быть числом или словарём
     let fpsVal = 12;
@@ -752,7 +752,7 @@ export class Entity {
           }
         }
         if (frames && frames.length > 0) {
-          const textures = frames.map(f => PIXI.Texture.from(f));
+          const textures = frames.map(f => (f && typeof f === 'object' && f.baseTexture ? f : PIXI.Texture.from(f)));
           const anim = new PIXI.AnimatedSprite(textures);
           // Anchor
           if (Array.isArray(formDef.anchor) && formDef.anchor.length >= 2) {

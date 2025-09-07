@@ -38,8 +38,8 @@ onMounted(async () => {
       
 // WORLD -----------------------------------------------------------------------------------------------------------------
       const myWorld = game.createWorld({
-        width: 1500,
-        height:1500,
+        width: 5000,
+        height:5000,
         backgroundColor: '#000000', // Красный фон для отладки
         borders: {
           enabled: true,        // Включаем границы
@@ -65,10 +65,16 @@ onMounted(async () => {
       await PIXI.Assets.load('/person.png');
       // Предзагрузка атласа анимации (JSON + PNG в public/assets)
       const walkSheet = await PIXI.Assets.load('/assets/sprites.json');
-      const walkFrames = Object.keys(walkSheet.textures)
+      const walkFrameNames = Object.keys(walkSheet.textures)
         .filter(n => n.startsWith('sprite'))
         .sort((a, b) => Number(a.replace(/\D+/g, '')) - Number(b.replace(/\D+/g, '')));
+      const walkFrames = walkFrameNames.map(n => walkSheet.textures[n]);
 
+      const WarriorSheet = await PIXI.Assets.load('/assets/warrior.json');
+      const warriorFrameNames = Object.keys(WarriorSheet.textures)
+        .filter(n => n.startsWith('sprite'))
+        .sort((a, b) => Number(a.replace(/\D+/g, '')) - Number(b.replace(/\D+/g, '')));
+      const warriorFrames = warriorFrameNames.map(n => WarriorSheet.textures[n]);
 // BIOME -----------------------------------------------------------------------------------------------------------------
       
       // Создаем типы биомов (без координат)
@@ -568,7 +574,7 @@ onMounted(async () => {
       // Стрельба будет подключена автоматически через autoWire и слоты (bullet/input)
       
       const controlledHero2 = myWorld.addEntity({ 
-        x: -20, y: 10, 
+        x: -500, y: -790, 
         type: 'unit',        // 🎯 Меняем тип чтобы была видна в мини-карте
         form: 'diamond',     // 🎯 Уникальная форма для отличия
         size: 8,             // 🎯 Увеличиваем размер
@@ -629,8 +635,8 @@ onMounted(async () => {
 
       // Здание
       myWorld.addEntity({ 
-        x: 0, y: 100,
-        name: 'Прямоугольный Тест',
+        x: 0, y: -1000,
+        name: 'Постройка 1',
         form: 'rectangle',
         width: 40,    
         height: 25,   
@@ -640,8 +646,8 @@ onMounted(async () => {
           enabled: true,
           name: 'building',
           form: 'rect',          
-          width: 40,             
-          height: 25,            
+          width: 80,             
+          height: 40,            
           collisionType: 'block', // 🚫 Блокирующая
           isSolid: true,
           layer: 'buildings'
@@ -663,7 +669,7 @@ onMounted(async () => {
       
       // Создаем ловушку с уроном при касании
       const damageTrap = myWorld.addEntity({
-        x: 50, y: 50,
+        x: 50, y: -850,
         type: 'trap',
         form: 'rect',
         width: 30,
@@ -676,7 +682,7 @@ onMounted(async () => {
       });
 
       // 👥 ЮНИТЫ 
-      myWorld.addUnit(-200, -200, { 
+      myWorld.addUnit(-200, -800, { 
         name: 'Солдат 1 (Auto)', 
         form: 'soldier', 
         size: 8,
@@ -716,8 +722,72 @@ onMounted(async () => {
         form: {
           type: 'animated',
           clips: {
-            walk: walkFrames,
-            idle: [walkFrames[6]]
+            walk: warriorFrames,
+            idle: [warriorFrames[1]]
+          },
+          animation: 'walk',
+          fps: { walk: 8, idle: 0 },
+          loop: { walk: true, idle: true },
+          anchor: [0.5, 0.5],
+          scale: 0.2
+        },
+        faction: enemyFaction,
+        collision: unitCollisionType.createEntityCollision(), 
+        stats: { 
+          speed: 0.5, 
+          health: 10,          
+          currentHealth: 10,
+          touchDamage: 2,
+           rotationSpeed: 0.01,     
+        },
+        respawn: false,
+        vision: visionAgent,
+        ai: aiAgent,
+        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
+        rotationBehavior: 'movement', 
+
+      });
+      const enemy11 = myWorld.addUnit(-120, -200, { 
+        name: 'Враг 1', 
+        form: {
+          type: 'animated',
+          clips: {
+            walk: warriorFrames,
+            idle: [warriorFrames[1]]
+          },
+          animation: 'walk',
+          fps: { walk: 8, idle: 0 },
+          loop: { walk: true, idle: true },
+          anchor: [0.5, 0.5],
+          scale: 0.2
+        },
+        faction: enemyFaction,
+        collision: unitCollisionType.createEntityCollision(), 
+        stats: { 
+          speed: 0.5, 
+          health: 10,          
+          currentHealth: 10,
+          touchDamage: 2,
+           rotationSpeed: 0.01,     
+        },
+        respawn: false,
+        vision: visionAgent,
+        ai: aiAgent,
+        typeRotate: 'mirror',          // 'full' | 'mirror' — включаем зеркало
+        mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
+        mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
+        rotationBehavior: 'movement', 
+
+      });
+      const enemy4 = myWorld.addUnit(150, -700, { 
+        name: 'Враг 1', 
+        form: {
+          type: 'animated',
+          clips: {
+            walk: warriorFrames,
+            idle: [warriorFrames[1]]
           },
           animation: 'walk',
           fps: { walk: 8, idle: 0 },
