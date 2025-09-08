@@ -27,14 +27,14 @@ import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } 
 let game = null;
 // Ручные контроллеры и роутер больше не нужны с авто-проводкой
 
-const width = 1920;
-const height = 1080;
-
 onMounted(async () => {
   if (process.client) {
     try {
 // GAME -----------------------------------------------------------------------------------------------------------------
       game = new PixiGame();
+      // Подставляем размеры окна браузера один раз при инициализации
+      const width = window.innerWidth;
+      const height = window.innerHeight;
       
 // WORLD -----------------------------------------------------------------------------------------------------------------
       const myWorld = game.createWorld({
@@ -945,7 +945,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100vh;
+  height: 99vh;
   background: #838383;
   padding: 20px;
   gap: 20px;
@@ -977,5 +977,14 @@ onUnmounted(() => {
   border: 3px solid #333;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+#game-container{
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
 }
 </style>
