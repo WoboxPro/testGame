@@ -7,7 +7,14 @@
     </div>
     -->
     <div class="canvas-row">
-      <div id="game-container" class="game-area"></div>
+      <div id="game-container" class="game-area">
+        <button
+          class="fullscreen-btn"
+          @click="toggleFullscreen"
+          :aria-pressed="isFullscreen"
+          :title="isFullscreen ? 'Выйти из полноэкранного режима' : 'Во весь экран'"
+        >{{ isFullscreen ? '✕' : '⛶' }}</button>
+      </div>
       <div id="game-container2" class="game-area"></div>
     </div>
     
@@ -27,14 +34,41 @@ import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } 
 let game = null;
 // Ручные контроллеры и роутер больше не нужны с авто-проводкой
 
+// Полноэкранный режим
+const isFullscreen = ref(false);
+function toggleFullscreen() {
+  const el = document.getElementById('game-container');
+  if (!el) return;
+  const doc = document;
+  const docEl = doc.documentElement;
+
+  const requestFull = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen || el.mozRequestFullScreen;
+  const exitFull = doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen || doc.mozCancelFullScreen;
+
+  if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
+    requestFull && requestFull.call(el);
+  } else {
+    exitFull && exitFull.call(doc);
+  }
+}
+
+function handleFsChange() {
+  const doc = document;
+  isFullscreen.value = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+}
+
 onMounted(async () => {
   if (process.client) {
     try {
 // GAME -----------------------------------------------------------------------------------------------------------------
       game = new PixiGame();
-      // Подставляем размеры окна браузера один раз при инициализации
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      document.addEventListener('fullscreenchange', handleFsChange);
+      document.addEventListener('webkitfullscreenchange', handleFsChange);
+      document.addEventListener('mozfullscreenchange', handleFsChange);
+      document.addEventListener('MSFullscreenChange', handleFsChange);
+      // Подставляем размеры экрана устройства (не окна браузера)
+      const width = screen.width;
+      const height = screen.height;
       
 // WORLD -----------------------------------------------------------------------------------------------------------------
       const myWorld = game.createWorld({
@@ -931,6 +965,10 @@ onUnmounted(() => {
     inputRouter.detach();
     inputRouter = null;
   }
+  document.removeEventListener('fullscreenchange', handleFsChange);
+  document.removeEventListener('webkitfullscreenchange', handleFsChange);
+  document.removeEventListener('mozfullscreenchange', handleFsChange);
+  document.removeEventListener('MSFullscreenChange', handleFsChange);
 });
 </script>
 
@@ -987,4 +1025,21 @@ onUnmounted(() => {
   height: 100vh;
   z-index: 1000;
 }
+
+.fullscreen-btn{
+  position: fixed;
+  right: 12px;
+  top: 12px;
+  z-index: 1001; /* выше слоя канваса (у контейнера 1000) */
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.fullscreen-btn:hover{ background: rgba(0,0,0,0.75); }
 </style>
