@@ -858,7 +858,7 @@ onMounted(async () => {
         focusY: 0,
         world: myWorld,
         canvas: myCanvas,
-        zoom: 1,            // Уменьшаем zoom чтобы видеть больше объектов
+        zoom: 0.6,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
         hiddenTypes: ['vision'],
