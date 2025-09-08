@@ -600,7 +600,7 @@ onMounted(async () => {
 
       // Создаем контроллер для управления множественными сущностями
       const entityController = game.createEntityController({
-        controlType: 'keyboard', //'keyboard' | 'touch' | 'both'
+        controlType: 'touch', //'keyboard' | 'touch' | 'both'
         touch: { 
           mode: 'dynamic', // static | dynamic
           staticX: 0,
