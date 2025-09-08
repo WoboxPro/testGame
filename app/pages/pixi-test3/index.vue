@@ -898,7 +898,7 @@ onMounted(async () => {
         hiddenTypes: ['vision'],
         style: {
           border: {
-            enabled: true,
+            enabled: false,
             width: 2,
             color: 0x00FF00  // Зеленый для основной камеры
           }
