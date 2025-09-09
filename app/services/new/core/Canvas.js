@@ -13,7 +13,7 @@ export class Canvas {
     this.height = options.height || 600;
     this.backgroundColor = options.backgroundColor || '#333333'; // Цвет незанятых областей
     this.containerId = options.containerId || null; // 🎯 ID DOM элемента
-    
+    this.antialias = options.antialias || false;
     // 🎮 PIXI приложение
     this.app = null;
     this.isStarted = false;
@@ -41,7 +41,7 @@ export class Canvas {
         height: this.height,
         backgroundColor: this.backgroundColor,
         //   powerPreference: 'high-performance', // подсказка браузеру выбрать производительный адаптер
-        antialias: false, // быстрее рендер на слабой GPU если false. Влияет на сглаживание
+        antialias: this.antialias, // быстрее рендер на слабой GPU если false. Влияет на сглаживание
         resolution: 1, // DPI (чем выше, тем четче, но медленнее)
         autoDensity: true, // адаптация к экранам с высоким DPI
        // preference: "webgpu", // webgl | webgpu

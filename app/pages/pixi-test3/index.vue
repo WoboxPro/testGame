@@ -88,7 +88,8 @@ onMounted(async () => {
         width: width,
         height: height,
         backgroundColor: '#333333', // Серый фон незанятых областей
-        containerId: 'game-container'  //  ID DOM элемента куда помещать канвас
+        containerId: 'game-container',  //  ID DOM элемента куда помещать канвас
+        antialias: true                // Включаем сглаживание
       });
 
       await game.startCanvas(myCanvas);
