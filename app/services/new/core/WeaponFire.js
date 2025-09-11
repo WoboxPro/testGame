@@ -139,6 +139,11 @@ export class MuzzleFireController {
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
     this._onWorldDeath = null;   // listener to stop on death
     this._lastFireMs = 0;        // wall-clock timestamp of last shot (auto or manual)
+    // 🎯 Aim settings (read from weapon slot if present)
+    this._aim = this._readAimConfigFromSlot(weaponEntity, slotName);
+    this._aimTargetId = null;
+    this._aimNextRetargetAt = 0;
+    this._aimLastLOS = false;
     // Shared per-world ticker
     this._sharedTicker = getWorldMuzzleTicker(this.world);
     if (this._sharedTicker) this._sharedTicker.add(this);
@@ -202,7 +207,11 @@ export class MuzzleFireController {
     if (this.weapon.isDead || owner?.isDead) return;
     const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
     if (!t) return;
-    const facing = (t.facing != null) ? t.facing : (t.angle || 0);
+    // 🎯 Compute aimed angle if enabled and gate firing
+    const { angle: aimAngle, hasTarget, losOk } = this._computeAimAngle(t);
+    const fireAllowed = this._isFireAllowed(hasTarget, losOk);
+    if (!fireAllowed) return;
+    const facing = aimAngle;
     switch (this.config.weaponType) {
       case 'laser':
         // Hitscan stub: instant effect along a ray of length maxRange
@@ -315,13 +324,17 @@ export class MuzzleFireController {
         while (this._fireAccMs >= this.config.fireRate) {
           const t = this.weapon.getSlotWorldTransform(this.slotName) || this.weapon.getWorldTransform?.();
           if (t) {
-            const facing = (t.facing != null) ? t.facing : (t.angle || 0);
-            if (this.config.weaponType === 'raycast' || this.config.weaponType === 'laser') {
-              this._fireRaycast(t.x, t.y, facing);
-            } else {
-              this._fireOnceImmediate(t.x, t.y, facing);
+            const { angle: aimAngle, hasTarget, losOk } = this._computeAimAngle(t);
+            const fireAllowed = this._isFireAllowed(hasTarget, losOk);
+            if (fireAllowed) {
+              const facing = aimAngle;
+              if (this.config.weaponType === 'raycast' || this.config.weaponType === 'laser') {
+                this._fireRaycast(t.x, t.y, facing);
+              } else {
+                this._fireOnceImmediate(t.x, t.y, facing);
+              }
+              this._lastFireMs = Date.now();
             }
-            this._lastFireMs = Date.now();
           }
           this._fireAccMs -= this.config.fireRate;
         }
@@ -341,6 +354,179 @@ export class MuzzleFireController {
       }
     }
     // With shared ticker, no need to manage per-controller timers here
+  }
+
+  // === AUTO-AIM SUPPORT ===
+  _readAimConfigFromSlot(weapon, slotName) {
+    const raw = weapon?.slots?.[slotName]?.aim || null;
+    if (!raw) return { enabled: false };
+    const clampNum = (v, d, min = -Infinity, max = Infinity) => {
+      const n = Number(v);
+      return isFinite(n) ? Math.max(min, Math.min(max, n)) : d;
+    };
+    const toRad = (deg) => (typeof deg === 'number' ? (deg * Math.PI) / 180 : 0);
+    const vt = this.config?.validTargets || {};
+    return {
+      enabled: raw.enabled !== false,
+      range: clampNum(raw.range, Math.max(50, this.config?.maxRange || 300), 1, 100000),
+      retargetMs: clampNum(raw.retargetMs, 250, 16, 10000),
+      requireLOS: !!raw.requireLOS,
+      fireWhen: raw.fireWhen || 'always', // 'always' | 'target' | 'targetAndLOS'
+      rotateVisual: !!raw.rotateVisual,
+      toleranceRad: toRad(clampNum(raw.toleranceDeg, 0, 0, 180)),
+      hitTags: Array.isArray(raw.hitTags) ? raw.hitTags.slice() : (vt.hit || ['unit']),
+      blockTags: Array.isArray(raw.blockTags) ? raw.blockTags.slice() : (vt.block || ['building','structure'])
+    };
+  }
+
+  _isFireAllowed(hasTarget, losOk) {
+    const aim = this._aim || { enabled: false, fireWhen: 'always' };
+    if (!aim.enabled) return true;
+    switch (aim.fireWhen) {
+      case 'target': return !!hasTarget;
+      case 'targetAndLOS': return !!hasTarget && !!losOk;
+      case 'always':
+      default: return true;
+    }
+  }
+
+  _computeAimAngle(slotTransform) {
+    const baseFacing = (slotTransform.facing != null) ? slotTransform.facing : (slotTransform.angle || 0);
+    const aim = this._aim || { enabled: false };
+    if (!aim.enabled || !this.world) return { angle: baseFacing, hasTarget: false, losOk: true };
+
+    const now = Date.now();
+    // Retarget on schedule or if current target is invalid
+    if (now >= this._aimNextRetargetAt) {
+      const res = this._selectTarget(slotTransform);
+      this._aimTargetId = res?.entity?.id || null;
+      this._aimLastLOS = !!res?.losOk;
+      this._aimNextRetargetAt = now + Math.max(16, aim.retargetMs || 250);
+    } else {
+      // verify target still valid
+      if (this._aimTargetId) {
+        const t = this.world.getEntity(this._aimTargetId);
+        if (!t || t.isDead) {
+          this._aimTargetId = null;
+          this._aimLastLOS = false;
+        }
+      }
+    }
+
+    let desiredAngle = baseFacing;
+    let hasTarget = false;
+    let losOk = true;
+    if (this._aimTargetId) {
+      const target = this.world.getEntity(this._aimTargetId);
+      if (target) {
+        const dx = target.x - slotTransform.x;
+        const dy = target.y - slotTransform.y;
+        desiredAngle = Math.atan2(dy, dx);
+        hasTarget = true;
+        // LOS recompute if gating requires it
+        losOk = aim.requireLOS || (aim.fireWhen === 'targetAndLOS') ? this._hasLineOfSight(slotTransform.x, slotTransform.y, desiredAngle, Math.hypot(dx, dy)) : true;
+        // Optionally rotate visual weapon
+        if (aim.rotateVisual) this._applyVisualRotation(desiredAngle, baseFacing);
+        // If tolerance specified, optionally hold fire until aligned
+        if (aim.toleranceRad > 0) {
+          const currentFacing = this._getCurrentVisualFacing(baseFacing);
+          const diff = this._angleDiff(desiredAngle, currentFacing);
+          if (diff > aim.toleranceRad) {
+            // Not yet aligned: still return desiredAngle for future, but report no target for fire gating
+            losOk = false; // block if tolerance not met
+          }
+        }
+      }
+    }
+
+    return { angle: desiredAngle, hasTarget, losOk };
+  }
+
+  _selectTarget(slotTransform) {
+    const aim = this._aim;
+    const shooter = this.weapon?.parent ? this.world.getEntity(this.weapon.parent) : this.weapon;
+    const factionSystem = this.world?.factionSystem;
+    const entities = this.world.getAllEntities();
+    const ox = slotTransform.x, oy = slotTransform.y;
+    const range2 = (aim.range || 300) * (aim.range || 300);
+    let best = null;
+    let bestD2 = Infinity;
+    for (const e of entities) {
+      if (!e || e.isDead) continue;
+      if (e.id === shooter?.id) continue;
+      if (e.type === 'bullet' || e.type === 'vision') continue;
+      if (!e.collision?.enabled) continue;
+      // Tag filter
+      const tags = new Set();
+      if (e.collision?.name) tags.add(e.collision.name);
+      if (e.type) tags.add(e.type);
+      const isHit = (aim.hitTags || ['unit']).some(t => tags.has(t));
+      if (!isHit) continue;
+      if (factionSystem && shooter && !factionSystem.canEntitiesAttack(shooter, e)) continue;
+      const dx = e.x - ox;
+      const dy = e.y - oy;
+      const d2 = dx*dx + dy*dy;
+      if (d2 > range2) continue;
+      // LOS filter if required at selection time
+      if (aim.requireLOS) {
+        const dist = Math.sqrt(d2);
+        if (!this._hasLineOfSight(ox, oy, Math.atan2(dy, dx), dist, e)) continue;
+      }
+      if (d2 < bestD2) { bestD2 = d2; best = { entity: e, losOk: true }; }
+    }
+    return best;
+  }
+
+  _hasLineOfSight(ox, oy, angle, distToTarget, targetEntity = null) {
+    const aim = this._aim;
+    if (!aim || !this.world) return true;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const blocks = new Set(aim.blockTags || ['building','structure']);
+    for (const e of this.world.getAllEntities()) {
+      if (!e || e.isDead) continue;
+      if (targetEntity && e.id === targetEntity.id) continue;
+      if (!e.collision?.enabled) continue;
+      const tags = new Set();
+      if (e.collision?.name) tags.add(e.collision.name);
+      if (e.type) tags.add(e.type);
+      const isBlock = [...blocks].some(t => tags.has(t));
+      if (!isBlock) continue;
+      const tParam = this._intersectRayWithEntity(ox, oy, dx, dy, distToTarget, e);
+      if (tParam != null && tParam <= distToTarget - 1e-6) return false;
+    }
+    return true;
+  }
+
+  _applyVisualRotation(desiredAngle, baseFacing) {
+    if (!this.weapon || !this.world) return;
+    // If weapon is attached via slot and parent rotates children in 'stick' mode, set localRotation
+    const parent = this.weapon.parent ? this.world.getEntity(this.weapon.parent) : null;
+    if (parent && parent.childRotationType === 'stick') {
+      // child.rotation = t.facing + localRotation -> make it equal desiredAngle
+      const local = desiredAngle - baseFacing;
+      this.weapon.localRotation = local;
+    } else {
+      // otherwise set absolute rotation
+      this.weapon.rotation = desiredAngle;
+    }
+  }
+
+  _getCurrentVisualFacing(baseFacing) {
+    if (!this.weapon || !this.world) return baseFacing;
+    const parent = this.weapon.parent ? this.world.getEntity(this.weapon.parent) : null;
+    if (parent && parent.childRotationType === 'stick') {
+      const local = this.weapon.localRotation || 0;
+      return baseFacing + local;
+    }
+    return this.weapon.rotation != null ? this.weapon.rotation : baseFacing;
+  }
+
+  _angleDiff(a, b) {
+    let d = a - b;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return Math.abs(d);
   }
 
   _fireRaycast(x, y, angle) {

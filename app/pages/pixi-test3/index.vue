@@ -83,7 +83,7 @@ onMounted(async () => {
         height: height,
         backgroundColor: '#333333', // Серый фон незанятых областей
         containerId: 'game-container',  //  ID DOM элемента куда помещать канвас
-        antialias: true                // Включаем сглаживание
+        antialias: false                // Включаем сглаживание
       });
 
       await game.startCanvas(myCanvas);
@@ -778,6 +778,51 @@ onMounted(async () => {
         rotationBehavior: 'movement', 
 
       });
+      // 🔫 Добавим этому врагу слот и оружие с авто-наведением (стрельба по фракциям и LOS)
+      enemy1.defineSlots({
+        right_gun: { offsetX: 8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
+      });
+      const enemy1Weapon = myWorld.addEntity({
+        name: 'Оружие врага',
+        type: 'weapon',
+        form: 'rectangle',
+        width: 3,
+        height: 16,
+        color: 0xCC0000,
+        autoWire: true,
+        slots: {
+          muzzle: {
+            offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
+            bullet: {
+              weaponType: 'projectile',
+              //raycastAnimation: 'laser',
+              bulletSpeed: 3,
+              penetration: 0,
+              bulletsPerShot: 1,
+              maxRange: 400,
+              fireRate: 300,
+              bulletLifetime: 10,
+              damage: 1,
+              color: 0xFF3333,
+              validTargets: { block: ['building','structure'], hit: ['unit'] },
+              autoFire: true
+            },
+            aim: {
+              enabled: true,
+              range: 350,
+              retargetMs: 250,
+              requireLOS: true,
+              fireWhen: 'targetAndLOS',
+              rotateVisual: false,
+              toleranceDeg: 0,
+              hitTags: ['unit'],
+              blockTags: ['building','structure']
+            }
+          }
+        }
+      });
+      enemy1.attachEntityToSlot(enemy1Weapon, 'right_gun');
+      enemy1.updateAttachedSlots();
       const enemy11 = myWorld.addUnit(-120, -200, { 
         name: 'Враг 1', 
         form: {
@@ -890,7 +935,7 @@ onMounted(async () => {
         zoom: 0.6,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
-        hiddenTypes: ['vision'],
+       // hiddenTypes: ['vision'],
         style: {
           border: {
             enabled: false,
