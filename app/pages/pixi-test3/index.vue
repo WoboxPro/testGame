@@ -836,7 +836,7 @@ onMounted(async () => {
       });
       enemy1.attachEntityToSlot(enemy1Weapon, 'right_gun');
       enemy1.updateAttachedSlots();
-      const enemy11 = myWorld.addUnit(-350, -350, { 
+      const enemy11 = myWorld.addUnit(500, -100, { 
         name: 'Враг 1', 
         form: {
           type: 'animated',
