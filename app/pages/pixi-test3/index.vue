@@ -409,14 +409,14 @@ onMounted(async () => {
 // PLAYER -----------------------------------------------------------------------------------------------------------------
       const bulletSuperSpeed = {
             weaponType: 'projectile',
-            bulletSpeed: 3,
+            bulletSpeed: 2,
             penetration: 0,
             bulletsPerShot: 0,
             maxRange: 500,
-            fireRate: 100,
-            bulletLifetime: 2.0,
+            fireRate: 400,
+            bulletLifetime: 3.0,
             damage: 1,
-            sizeBullet: 1, // радиус пули
+            sizeBullet: 4, // радиус пули
             bulletConfigs: {
               collideAsPoint: false, // если true, то пуля будет считаться точкой, а не кругом
               collisionRadius: null, // радиус коллизии пули
@@ -589,7 +589,7 @@ onMounted(async () => {
             //,
             aim: {
               enabled: true,
-              range: 350,
+              range: 200,
               retargetMs: 250,
               requireLOS: true,
               fireWhen: 'targetAndLOS',
@@ -947,7 +947,7 @@ onMounted(async () => {
         zoom: 0.6,            // Уменьшаем zoom чтобы видеть больше объектов
         priority: 1,
         respectWorldBounds: true,  // 🌍 НОВИНКА: Учитывать границы мира при слежении!
-       // hiddenTypes: ['vision'],
+        hiddenTypes: ['vision'],
         style: {
           border: {
             enabled: false,
