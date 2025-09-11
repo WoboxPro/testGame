@@ -817,11 +817,12 @@ onMounted(async () => {
               damage: 1,
               color: 0xFF3333,
               validTargets: { block: ['building','structure'], hit: ['unit'] },
-              autoFire: true
+              autoFire: true,
+              sizeBullet: 3,
             },
             aim: {
               enabled: true,
-              range: 350,
+              range: 300,
               retargetMs: 250,
               requireLOS: true,
               fireWhen: 'targetAndLOS',
@@ -835,7 +836,7 @@ onMounted(async () => {
       });
       enemy1.attachEntityToSlot(enemy1Weapon, 'right_gun');
       enemy1.updateAttachedSlots();
-      const enemy11 = myWorld.addUnit(-120, -200, { 
+      const enemy11 = myWorld.addUnit(-350, -350, { 
         name: 'Враг 1', 
         form: {
           type: 'animated',
@@ -867,6 +868,51 @@ onMounted(async () => {
         rotationBehavior: 'movement', 
 
       });
+      const enemy2Weapon = myWorld.addEntity({
+        name: 'Оружие врага',
+        type: 'weapon',
+        form: 'rectangle',
+        width: 3,
+        height: 16,
+        color: 0xCC0000,
+        autoWire: true,
+        slots: {
+          muzzle: {
+            offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
+            bullet: {
+              weaponType: 'projectile',
+              //raycastAnimation: 'laser',
+              bulletSpeed: 3,
+              penetration: 0,
+              bulletsPerShot: 1,
+              maxRange: 800,
+              fireRate: 700,
+              bulletLifetime: 10,
+              damage: 1,
+              color: 0x00FF00,
+              validTargets: { block: ['building','structure'], hit: ['unit'] },
+              autoFire: true,
+              sizeBullet: 4,
+            },
+            aim: {
+              enabled: true,
+              range: 400,
+              retargetMs: 250,
+              requireLOS: true,
+              fireWhen: 'targetAndLOS',
+              rotateVisual: false,
+              toleranceDeg: 0,
+              hitTags: ['unit'],
+              blockTags: ['building','structure']
+            }
+          }
+        }
+      });
+      enemy11.defineSlots({
+        right_gun: { offsetX: 8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
+      });
+      enemy11.attachEntityToSlot(enemy2Weapon, 'right_gun');
+      enemy11.updateAttachedSlots();
       const enemy4 = myWorld.addUnit(150, -700, { 
         name: 'Враг 1', 
         form: {
