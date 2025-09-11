@@ -423,7 +423,7 @@ onMounted(async () => {
               useCCD: false, // Логика не реализована - нужно чтоб пули на высоких скоростях не проходили сквозь стены
               validTargets: { block: ['building','structure'], hit: ['unit'] } // блок - стены, hit - юниты
             },
-            autoFire: false
+            autoFire: true,
           };
       const raycastBullet = {
             weaponType: 'raycast', // 'projectile' | 'raycast'
@@ -585,7 +585,19 @@ onMounted(async () => {
           muzzle: {
             offsetX: 0, offsetY: -12, angleOffset: -Math.PI/2,
             bullet: bulletSuperSpeed,
-            input: { mouse: 'LMB' }
+            //input: { mouse: 'LMB' },
+            //,
+            aim: {
+              enabled: true,
+              range: 350,
+              retargetMs: 250,
+              requireLOS: true,
+              fireWhen: 'targetAndLOS',
+              rotateVisual: false,
+              toleranceDeg: 0,
+              hitTags: ['unit'],
+              blockTags: ['building','structure']
+            }
           },
           // Второй ствол (смещен по X для визуального разделения)
           muzzle2: {
