@@ -139,6 +139,7 @@ export class MuzzleFireController {
     this._activeProjectiles = []; // { id, vx, vy, traveled, lifetimeMsRemaining }
     this._onWorldDeath = null;   // listener to stop on death
     this._lastFireMs = 0;        // wall-clock timestamp of last shot (auto or manual)
+    this._onWorldRespawn = null; // listener to restart auto on owner/weapon respawn
     // 🎯 Aim settings (read from weapon slot if present)
     this._aim = this._readAimConfigFromSlot(weaponEntity, slotName);
     this._aimTargetId = null;
@@ -147,6 +148,18 @@ export class MuzzleFireController {
     // Shared per-world ticker
     this._sharedTicker = getWorldMuzzleTicker(this.world);
     if (this._sharedTicker) this._sharedTicker.add(this);
+    // Listen for respawn to auto-restart if needed
+    if (!this._onWorldRespawn && this.world?.on) {
+      this._onWorldRespawn = ({ entity }) => {
+        if (!entity) return;
+        const ownerId = this.weapon?.parent || this.weapon?.id;
+        if (entity.id === ownerId && this.config?.autoFire) {
+          // ensure controllers start firing again after respawn
+          try { this.startAuto(); } catch (_) {}
+        }
+      };
+      this.world.on('entity_respawn', this._onWorldRespawn);
+    }
     // Auto-start based on configuration
     if (this.config.autoFire) {
       this.startAuto();
@@ -195,6 +208,10 @@ export class MuzzleFireController {
     if (this._stepTimer && this.world) this.world.clearGameTimer(this._stepTimer);
     this._stepTimer = null;
     this._activeProjectiles.length = 0;
+    if (this._onWorldRespawn && this.world?.off) {
+      this.world.off('entity_respawn', this._onWorldRespawn);
+      this._onWorldRespawn = null;
+    }
     this.world = null;
     this.weapon = null;
   }
