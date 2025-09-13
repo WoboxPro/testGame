@@ -48,6 +48,8 @@ export class Canvas {
        //roundPixels: true,
        //resizeTo: window,
       });
+      // Разрешаем сортировку по zIndex для корректного порядка слоёв
+      try { this.app.stage.sortableChildren = true; } catch (_) {}
       
       // Чётче позиционирование при пониженной resolution
       // if (this.app?.renderer) {
@@ -77,6 +79,12 @@ export class Canvas {
       
       this.isStarted = true;
       // Canvas запущен
+      // Создаём UI overlay слой поверх всех камер
+      try {
+        this.uiOverlay = new PIXI.Container();
+        this.uiOverlay.zIndex = 100000; // сверху
+        this.app.stage.addChild(this.uiOverlay);
+      } catch (_) {}
       
     } catch (error) {
       // Ошибка запуска Canvas

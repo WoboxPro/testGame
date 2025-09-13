@@ -74,6 +74,7 @@ export class Camera {
     
     // 📦 Создаем контейнер для этой камеры
     this.container = new PIXI.Container();
+    try { this.container.sortableChildren = true; } catch (_) {}
     
     // 📍 Позиция контейнера в канвасе
     this.container.x = this.x;
@@ -93,13 +94,19 @@ export class Camera {
     // 🎨 Создаем фон мира (Graphics прямоугольник с цветом мира)
     this.worldBackground = new PIXI.Graphics();
     this._drawWorldBackground();
+    this.worldBackground.zIndex = 0;
     this.container.addChild(this.worldBackground);
     
     // 🌍 Слой мира, который масштабируется зумом
     this.worldLayer = new PIXI.Container();
     this.worldLayer.x = 0 + this.width / 2;
     this.worldLayer.y = 0 + this.height / 2;
+    this.worldLayer.zIndex = 1;
     this.container.addChild(this.worldLayer);
+    // UI layer поверх мира
+    this.uiLayer = new PIXI.Container();
+    this.uiLayer.zIndex = 2;
+    this.container.addChild(this.uiLayer);
     
     // 🔲 Создаем рамку камеры для визуализации границ
     this.border = new PIXI.Graphics();

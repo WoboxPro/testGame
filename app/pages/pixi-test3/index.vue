@@ -23,9 +23,12 @@ import { CreateBiome } from '~/services/new/core/CreateBiome.js';
 import { CreateZone } from '~/services/new/core/CreateZone.js';
 import { CreateFaction } from '~/services/new/core/CreateFaction.js';
 import { createUnitCollision, createAutoUnitCollision, createTriggerCollision } from '~/services/new/core/CreateCollision.js';
+import { UIEntity } from '~/services/new/core/UIEntity.js';
 // Автопроводка оружия вшита в World; прямые импорты контроллеров/роутера больше не нужны
 
 let game = null;
+let uiOverlay = null;
+let uiNameTag = null;
 // Ручные контроллеры и роутер больше не нужны с авто-проводкой
 
 // Полноэкранный режим
@@ -89,6 +92,10 @@ onMounted(async () => {
       await game.startCanvas(myCanvas);
       // ⏱️ Масштаб времени игры (1 = нормальная скорость)
       game.setTimeScale(1);
+
+      // === UI OVERLAY (canvas coordinates) ===
+      uiOverlay = new UIEntity({ canvas: myCanvas, mode: 'canvas' });
+      uiOverlay.createText({ text: 'MeowGame', x: 20, y: 20, fontSize: 24, fill: 0xFFFFFF, align: 'left', anchor: 0 });
 
       // Предзагрузка спрайта, чтобы избежать предупреждений Assets Cache
       await PIXI.Assets.load('/person.png');
@@ -1005,6 +1012,9 @@ onMounted(async () => {
       //  Камера автоматически следит за управляемым героем!
       myCamera1.followEntity(controlledHero);
       //myCamera3.followEntity(controlledHero2);
+      // === UI: подпись над героем ===
+      uiNameTag = new UIEntity({ canvas: myCanvas, camera: myCamera1, attachTo: 'entity' });
+      uiNameTag.createText({ text: 'Герой', entity: controlledHero, offsetX: 0, offsetY: -30, units: 'px', fontSize: 16, fill: 0xFFFFFF, anchor: 0.5 });
 // END: CAMERA -----------------------------------------------------------------------------------------------------------------
 
 
@@ -1023,6 +1033,14 @@ onUnmounted(() => {
   if (inputRouter) {
     inputRouter.detach();
     inputRouter = null;
+  }
+  if (uiOverlay) {
+    try { uiOverlay.destroy(); } catch(_) {}
+    uiOverlay = null;
+  }
+  if (uiNameTag) {
+    try { uiNameTag.destroy(); } catch(_) {}
+    uiNameTag = null;
   }
   document.removeEventListener('fullscreenchange', handleFsChange);
   document.removeEventListener('webkitfullscreenchange', handleFsChange);
