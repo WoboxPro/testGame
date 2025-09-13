@@ -747,6 +747,7 @@ export class CollisionSystem {
       // 🏳️ Если у цели нет фракции и хотим считать её нейтральной, можно пропустить урон,
       // но по текущей логике (без фракций) урон наносится всем hit-целям.
       if (dmg > 0 && target.stats) {
+        try { target._lastAttackerId = c.ownership?.entityId || null; } catch(_) {}
         target.stats.takeDamage(dmg, target);
       }
       // Пробитие: уменьшаем счетчик и либо удаляем пулю, либо даем лететь дальше
@@ -768,6 +769,10 @@ export class CollisionSystem {
   _dealDamage(attacker, target, damage, reason) {
     const oldHealth = target.stats.getHealth();
     const damaged = target.stats.takeDamage(damage, target);
+    // Запомним последнего атакующего для наград
+    if (damaged && target && attacker) {
+      try { target._lastAttackerId = attacker.id; } catch(_) {}
+    }
     
     if (damaged) {
       const newHealth = target.stats.getHealth();

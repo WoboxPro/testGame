@@ -377,10 +377,32 @@ onMounted(async () => {
       });
 
       // 📡 ГИБРИДНАЯ АРХИТЕКТУРА: Дополнительная логика при смерти
-      myWorld.on('entity_death', ({ entity, cause, damageAmount, position, timestamp }) => {
+      myWorld.on('entity_death', ({ entity, cause, damageAmount, position, timestamp, killerId }) => {
         console.log(`🎭 СОБЫТИЕ СМЕРТИ: ${entity.name} погиб от ${cause} (урон: ${damageAmount})`);
         console.log(`📍 Позиция смерти: (${position.x.toFixed(1)}, ${position.y.toFixed(1)})`);
         console.log(`⏰ Время смерти: ${new Date(timestamp).toLocaleTimeString()}`);
+        // 🪙 Награды XP/Gold
+        try {
+          const gold = Number(entity?.data?.gold || 0);
+          const xp = Number(entity?.data?.xp || 0);
+          if ((gold > 0 || xp > 0) && killerId) {
+            const killer = myWorld.getEntity(killerId);
+            if (killer) {
+              killer.data = killer.data || {};
+              killer.data.gold = Number(killer.data.gold || 0) + gold;
+              killer.data.xp = Number(killer.data.xp || 0) + xp;
+              // Всплывающий UI-текст над убийцей
+              if (myCanvas && myCamera1) {
+                const fx = new UIEntity({ canvas: myCanvas, camera: myCamera1, attachTo: 'entity' });
+                const parts = [];
+                if (xp > 0) parts.push(`+${xp} XP`);
+                if (gold > 0) parts.push(`+${gold} золота`);
+                const txt = fx.createText({ text: parts.join(' '), entity: killer, offsetX: 0, offsetY: -24, units: 'px', fontSize: 14, fill: 0x00FF88, anchor: 0.5 });
+                setTimeout(() => { try { txt.destroy(); fx.destroy(); } catch(_) {} }, 800);
+              }
+            }
+          }
+        } catch(_) {}
         
         // 🎵 Здесь можно добавить звуки
         // playDeathSound(cause);
@@ -557,7 +579,8 @@ onMounted(async () => {
               enabled: true,
               blockedBy: ['building', 'structure'] // по collision.name или по entity.type
             }
-        }
+        },
+        data: { xp: 0, gold: 0 }
       });
       
       // 👣 Демонстрационный юнит с анимацией из спрайтшита
@@ -812,9 +835,9 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.5, 
-          health: 10,          
-          currentHealth: 10,
-          touchDamage: 2,
+          health: 2,          
+          currentHealth: 2,
+          touchDamage: 1,
            rotationSpeed: 0.01,     
         },
         respawn: false,
@@ -824,6 +847,7 @@ onMounted(async () => {
         mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
         mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
         rotationBehavior: 'movement', 
+        data: { xp: 3, gold: 1 },
         slots: {
           right_gun: { offsetX: 8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
         }
@@ -891,9 +915,9 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.5, 
-          health: 10,          
-          currentHealth: 10,
-          touchDamage: 2,
+          health: 3,          
+          currentHealth: 3,
+          touchDamage: 1,
            rotationSpeed: 0.01,     
         },
         respawn: false,
@@ -903,6 +927,7 @@ onMounted(async () => {
         mirrorAxis: 'y',               // 'x' | 'y' — ось зеркала (Y = влево/вправо)
         mirrorMouseDeadzone: 4,        //  Порог переключения по оси (пиксели)
         rotationBehavior: 'movement', 
+        data: { xp: 5, gold: 2 },
         slots: {
           right_gun: { offsetX: 8, offsetY: -5, angleOffset: 0, maxWeapons: 1 }
         }
@@ -928,8 +953,8 @@ onMounted(async () => {
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.5, 
-          health: 10,          
-          currentHealth: 10,
+          health: 2,          
+          currentHealth: 2,
           touchDamage: 2,
            rotationSpeed: 0.01,     
         },

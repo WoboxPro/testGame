@@ -151,7 +151,8 @@ export class CharacterStats {
           cause: 'damage',
           damageAmount: damageAmount,
           position: { x: entity.x, y: entity.y },
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          killerId: entity._lastAttackerId || null
         });
       }
     }

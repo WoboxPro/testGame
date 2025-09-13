@@ -655,6 +655,7 @@ export class MuzzleFireController {
       if (hit.isHit) {
         const dmg = Number(this.config.damage) || 0;
         if (dmg > 0 && hit.entity?.stats) {
+          try { hit.entity._lastAttackerId = shooter?.id; } catch(_) {}
           hit.entity.stats.takeDamage(dmg, hit.entity);
         }
         if (remainingPen <= 0) {
