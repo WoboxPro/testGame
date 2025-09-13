@@ -227,8 +227,40 @@ export class MuzzleFireController {
     // 🎯 Compute aimed angle if enabled and gate firing
     const { angle: aimAngle, hasTarget, losOk } = this._computeAimAngle(t);
     const fireAllowed = this._isFireAllowed(hasTarget, losOk);
-    if (!fireAllowed) return;
+    if (!fireAllowed) {
+      // 🔔 Emit blocked event
+      try {
+        const ownerId = this.weapon?.parent || this.weapon?.id;
+        const slotCfg = this.weapon?.slots?.[this.slotName] || {};
+        const reason = !hasTarget ? 'no_target' : (!losOk ? 'no_los' : 'cooldown');
+        this.world?.emit?.('weapon_fire_blocked', { shooterId: ownerId, weaponId: this.weapon?.id, slotName: this.slotName, reason, timestamp: Date.now() });
+        if (slotCfg.events?.blocked) {
+          try { slotCfg.events.blocked({ shooterId: ownerId, weapon: this.weapon, slotName: this.slotName, reason }); } catch(_) {}
+        }
+      } catch (_) {}
+      return;
+    }
     const facing = aimAngle;
+    // 🔔 Emit weapon_fire event
+    try {
+      const ownerId = this.weapon?.parent || this.weapon?.id;
+      const slotCfg = this.weapon?.slots?.[this.slotName] || {};
+      this.world?.emit?.('weapon_fire', {
+        shooterId: ownerId,
+        weaponId: this.weapon?.id,
+        slotName: this.slotName,
+        x: t.x,
+        y: t.y,
+        angle: aimAngle,
+        weaponType: this.config.weaponType,
+        bulletsPerShot: this.config.bulletsPerShot,
+        timestamp: Date.now()
+      });
+      if (slotCfg.events?.fire) {
+        try { slotCfg.events.fire({ shooterId: ownerId, weapon: this.weapon, slotName: this.slotName, x: t.x, y: t.y, angle: aimAngle, config: this.config }); } catch(_) {}
+      }
+    } catch (_) {}
+
     switch (this.config.weaponType) {
       case 'laser':
         // Hitscan stub: instant effect along a ray of length maxRange
@@ -321,6 +353,27 @@ export class MuzzleFireController {
       lifetimeMsRemaining: this.config.bulletLifetimeMs
     };
     this._activeProjectiles.push(proj);
+
+    // 🔔 Emit projectile_spawn and per-slot callback if provided
+    try {
+      const ownerId = this.weapon?.parent || this.weapon?.id;
+      const slotCfg = this.weapon?.slots?.[this.slotName] || {};
+      this.world?.emit?.('projectile_spawn', {
+        bulletId: bullet.id,
+        shooterId: ownerId,
+        weaponId: this.weapon?.id,
+        slotName: this.slotName,
+        x, y, angle,
+        speed,
+        maxRange: this.config.maxRange,
+        damage: this.config.damage,
+        penetration: this.config.penetration,
+        timestamp: Date.now()
+      });
+      if (slotCfg.events?.projectileSpawn) {
+        try { slotCfg.events.projectileSpawn({ bullet, shooterId: ownerId, weapon: this.weapon, slotName: this.slotName, angle }); } catch(_) {}
+      }
+    } catch (_) {}
   }
 
   _ensureStepper() {
@@ -616,6 +669,19 @@ export class MuzzleFireController {
         break;
       }
     }
+
+    // 🔔 Emit raycast_fire event
+    try {
+      const ownerId = this.weapon?.parent || this.weapon?.id;
+      const slotCfg = this.weapon?.slots?.[this.slotName] || {};
+      this.world?.emit?.('raycast_fire', {
+        shooterId: ownerId, weaponId: this.weapon?.id, slotName: this.slotName,
+        x, y, angle, maxRange: maxDist, timestamp: Date.now()
+      });
+      if (slotCfg.events?.raycastFire) {
+        try { slotCfg.events.raycastFire({ shooterId: ownerId, weapon: this.weapon, slotName: this.slotName, x, y, angle, maxRange: maxDist }); } catch(_) {}
+      }
+    } catch (_) {}
 
     // Visual tracer
     if (this.config.raycastAnimation !== 'none') {

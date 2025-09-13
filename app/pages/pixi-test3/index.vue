@@ -355,6 +355,20 @@ onMounted(async () => {
         console.log(`📤 ТРИГГЕР: ${entityA.name} покинул зону ${entityB.name}`);
       });
 
+      // 🔔 Логи новых событий выстрела
+      // myWorld.on('weapon_fire', (e) => {
+      //   console.log(`🔫 WEAPON_FIRE: shooter=${e.shooterId} slot=${e.slotName} type=${e.weaponType} angle=${(e.angle||0).toFixed(2)}`);
+      // });
+      // myWorld.on('weapon_fire_blocked', (e) => {
+      //   console.log(`⛔ FIRE_BLOCKED: shooter=${e.shooterId} slot=${e.slotName} reason=${e.reason}`);
+      // });
+      // myWorld.on('projectile_spawn', (e) => {
+      //   console.log(`💥 PROJECTILE: id=${e.bulletId} shooter=${e.shooterId} angle=${(e.angle||0).toFixed(2)} speed=${e.speed}`);
+      // });
+      // myWorld.on('raycast_fire', (e) => {
+      //   console.log(`🔦 RAYCAST: shooter=${e.shooterId} angle=${(e.angle||0).toFixed(2)} range=${e.maxRange}`);
+      // });
+
       // 🪤 Событие ловушки (урон обрабатывается автоматически в CollisionSystem)
       myWorld.on('trap_damage_enter', ({entityA, entityB}) => {
         const hero = entityA.collision?.name === 'unit' ? entityA : entityB;
@@ -594,6 +608,21 @@ onMounted(async () => {
             bullet: bulletSuperSpeed,
             //input: { mouse: 'LMB' },
             //,
+            events: {
+              //fire: ({ shooterId, weapon, slotName, x, y, angle }) => console.log('slot fire', shooterId, angle),
+              // blocked: ({ shooterId, reason }) => console.log('slot blocked', reason),
+               projectileSpawn: ({ bullet, weapon }) => {
+                 console.log('SHOOT', bullet.id);
+                 try {
+                   const attachEntity = weapon || heroWeapon2;
+                   if (!myCamera1 || !attachEntity) return;
+                   const fx = new UIEntity({ canvas: myCanvas, camera: myCamera1, attachTo: 'entity' });
+                   const tag = fx.createText({ text: 'Бах!', entity: attachEntity, offsetX: 10, offsetY: -14, units: 'px', fontSize: 14, fill: 0xFFD700, anchor: 0.5 });
+                   setTimeout(() => { try { tag.destroy(); fx.destroy(); } catch(_) {} }, 200);
+                 } catch(_) {}
+               },
+               //raycastFire: (e) => console.log('slot raycast', e.angle),
+            },
             aim: {
               enabled: true,
               range: 200,
