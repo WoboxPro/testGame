@@ -949,12 +949,13 @@ onMounted(async () => {
           anchor: [0.5, 0.5],
           scale: 0.3
         },
+        data: { xp: 666, gold: 777 },
         faction: enemyFaction,
         collision: unitCollisionType.createEntityCollision(), 
         stats: { 
           speed: 0.5, 
-          health: 2,          
-          currentHealth: 2,
+          health: 10,          
+          currentHealth: 10,
           touchDamage: 2,
            rotationSpeed: 0.01,     
         },
