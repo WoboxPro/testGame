@@ -824,6 +824,30 @@ onMounted(async () => {
         }
       };
       
+      // ⚙️ Небольшая фабрика для массового спавна врагов (перформанс-тест)
+      class EnemyFactory {
+        constructor(world, faction, collisionType) {
+          this.world = world;
+          this.faction = faction;
+          this.collisionType = collisionType;
+        }
+        create(x, y, idx = 0) {
+          return this.world.addUnit(x, y, {
+            name: `Тестер ${idx}`,
+            form: 'soldier',
+            size: 8,
+            faction: this.faction,
+            collision: this.collisionType.createEntityCollision(),
+            stats: { speed: 0.6, health: 1, currentHealth: 1, touchDamage: 0 },
+            respawn: false,
+            data: { xp: 1, gold: 0 },
+            vision: visionAgent,
+            ai: aiAgent,
+            slots: { right_gun: { offsetX: 8, offsetY: -5, angleOffset: 0, maxWeapons: 1 } }
+          });
+        }
+      }
+      
       const enemy1 = myWorld.addUnit(150, -100, { 
         name: 'Враг 1', 
         form: {
@@ -1004,6 +1028,29 @@ onMounted(async () => {
         vision: visionAgent,
         ai: aiAgent
       });
+
+      // 🧪 Перформанс: заспавнить 50 простых врагов в сетке 10×5
+      try {
+        const factory = new EnemyFactory(myWorld, enemyFaction, unitCollisionType);
+        const cols = 10, rows = 10;
+        const spacingX = 80, spacingY = 80;
+        const startX = -800, startY = 200;
+        let idx = 1;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = startX + c * spacingX;
+            const y = startY + r * spacingY;
+            const e = factory.create(x, y, idx++);
+            try {
+              const w = myWorld.addEntity(configWeapon);
+              e.attachEntityToSlot(w, 'right_gun');
+            } catch(_) {}
+          }
+        }
+        console.log(`🧪 Спавнено для перформанс‑теста: ${cols*rows} врагов`);
+      } catch (e) {
+        console.warn('Не удалось заспавнить батч врагов:', e);
+      }
 
 // CAMERA -----------------------------------------------------------------------------------------------------------------
       // 📷 Создаем первую камеру (основная, занимает левую половину)
