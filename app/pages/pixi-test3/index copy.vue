@@ -29,10 +29,6 @@ import { UIEntity } from '~/services/new/core/UIEntity.js';
 let game = null;
 let uiOverlay = null;
 let uiNameTag = null;
-let uiHudHp = null;
-let uiHudXp = null;
-let uiHudGold = null;
-let hudTimerHandle = null;
 // Ручные контроллеры и роутер больше не нужны с авто-проводкой
 
 // Полноэкранный режим
@@ -99,10 +95,7 @@ onMounted(async () => {
 
       // === UI OVERLAY (canvas coordinates) ===
       uiOverlay = new UIEntity({ canvas: myCanvas, mode: 'canvas' });
-      // HUD: три независимых текста с цветами
-      uiHudHp = uiOverlay.createText({ text: 'HP: -/-', x: 20, y: 18, fontSize: 18, fill: 0xFF5555, align: 'left', anchor: 0 });
-      uiHudXp = uiOverlay.createText({ text: 'XP: 0', x: 160, y: 18, fontSize: 18, fill: 0x5599FF, align: 'left', anchor: 0 });
-      uiHudGold = uiOverlay.createText({ text: 'GOLD: 0', x: 260, y: 18, fontSize: 18, fill: 0xFFD54A, align: 'left', anchor: 0 });
+      uiOverlay.createText({ text: 'MeowGame', x: 20, y: 20, fontSize: 24, fill: 0xFFFFFF, align: 'left', anchor: 0 });
 
       // Предзагрузка спрайта, чтобы избежать предупреждений Assets Cache
       await PIXI.Assets.load('/person.png');
@@ -564,8 +557,8 @@ onMounted(async () => {
         visionFollowMouseInMirror: false, //  В mirror-режиме конус продолжает следовать курсору
         stats: { 
           speed: 4, 
-          health: 3, 
-          currentHealth: 3 
+          health: 2, 
+          currentHealth: 1 
         },  
         // Система респауна
         respawn: true,        // Возрождение при смерти
@@ -1077,20 +1070,6 @@ onMounted(async () => {
       // === UI: подпись над героем ===
       uiNameTag = new UIEntity({ canvas: myCanvas, camera: myCamera1, attachTo: 'entity' });
       uiNameTag.createText({ text: 'Герой', entity: controlledHero, offsetX: 0, offsetY: -30, units: 'px', fontSize: 16, fill: 0xFFFFFF, anchor: 0.5 });
-      // Обновление HUD раз в 100мс
-      const updateHUD = () => {
-        try {
-          if (!controlledHero) return;
-          const hp = controlledHero.stats?.getHealth?.() ?? 0;
-          const mhp = controlledHero.stats?.getMaxHealth?.() ?? 0;
-          const xp = Number(controlledHero.data?.xp || 0);
-          const gold = Number(controlledHero.data?.gold || 0);
-          if (uiHudHp) uiHudHp.setText(`HP: ${hp}/${mhp}`);
-          if (uiHudXp) uiHudXp.setText(`XP: ${xp}`);
-          if (uiHudGold) uiHudGold.setText(`GOLD: ${gold}`);
-        } catch(_) {}
-      };
-      hudTimerHandle = myWorld.setGameInterval(updateHUD, 100);
 // END: CAMERA -----------------------------------------------------------------------------------------------------------------
 
 
@@ -1114,13 +1093,6 @@ onUnmounted(() => {
     try { uiOverlay.destroy(); } catch(_) {}
     uiOverlay = null;
   }
-  if (hudTimerHandle && game?.world) {
-    try { game.world.clearGameTimer(hudTimerHandle); } catch(_) {}
-    hudTimerHandle = null;
-  }
-  uiHudHp = null;
-  uiHudXp = null;
-  uiHudGold = null;
   if (uiNameTag) {
     try { uiNameTag.destroy(); } catch(_) {}
     uiNameTag = null;
