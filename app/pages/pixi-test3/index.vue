@@ -1032,7 +1032,7 @@ onMounted(async () => {
       // 🧪 Перформанс: заспавнить 50 простых врагов в сетке 10×5
       try {
         const factory = new EnemyFactory(myWorld, enemyFaction, unitCollisionType);
-        const cols = 10, rows = 10;
+        const cols = 2, rows = 2;
         const spacingX = 80, spacingY = 80;
         const startX = -800, startY = 200;
         let idx = 1;
