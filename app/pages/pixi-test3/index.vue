@@ -101,8 +101,8 @@ onMounted(async () => {
       uiOverlay = new UIEntity({ canvas: myCanvas, mode: 'canvas' });
       // HUD: три независимых текста с цветами
       uiHudHp = uiOverlay.createText({ text: 'HP: -/-', x: 20, y: 18, fontSize: 18, fill: 0xFF5555, align: 'left', anchor: 0 });
-      uiHudXp = uiOverlay.createText({ text: 'XP: 0', x: 160, y: 18, fontSize: 18, fill: 0x5599FF, align: 'left', anchor: 0 });
-      uiHudGold = uiOverlay.createText({ text: 'GOLD: 0', x: 260, y: 18, fontSize: 18, fill: 0xFFD54A, align: 'left', anchor: 0 });
+      uiHudXp = uiOverlay.createText({ text: 'XP: 0', x: 20, y: 40, fontSize: 18, fill: 0x5599FF, align: 'left', anchor: 0 });
+      uiHudGold = uiOverlay.createText({ text: 'GOLD: 0', x: 20, y: 62, fontSize: 18, fill: 0xFFD54A, align: 'left', anchor: 0 });
 
       // Предзагрузка спрайта, чтобы избежать предупреждений Assets Cache
       await PIXI.Assets.load('/person.png');
@@ -516,7 +516,7 @@ onMounted(async () => {
             },
             autoFire: false
           };
-      const controlledHero = myWorld.addUnit(-200, 0, { 
+      const controlledHero = myWorld.addUnit(-300, -200, { 
         name: 'Герой', 
         // form: {
         //   type: 'sprite',
