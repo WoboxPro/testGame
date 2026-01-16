@@ -121,11 +121,11 @@ export class Camera {
   _createBorder() {
     this.border = new PIXI.Graphics();
     this.borderText = new PIXI.Text({
-      text: `📷 ${this.id} (${this.zoom.toFixed(1)}x) ${this.anchor}`,
+      text: `Camera ${this.id} (${this.zoom.toFixed(1)}x) ${this.anchor}`,
       style: {
         fontFamily: 'Arial',
         fontSize: 10,
-        fill: 0x00FF00
+        fill: '#00FF00'
       }
     });
     this._updateBorder();
@@ -153,12 +153,12 @@ export class Camera {
     }
     
     this.border.stroke({ 
-      color: 0x00FF00, 
+      color: '#00FF00', 
       width: 2
     });
     
     // Обновляем текст
-    this.borderText.text = `📷 ${this.id} (${this.zoom.toFixed(1)}x) ${this.anchor}`;
+    this.borderText.text = `Camera ${this.id} (${this.zoom.toFixed(1)}x) ${this.anchor}`;
     this.borderText.x = canvasX + 4;
     this.borderText.y = canvasY + 4;
   }
@@ -213,15 +213,7 @@ export class Camera {
    * 🔄 Обновить позицию мира в камере
    */
   _updateWorldPosition() {
-    if (!this.worldLayer) {
-      console.warn('Camera._updateWorldPosition: worldLayer is null');
-      return;
-    }
-    
-    if (!this.worldLayer.scale) {
-      console.warn('Camera._updateWorldPosition: worldLayer.scale is null');
-      return;
-    }
+    if (!this.worldLayer) return;
     
     // Рассчитываем сдвиг мира в зависимости от anchor
     let offsetX = 0;
@@ -250,12 +242,9 @@ export class Camera {
         break;
     }
     
-    const newWorldX = offsetX - (this.focusX * this.zoom);
-    const newWorldY = offsetY - (this.focusY * this.zoom);
-    
     // Устанавливаем позицию и зум мира
-    this.worldLayer.x = newWorldX;
-    this.worldLayer.y = newWorldY;
+    this.worldLayer.x = offsetX - (this.focusX * this.zoom);
+    this.worldLayer.y = offsetY - (this.focusY * this.zoom);
     
     // Применяем зум
     this.worldLayer.scale.set(this.zoom);

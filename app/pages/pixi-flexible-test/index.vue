@@ -553,17 +553,15 @@ function drawWorldBorders(world, targetLayer) {
 
 function updateCameraZoom(cameraId, value) {
   const camera = cameras.value.get(cameraId);
-  if (!camera) {
-    console.warn('updateCameraZoom: camera not found', cameraId);
-    return;
-  }
+  if (!camera) return;
   
   camera.setZoom(Number(value));
+  camera._updateWorldPosition();
+  camera._updateBorder();
   
-  // Принудительный ререндер канваса
   const canvas = canvases.value.get(camera.canvasId);
   if (canvas && canvas.app) {
-    canvas.app.render();
+    canvas.render();
   }
 }
 
@@ -581,10 +579,12 @@ function updateCameraFocus(cameraId, axis, value) {
     camera.setFocus(currentFocusX, newValue);
   }
   
-  // Принудительный ререндер канваса
+  camera._updateWorldPosition();
+  camera._updateBorder();
+  
   const canvas = canvases.value.get(camera.canvasId);
   if (canvas && canvas.app) {
-    canvas.app.render();
+    canvas.render();
   }
 }
 
