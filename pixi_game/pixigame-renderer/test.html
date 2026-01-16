@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixiGame Renderer Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: #222;
+      color: #fff;
+    }
+    
+    h1 {
+      padding: 20px;
+      background: #333;
+    }
+    
+    #game-container {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .canvas-wrapper {
+      border: 2px solid #444;
+      background: #000;
+      padding: 10px;
+    }
+    
+    #game-container-1, #game-container-2, #game-container-3 {
+      width: 800px;
+      height: 600px;
+    }
+    
+    .info {
+      padding: 20px;
+      background: #333;
+      margin: 20px;
+      border-radius: 8px;
+    }
+    
+    .info h2 {
+      margin-top: 0;
+    }
+    
+    pre {
+      background: #000;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 PixiGame Renderer - Canvas + Camera Test</h1>
+  
+  <div id="game-container">
+    <div class="canvas-wrapper">
+      <h2>Canvas 1 (800x600, Fixed)</h2>
+      <div id="game-container-1"></div>
+    </div>
+    
+    <div class="canvas-wrapper">
+      <h2>Canvas 2 (800x600, Fixed)</h2>
+      <div id="game-container-2"></div>
+    </div>
+    
+    <div class="canvas-wrapper">
+      <h2>Canvas 3 (800x600, Fixed)</h2>
+      <div id="game-container-3"></div>
+    </div>
+  </div>
+  
+  <div class="info">
+    <h2>📊 Canvas Info</h2>
+    <div id="canvas-info"></div>
+  </div>
+  
+  <div class="info">
+    <h2>📷 Camera Info</h2>
+    <div id="camera-info"></div>
+  </div>
+  
+  <script type="module">
+    import { PixiGame } from './pixigame/src/PixiGame.js';
+    import { Canvas } from './pixigame-renderer/src/Canvas.js';
+    import { Camera } from './pixigame-renderer/src/Camera.js';
+    import { createPositionComponent } from './pixigame/src/components/Components.js';
+    
+    console.log('=== PixiGame Renderer Test ===');
+    
+    // Create game
+    const game = new PixiGame();
+    
+    // Create world
+    const world = game.createWorld({
+      type: 'bounded',
+      width: 2000,
+      height: 1500,
+      backgroundColor: '#000000'
+    });
+    
+    console.log('World created:', world.getInfo());
+    
+    // Create canvas 1 (fixed 800x600)
+    const canvas1 = new Canvas({
+      width: 800,
+      height: 600,
+      backgroundColor: '#111111',
+      sizeMode: 'fixed'
+    });
+    
+    await canvas1.start(document.getElementById('game-container-1'));
+    console.log('Canvas 1 started:', canvas1.getInfo());
+    
+    // Create canvas 2 (fixed 800x600)
+    const canvas2 = new Canvas({
+      width: 800,
+      height: 600,
+      backgroundColor: '#222222',
+      sizeMode: 'fixed'
+    });
+    
+    await canvas2.start(document.getElementById('game-container-2'));
+    console.log('Canvas 2 started:', canvas2.getInfo());
+    
+    // Create canvas 3 (fixed 800x600)
+    const canvas3 = new Canvas({
+      width: 800,
+      height: 600,
+      backgroundColor: '#333333',
+      sizeMode: 'fixed'
+    });
+    
+    await canvas3.start(document.getElementById('game-container-3'));
+    console.log('Canvas 3 started:', canvas3.getInfo());
+    
+    // Create camera 1 (full canvas, center anchor)
+    const camera1 = new Camera({
+      width: 800,
+      height: 600,
+      positionMode: 'absolute',
+      x: 0,
+      y: 0,
+      anchor: 'center',
+      focusX: 0,
+      focusY: 0,
+      zoom: 1.0,
+      priority: 1
+    });
+    
+    canvas1.addCamera(camera1);
+    camera1._initForCanvas(canvas1);
+    console.log('Camera 1 created:', camera1.getInfo());
+    
+    // Create camera 2 (half canvas, topleft anchor)
+    const camera2 = new Camera({
+      width: 400,
+      height: 300,
+      positionMode: 'absolute',
+      x: 0,
+      y: 0,
+      anchor: 'topleft',
+      focusX: 0,
+      focusY: 0,
+      zoom: 0.5,
+      priority: 2
+    });
+    
+    canvas2.addCamera(camera2);
+    camera2._initForCanvas(canvas2);
+    console.log('Camera 2 created:', camera2.getInfo());
+    
+    // Create camera 3 (bottom-right quadrant, bottomright anchor)
+    const camera3 = new Camera({
+      width: 400,
+      height: 300,
+      positionMode: 'absolute',
+      x: 400,
+      y: 300,
+      anchor: 'bottomright',
+      focusX: 0,
+      focusY: 0,
+      zoom: 0.8,
+      priority: 3
+    });
+    
+    canvas3.addCamera(camera3);
+    camera3._initForCanvas(canvas3);
+    console.log('Camera 3 created:', camera3.getInfo());
+    
+    // Update info display
+    function updateInfo() {
+      document.getElementById('canvas-info').innerHTML = `
+        <pre>Canvas 1: ${JSON.stringify(canvas1.getInfo(), null, 2)}
+Canvas 2: ${JSON.stringify(canvas2.getInfo(), null, 2)}
+Canvas 3: ${JSON.stringify(canvas3.getInfo(), null, 2)}</pre>
+      `;
+      
+      document.getElementById('camera-info').innerHTML = `
+        <pre>Camera 1: ${JSON.stringify(camera1.getInfo(), null, 2)}
+Camera 2: ${JSON.stringify(camera2.getInfo(), null, 2)}
+Camera 3: ${JSON.stringify(camera3.getInfo(), null, 2)}</pre>
+      `;
+    }
+    
+    updateInfo();
+    
+    // Test worldToScreen and screenToWorld conversions
+    console.log('\n=== Coordinate Conversion Tests ===');
+    
+    // Test camera 1 (full, center anchor)
+    const screenPos1 = camera1.worldToScreen(100, 100);
+    const worldPos1 = camera1.screenToWorld(400, 300);
+    console.log('Camera 1:');
+    console.log('  World (100, 100) -> Screen:', screenPos1);
+    console.log('  Screen (400, 300) -> World:', worldPos1);
+    
+    // Test camera 2 (half, topleft anchor)
+    const screenPos2 = camera2.worldToScreen(100, 100);
+    const worldPos2 = camera2.screenToWorld(200, 150);
+    console.log('Camera 2 (zoom=0.5):');
+    console.log('  World (100, 100) -> Screen:', screenPos2);
+    console.log('  Screen (200, 150) -> World:', worldPos2);
+    
+    // Test camera 3 (quarter, bottomright anchor)
+    const screenPos3 = camera3.worldToScreen(100, 100);
+    const worldPos3 = camera3.screenToWorld(600, 450);
+    console.log('Camera 3 (zoom=0.8):');
+    console.log('  World (100, 100) -> Screen:', screenPos3);
+    console.log('  Screen (600, 450) -> World:', worldPos3);
+    
+    console.log('\n=== Test Complete ===');
+    console.log('Open browser console to see details');
+  </script>
+</body>
+</html>

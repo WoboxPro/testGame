@@ -1,0 +1,26 @@
+{
+  "name": "pixigame",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "PixiGame - ECS-compatible game engine (core, no renderer)",
+  "main": "./src/PixiGame.js",
+  "scripts": {
+    "example": "node example.js"
+  },
+  "files": [
+    "src/",
+    "example.js",
+    "README.md"
+  ],
+  "keywords": [
+    "game",
+    "engine",
+    "ecs",
+    "multiplayer",
+    "2d",
+    "server",
+    "client"
+  ],
+  "author": "",
+  "license": "MIT"
+}
