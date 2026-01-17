@@ -52,12 +52,20 @@ export class UIButtonEntity extends UIEntity {
        * Network-friendly background config.
        * - If textureUrl is present => renderer uses sprite background
        * - Else => renderer uses color fallback
+       *
+       * scaleMode options:
+       * - 'stretch': растянуть на всю кнопку (по умолчанию)
+       * - 'contain': вписать с сохранением пропорций
+       * - 'cover': покрыть с сохранением пропорций
+       * - 'tile': замостить повторением
+       * - 'center': центрировать без масштабирования
        */
       background: {
         color: bg.color ?? legacyBgColor,
         colorHover: bg.colorHover ?? legacyBgHover,
         textureUrl: bg.textureUrl ?? null,
         textureUrlHover: bg.textureUrlHover ?? null,
+        scaleMode: bg.scaleMode ?? 'stretch',
         tint: bg.tint ?? null,
         tintHover: bg.tintHover ?? null,
       },

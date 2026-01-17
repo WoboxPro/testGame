@@ -528,6 +528,15 @@
                 <input class="field__input" v-model.trim="uiButtonForm.textureUrlHover" placeholder="/spritesheet.png" />
               </label>
             </div>
+            <label class="field">
+              <span class="field__label">Scale Mode</span>
+              <select class="field__input" v-model="uiButtonForm.scaleMode">
+                <option value="stretch">stretch (растянуть)</option>
+                <option value="contain">contain (вписать)</option>
+                <option value="cover">cover (покрыть)</option>
+                <option value="center">center (центр)</option>
+              </select>
+            </label>
           </div>
         </div>
 
@@ -639,7 +648,8 @@ const uiButtonForm = reactive({
   bg: '#4fc3f7',
   bgHover: '#29b6f6',
   textureUrl: '',
-  textureUrlHover: ''
+  textureUrlHover: '',
+  scaleMode: 'stretch'
 });
 
 function openCreate(type) {
@@ -1209,6 +1219,7 @@ function createUIButtonFromForm() {
         colorHover: uiButtonForm.bgHover || '#29b6f6',
         textureUrl: uiButtonForm.textureUrl?.trim() || null,
         textureUrlHover: uiButtonForm.textureUrlHover?.trim() || null,
+        scaleMode: uiButtonForm.scaleMode || 'stretch',
       },
       actionId: 'console_log',
       actionPayload: { message: `[UI BUTTON CLICK] ${id}` }

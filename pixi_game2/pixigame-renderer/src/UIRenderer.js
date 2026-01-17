@@ -1,6 +1,62 @@
 import * as PIXI from 'pixi.js';
 
 /**
+ * Apply scale mode to sprite for button background texture.
+ * @param {PIXI.Sprite} sprite
+ * @param {number} targetWidth
+ * @param {number} targetHeight
+ * @param {string} scaleMode - 'stretch' | 'contain' | 'cover' | 'tile' | 'center'
+ */
+function applyScaleMode(sprite, targetWidth, targetHeight, scaleMode = 'stretch') {
+  const texture = sprite.texture;
+  const texWidth = texture.width;
+  const texHeight = texture.height;
+
+  switch (scaleMode) {
+    case 'stretch':
+      sprite.width = targetWidth;
+      sprite.height = targetHeight;
+      sprite.x = 0;
+      sprite.y = 0;
+      break;
+
+    case 'contain': {
+      const scale = Math.min(targetWidth / texWidth, targetHeight / texHeight);
+      sprite.scale.set(scale);
+      sprite.x = (targetWidth - texWidth * scale) / 2;
+      sprite.y = (targetHeight - texHeight * scale) / 2;
+      break;
+    }
+
+    case 'cover': {
+      const scale = Math.max(targetWidth / texWidth, targetHeight / texHeight);
+      sprite.scale.set(scale);
+      sprite.x = (targetWidth - texWidth * scale) / 2;
+      sprite.y = (targetHeight - texHeight * scale) / 2;
+      break;
+    }
+
+    case 'tile': {
+      // Используем Texture с повторением через tilingSprite
+      // Но для простого Sprite делаем центрированное отображение
+      sprite.width = texWidth;
+      sprite.height = texHeight;
+      sprite.x = (targetWidth - texWidth) / 2;
+      sprite.y = (targetHeight - texHeight) / 2;
+      break;
+    }
+
+    case 'center':
+    default:
+      sprite.width = texWidth;
+      sprite.height = texHeight;
+      sprite.x = (targetWidth - texWidth) / 2;
+      sprite.y = (targetHeight - texHeight) / 2;
+      break;
+  }
+}
+
+/**
  * Create PIXI display object for UI entity (client-only renderer layer).
  *
  * @param {any} uiEntity Entity with type === 'ui'
@@ -40,6 +96,7 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
     const bgHover = bgCfg.colorHover ?? uiEntity.button?.backgroundColorHover ?? '#29b6f6';
     const texUrl = bgCfg.textureUrl || null;
     const texUrlHover = bgCfg.textureUrlHover || null;
+    const scaleMode = bgCfg.scaleMode || 'stretch';
     const tint = bgCfg.tint;
     const tintHover = bgCfg.tintHover;
 
@@ -53,8 +110,7 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
     let bgSprite = null;
     if (texUrl) {
       const sprite = PIXI.Sprite.from(texUrl);
-      sprite.width = w;
-      sprite.height = h;
+      applyScaleMode(sprite, w, h, scaleMode);
       if (tint) {
         try { sprite.tint = tint; } catch (_) {}
       }
@@ -88,6 +144,7 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
       bgFill.rect(0, 0, w, h).fill(bgHover);
       if (bgSprite) {
         if (texUrlHover) bgSprite.texture = PIXI.Texture.from(texUrlHover);
+        applyScaleMode(bgSprite, w, h, scaleMode);
         if (tintHover) {
           try { bgSprite.tint = tintHover; } catch (_) {}
         }
@@ -98,6 +155,7 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
       bgFill.rect(0, 0, w, h).fill(bgColor);
       if (bgSprite) {
         bgSprite.texture = PIXI.Texture.from(texUrl);
+        applyScaleMode(bgSprite, w, h, scaleMode);
         if (tint) {
           try { bgSprite.tint = tint; } catch (_) {}
         }
