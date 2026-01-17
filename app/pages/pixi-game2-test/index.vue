@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed, markRaw } from 'vue';
 import { World } from '../../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
 
@@ -120,24 +120,26 @@ function onWheel(e) {
 }
 
 async function createWorld() {
-  world.value = new World({
+  // Важно: не даём Vue делать глубокую реактивность для class-инстансов (ломает PIXI внутренности)
+  world.value = markRaw(new World({
     type: 'bounded',
     width: 1000,
     height: 1000,
     backgroundColor: '#000000'
-  });
+  }));
   
   console.log('🌍 World создан:', world.value.getInfo());
 }
 
 async function createCanvas() {
-  canvas.value = new Canvas({
+  // Важно: PIXI объекты внутри Canvas не совместимы с Vue reactive proxy → markRaw
+  canvas.value = markRaw(new Canvas({
     sizeMode: 'fixed',
     width: 1200,
     height: 800,
     backgroundColor: '#1a1a1a',
     containerId: 'pixi-container'
-  });
+  }));
   
   await canvas.value.start(pixiContainer.value, {});
   
@@ -151,7 +153,8 @@ async function createCanvas() {
 function createCamera() {
   const cameraId = `camera_${cameras.value.length + 1}`;
   
-  const camera = new Camera({
+  // Важно: не проксируем Camera (иначе PIXI.Container/ObservablePoint начинают падать)
+  const camera = markRaw(new Camera({
     id: cameraId,
     width: 380,
     height: 380,
@@ -164,7 +167,7 @@ function createCamera() {
     zoom: 1.0,
     world: world.value,
     canvas: canvas.value
-  });
+  }));
   
   cameras.value.push(camera);
   

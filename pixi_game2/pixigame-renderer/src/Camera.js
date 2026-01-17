@@ -64,20 +64,29 @@ export class Camera {
       this.container.y = (this.y / 100) * canvas.height;
     }
     
+    // ✂️ Маска ограничивает область рендера камеры (viewport)
     this.mask = new PIXI.Graphics();
     this.mask.rect(0, 0, this.width, this.height);
     this.mask.fill({ color: 0xFFFFFF });
     this.container.addChild(this.mask);
     this.container.mask = this.mask;
     
+    // 🌍 Слой мира (именнно он двигается/масштабируется при focus/zoom)
+    this.worldLayer = new PIXI.Container();
+    this.worldLayer.sortableChildren = true;
+    this.worldLayer.zIndex = 1;
+    this.container.addChild(this.worldLayer);
+    
+    // 🌍 Фон мира и сущности живут внутри worldLayer, чтобы корректно масштабироваться
     this.worldBackgroundLayer = new PIXI.Container();
     this.worldBackgroundLayer.zIndex = 1;
-    this.container.addChild(this.worldBackgroundLayer);
+    this.worldLayer.addChild(this.worldBackgroundLayer);
     
     this.entitiesContainer = new PIXI.Container();
     this.entitiesContainer.zIndex = 2;
-    this.container.addChild(this.entitiesContainer);
+    this.worldLayer.addChild(this.entitiesContainer);
     
+    // 🎨 Фон/оверлей камеры — поверх мира (не должен масштабироваться вместе с миром)
     this.cameraBackgroundLayer = new PIXI.Container();
     this.cameraBackgroundLayer.zIndex = 3;
     this.container.addChild(this.cameraBackgroundLayer);
@@ -157,9 +166,6 @@ export class Camera {
   }
   
   worldToScreen(worldX, worldY) {
-    const screenX = this.focusX * this.zoom;
-    const screenY = this.focusY * this.zoom;
-    
     let anchorX = 0;
     let anchorY = 0;
     
@@ -186,8 +192,9 @@ export class Camera {
         break;
     }
     
-    let canvasX = anchorX - screenX;
-    let canvasY = anchorY - screenY;
+    // (world - focus) * zoom + anchor -> координаты внутри viewport
+    let canvasX = anchorX + (worldX - this.focusX) * this.zoom;
+    let canvasY = anchorY + (worldY - this.focusY) * this.zoom;
     
     if (this.positionMode === 'absolute') {
       canvasX += this.x;
@@ -238,8 +245,9 @@ export class Camera {
         break;
     }
     
-    const worldX = (anchorX - canvasX) / this.zoom;
-    const worldY = (anchorY - canvasY) / this.zoom;
+    // focus + (screen - anchor)/zoom
+    const worldX = this.focusX + (canvasX - anchorX) / this.zoom;
+    const worldY = this.focusY + (canvasY - anchorY) / this.zoom;
     
     return { x: worldX, y: worldY };
   }
@@ -252,6 +260,10 @@ export class Camera {
     if (this.mask) {
       this.mask.destroy();
       this.mask = null;
+    }
+    if (this.worldLayer) {
+      this.worldLayer.destroy({ children: true });
+      this.worldLayer = null;
     }
     if (this.worldBackgroundLayer) {
       this.worldBackgroundLayer.destroy({ children: true });
