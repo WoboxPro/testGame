@@ -534,7 +534,7 @@ import { computed, markRaw, nextTick, onMounted, onUnmounted, reactive, ref, wat
 import { World } from '../../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
 import * as PIXI from 'pixi.js';
-import { UITextEntity, UIButtonEntity, createPixiDisplayObjectForUI } from '../../services/entities/UIEntities.js';
+import { UITextEntity, UIButtonEntity, createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
 
 // ---------------------------
 // State
