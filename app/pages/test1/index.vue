@@ -8,6 +8,9 @@
           <button class="btn btn--primary" @click="openCreate('world')">➕ World</button>
           <button class="btn btn--primary" @click="openCreate('canvas')">➕ Canvas</button>
           <button class="btn btn--primary" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">➕ Camera</button>
+          <div class="toolbar__divider" />
+          <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">➕ UI Text</button>
+          <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">➕ UI Button</button>
         </div>
       </div>
       <div class="toolbar__right">
@@ -70,6 +73,26 @@
             <span class="tree__name">{{ cam.id }}</span>
             <span class="tree__meta">{{ cam.canvasId }}</span>
             <button class="tree__delete" title="Delete" @click.stop="removeCamera(cam.id)">×</button>
+          </div>
+
+          <div class="tree__section">
+            <div class="tree__title">UI</div>
+            <div class="tree__add-group">
+              <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">+ Text</button>
+              <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">+ Button</button>
+            </div>
+          </div>
+          <div v-if="uiEntities.length === 0" class="tree__empty">No UI</div>
+          <div
+            v-for="u in uiEntities"
+            :key="u.id"
+            class="tree__item"
+            :class="{ 'is-selected': selected?.type === 'ui' && selected?.id === u.id }"
+            @click="select({ type: 'ui', id: u.id })"
+          >
+            <span class="tree__name">{{ u.id }}</span>
+            <span class="tree__meta">{{ u.subtype }} • {{ u.bindingLabel }}</span>
+            <button class="tree__delete" title="Delete" @click.stop="removeUI(u.id)">×</button>
           </div>
         </div>
       </aside>
@@ -160,6 +183,24 @@
 
           <div class="actions">
             <button class="btn" @click="focusCameraOnWorldCenter(selectedCamera.id)">🎯 Focus center</button>
+          </div>
+        </div>
+
+        <!-- UI Inspector -->
+        <div v-else-if="selected.type === 'ui' && selectedUI" class="inspector__content">
+          <div class="inspector__title">UI: {{ selectedUI.id }}</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">Subtype</div><div class="kv__v">{{ selectedUI.subtype }}</div></div>
+            <div class="kv__row"><div class="kv__k">Bind</div><div class="kv__v">{{ selectedUI.bindingLabel }}</div></div>
+            <div class="kv__row"><div class="kv__k">ScreenSpace</div><div class="kv__v">{{ selectedUI.instance.screenSpace ? 'true' : 'false' }}</div></div>
+            <div class="kv__row"><div class="kv__k">Pos</div><div class="kv__v">{{ selectedUI.instance.position.x }}, {{ selectedUI.instance.position.y }}</div></div>
+          </div>
+          <div v-if="selectedUI.subtype === 'text'" class="kv">
+            <div class="kv__row"><div class="kv__k">Content</div><div class="kv__v">{{ selectedUI.instance.text.content }}</div></div>
+          </div>
+          <div v-else-if="selectedUI.subtype === 'button'" class="kv">
+            <div class="kv__row"><div class="kv__k">Label</div><div class="kv__v">{{ selectedUI.instance.text.content }}</div></div>
+            <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedUI.instance.button.width }}×{{ selectedUI.instance.button.height }}</div></div>
           </div>
         </div>
       </aside>
@@ -343,6 +384,140 @@
               </label>
             </div>
           </div>
+
+          <!-- UI Text Form -->
+          <div v-else-if="createModal.type === 'ui_text'" class="form">
+            <label class="field">
+              <span class="field__label">ID</span>
+              <input class="field__input" v-model.trim="uiTextForm.id" placeholder="ui_text_1" />
+            </label>
+            <label class="field">
+              <span class="field__label">Bind to</span>
+              <select class="field__input" v-model="uiTextForm.bindTo">
+                <option value="canvas">canvas</option>
+                <option value="camera">camera</option>
+                <option value="world">world</option>
+              </select>
+            </label>
+            <label v-if="uiTextForm.bindTo === 'canvas'" class="field">
+              <span class="field__label">Canvas</span>
+              <select class="field__input" v-model="uiTextForm.canvasId">
+                <option v-for="c in canvases" :key="c.id" :value="c.id">{{ c.id }}</option>
+              </select>
+            </label>
+            <label v-else-if="uiTextForm.bindTo === 'camera'" class="field">
+              <span class="field__label">Camera</span>
+              <select class="field__input" v-model="uiTextForm.cameraId">
+                <option v-for="cam in cameras" :key="cam.id" :value="cam.id">{{ cam.id }}</option>
+              </select>
+            </label>
+            <label v-else class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="uiTextForm.worldId">
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">X</span>
+                <input class="field__input" type="number" v-model.number="uiTextForm.x" />
+              </label>
+              <label class="field">
+                <span class="field__label">Y</span>
+                <input class="field__input" type="number" v-model.number="uiTextForm.y" />
+              </label>
+            </div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="uiTextForm.screenSpace" />
+              <span class="field__label">ScreenSpace</span>
+            </label>
+            <label class="field">
+              <span class="field__label">Content</span>
+              <input class="field__input" v-model.trim="uiTextForm.content" placeholder="Hello UI" />
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Font Size</span>
+                <input class="field__input" type="number" v-model.number="uiTextForm.fontSize" />
+              </label>
+              <label class="field">
+                <span class="field__label">Color</span>
+                <input class="field__input" v-model.trim="uiTextForm.color" placeholder="#ffffff" />
+              </label>
+            </div>
+          </div>
+
+          <!-- UI Button Form -->
+          <div v-else-if="createModal.type === 'ui_button'" class="form">
+            <label class="field">
+              <span class="field__label">ID</span>
+              <input class="field__input" v-model.trim="uiButtonForm.id" placeholder="ui_button_1" />
+            </label>
+            <label class="field">
+              <span class="field__label">Bind to</span>
+              <select class="field__input" v-model="uiButtonForm.bindTo">
+                <option value="canvas">canvas</option>
+                <option value="camera">camera</option>
+                <option value="world">world</option>
+              </select>
+            </label>
+            <label v-if="uiButtonForm.bindTo === 'canvas'" class="field">
+              <span class="field__label">Canvas</span>
+              <select class="field__input" v-model="uiButtonForm.canvasId">
+                <option v-for="c in canvases" :key="c.id" :value="c.id">{{ c.id }}</option>
+              </select>
+            </label>
+            <label v-else-if="uiButtonForm.bindTo === 'camera'" class="field">
+              <span class="field__label">Camera</span>
+              <select class="field__input" v-model="uiButtonForm.cameraId">
+                <option v-for="cam in cameras" :key="cam.id" :value="cam.id">{{ cam.id }}</option>
+              </select>
+            </label>
+            <label v-else class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="uiButtonForm.worldId">
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">X</span>
+                <input class="field__input" type="number" v-model.number="uiButtonForm.x" />
+              </label>
+              <label class="field">
+                <span class="field__label">Y</span>
+                <input class="field__input" type="number" v-model.number="uiButtonForm.y" />
+              </label>
+            </div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="uiButtonForm.screenSpace" />
+              <span class="field__label">ScreenSpace</span>
+            </label>
+            <label class="field">
+              <span class="field__label">Label</span>
+              <input class="field__input" v-model.trim="uiButtonForm.label" placeholder="Click me" />
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Width</span>
+                <input class="field__input" type="number" v-model.number="uiButtonForm.width" />
+              </label>
+              <label class="field">
+                <span class="field__label">Height</span>
+                <input class="field__input" type="number" v-model.number="uiButtonForm.height" />
+              </label>
+            </div>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">BG</span>
+                <input class="field__input" v-model.trim="uiButtonForm.bg" placeholder="#4fc3f7" />
+              </label>
+              <label class="field">
+                <span class="field__label">BG Hover</span>
+                <input class="field__input" v-model.trim="uiButtonForm.bgHover" placeholder="#29b6f6" />
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="modal__footer">
@@ -358,6 +533,8 @@
 import { computed, markRaw, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { World } from '../../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
+import * as PIXI from 'pixi.js';
+import { UITextEntity, UIButtonEntity, createPixiDisplayObjectForUI } from '../../services/entities/UIEntities.js';
 
 // ---------------------------
 // State
@@ -365,8 +542,9 @@ import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.
 const worlds = reactive([]);   // { id, type, width, height, backgroundColor, instance }
 const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor, antialias, resolution, instance }
 const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, focusX, focusY, zoom, priority, minZoom, maxZoom, anchor, instance }
+const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 
-const selected = ref(null); // { type: 'world'|'canvas'|'camera', id }
+const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui', id }
 
 const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0 });
 
@@ -420,6 +598,36 @@ const cameraForm = reactive({
   maxZoom: 5.0
 });
 
+const uiTextForm = reactive({
+  id: '',
+  bindTo: 'canvas', // canvas|camera|world
+  canvasId: '',
+  cameraId: '',
+  worldId: '',
+  x: 20,
+  y: 20,
+  screenSpace: true,
+  content: 'Hello UI',
+  fontSize: 18,
+  color: '#ffffff'
+});
+
+const uiButtonForm = reactive({
+  id: '',
+  bindTo: 'canvas', // canvas|camera|world
+  canvasId: '',
+  cameraId: '',
+  worldId: '',
+  x: 20,
+  y: 60,
+  screenSpace: true,
+  label: 'Click me',
+  width: 160,
+  height: 44,
+  bg: '#4fc3f7',
+  bgHover: '#29b6f6'
+});
+
 function openCreate(type) {
   createModal.open = true;
   createModal.type = type;
@@ -434,6 +642,18 @@ function openCreate(type) {
     cameraForm.worldId = worlds[0]?.id || '';
     cameraForm.x = 10 + (cameras.length % 3) * 400;
     cameraForm.y = 10;
+  } else if (type === 'ui_text') {
+    uiTextForm.id = suggestId('ui_text', uiEntities);
+    uiTextForm.bindTo = canvases.length ? 'canvas' : (cameras.length ? 'camera' : 'world');
+    uiTextForm.canvasId = canvases[0]?.id || '';
+    uiTextForm.cameraId = cameras[0]?.id || '';
+    uiTextForm.worldId = worlds[0]?.id || '';
+  } else if (type === 'ui_button') {
+    uiButtonForm.id = suggestId('ui_button', uiEntities);
+    uiButtonForm.bindTo = canvases.length ? 'canvas' : (cameras.length ? 'camera' : 'world');
+    uiButtonForm.canvasId = canvases[0]?.id || '';
+    uiButtonForm.cameraId = cameras[0]?.id || '';
+    uiButtonForm.worldId = worlds[0]?.id || '';
   }
 }
 
@@ -451,6 +671,12 @@ async function confirmCreate() {
     closeCreate();
   } else if (createModal.type === 'camera') {
     createCameraFromForm();
+    closeCreate();
+  } else if (createModal.type === 'ui_text') {
+    createUITextFromForm();
+    closeCreate();
+  } else if (createModal.type === 'ui_button') {
+    createUIButtonFromForm();
     closeCreate();
   }
 }
@@ -530,6 +756,14 @@ async function createCanvasFromForm() {
       resolution: model.resolution,
       autoDensity: true
     });
+    // enable pointer events (needed for UI buttons)
+    try {
+      instance.app.stage.eventMode = 'static';
+      instance.app.stage.hitArea = instance.app.screen;
+    } catch (_) {}
+
+    // ensure overlay layer for canvas-level UI
+    ensureCanvasUILayer(model);
   }
 
   select({ type: 'canvas', id });
@@ -582,12 +816,19 @@ function createCameraFromForm() {
   cameras.push(model);
   select({ type: 'camera', id });
   syncCameraUiFromSelected();
+
+  // ensure camera UI/world UI layers
+  ensureCameraUILayers(model);
 }
 
 function removeWorld(worldId) {
   // remove cameras referencing this world
   const camsToRemove = cameras.filter((c) => c.worldId === worldId).map((c) => c.id);
   for (const camId of camsToRemove) removeCamera(camId);
+
+  // remove UI bound directly to this world
+  const uiToRemove = uiEntities.filter((u) => u.instance.worldId === worldId).map((u) => u.id);
+  for (const id of uiToRemove) removeUI(id);
 
   const idx = worlds.findIndex((w) => w.id === worldId);
   if (idx >= 0) worlds.splice(idx, 1);
@@ -599,6 +840,10 @@ function removeCanvas(canvasId) {
   // remove cameras attached to this canvas
   const camsToRemove = cameras.filter((c) => c.canvasId === canvasId).map((c) => c.id);
   for (const camId of camsToRemove) removeCamera(camId);
+
+  // remove UI bound directly to this canvas
+  const uiToRemove = uiEntities.filter((u) => u.instance.canvasId === canvasId).map((u) => u.id);
+  for (const id of uiToRemove) removeUI(id);
 
   const idx = canvases.findIndex((c) => c.id === canvasId);
   if (idx >= 0) {
@@ -617,6 +862,10 @@ function removeCamera(cameraId) {
   if (idx < 0) return;
   const cam = cameras[idx];
 
+  // remove UI bound directly to this camera
+  const uiToRemove = uiEntities.filter((u) => u.instance.cameraId === cameraId).map((u) => u.id);
+  for (const id of uiToRemove) removeUI(id);
+
   const canvasModel = canvases.find((c) => c.id === cam.canvasId);
   try { canvasModel?.instance?.removeCamera?.(cameraId); } catch (_) {}
 
@@ -631,10 +880,12 @@ function removeSelected() {
   if (type === 'world') removeWorld(id);
   else if (type === 'canvas') removeCanvas(id);
   else if (type === 'camera') removeCamera(id);
+  else if (type === 'ui') removeUI(id);
 }
 
 function resetAll() {
   // remove everything in safe order: cameras -> canvases -> worlds
+  for (const u of [...uiEntities]) removeUI(u.id);
   for (const cam of [...cameras]) removeCamera(cam.id);
   for (const c of [...canvases]) removeCanvas(c.id);
   for (const w of [...worlds]) removeWorld(w.id);
@@ -652,6 +903,7 @@ function select(sel) {
 const selectedWorld = computed(() => (selected.value?.type === 'world' ? worlds.find((w) => w.id === selected.value.id) : null));
 const selectedCanvas = computed(() => (selected.value?.type === 'canvas' ? canvases.find((c) => c.id === selected.value.id) : null));
 const selectedCamera = computed(() => (selected.value?.type === 'camera' ? cameras.find((c) => c.id === selected.value.id) : null));
+const selectedUI = computed(() => (selected.value?.type === 'ui' ? uiEntities.find((u) => u.id === selected.value.id) : null));
 
 function syncCameraUiFromSelected() {
   if (!selectedCamera.value) return;
@@ -704,6 +956,251 @@ function clearWorldEntities(worldId) {
 }
 
 // ---------------------------
+// UI Entities (Entity + UI)
+// ---------------------------
+const uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
+
+function getBindingLabel(entity) {
+  if (entity.canvasId) return `canvas:${entity.canvasId}`;
+  if (entity.cameraId) return `camera:${entity.cameraId}`;
+  if (entity.worldId) return `world:${entity.worldId}`;
+  return 'unbound';
+}
+
+function ensureCanvasUILayer(canvasModel) {
+  if (!canvasModel?.instance?.app) return;
+  if (canvasModel.uiOverlay) return;
+  const layer = markRaw(new PIXI.Container());
+  try { layer.sortableChildren = true; } catch (_) {}
+  layer.zIndex = 50000;
+  canvasModel.instance.app.stage.addChild(layer);
+  canvasModel.uiOverlay = layer;
+}
+
+function ensureCameraUILayers(camModel) {
+  const cam = camModel?.instance;
+  if (!cam?.container) return;
+
+  // UI in camera viewport coords (not affected by world focus)
+  if (!camModel.uiLayer) {
+    const layer = markRaw(new PIXI.Container());
+    try { layer.sortableChildren = true; } catch (_) {}
+    layer.zIndex = 50000;
+    cam.container.addChild(layer);
+    camModel.uiLayer = layer;
+  }
+
+  // UI in world coords but drawn above entities (affected by focus/zoom)
+  if (cam.worldLayer && !camModel.worldUiLayer) {
+    const layer = markRaw(new PIXI.Container());
+    try { layer.sortableChildren = true; } catch (_) {}
+    layer.zIndex = 9000;
+    cam.worldLayer.addChild(layer);
+    camModel.worldUiLayer = layer;
+  }
+}
+
+function destroyDisplayObject(obj) {
+  if (!obj) return;
+  try {
+    if (obj.parent) obj.parent.removeChild(obj);
+  } catch (_) {}
+  try {
+    obj.destroy?.({ children: true });
+  } catch (_) {}
+}
+
+function removeUI(uiId) {
+  const idx = uiEntities.findIndex((u) => u.id === uiId);
+  if (idx < 0) return;
+
+  // destroy pixi display objects for this ui entity
+  const prefix = `ui:${uiId}::`;
+  for (const [key, obj] of uiDisplayCache) {
+    if (key.startsWith(prefix)) {
+      destroyDisplayObject(obj);
+      uiDisplayCache.delete(key);
+    }
+  }
+
+  uiEntities.splice(idx, 1);
+  if (selected.value?.type === 'ui' && selected.value.id === uiId) selected.value = null;
+}
+
+function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
+  if (!container) return;
+  let obj = uiDisplayCache.get(cacheKey);
+  if (!obj) {
+    obj = markRaw(createPixiDisplayObjectForUI(uiModel.instance));
+    if (!obj) return;
+    uiDisplayCache.set(cacheKey, obj);
+    container.addChild(obj);
+  } else if (obj.parent !== container) {
+    container.addChild(obj);
+  }
+
+  const e = uiModel.instance;
+  obj.x = Number(e.position?.x) || 0;
+  obj.y = Number(e.position?.y) || 0;
+  obj.rotation = Number(e.rotation) || 0;
+
+  let sx = Number(e.scale?.x ?? 1);
+  let sy = Number(e.scale?.y ?? 1);
+  // Camera-bound UI can optionally scale with zoom
+  if (ctx?.type === 'camera' && e.screenSpace === false) {
+    const z = Number(ctx.camera?.zoom) || 1;
+    sx *= z;
+    sy *= z;
+  }
+  if (obj.scale?.set) obj.scale.set(sx, sy);
+  else obj.scale = { x: sx, y: sy };
+
+  obj.alpha = Number.isFinite(e.opacity) ? e.opacity : 1;
+  obj.visible = e.visible !== false;
+  obj.zIndex = Number.isFinite(e.z_index) ? e.z_index : 9999;
+}
+
+function updateUITransforms() {
+  // Attach/update UI in correct layers
+  for (const u of uiEntities) {
+    const ent = u.instance;
+    if (ent.canvasId) {
+      const canvasModel = canvases.find((c) => c.id === ent.canvasId);
+      if (!canvasModel) {
+        // cleanup orphaned
+        cleanupCacheByPrefix(`ui:${u.id}::canvas:`);
+        continue;
+      }
+      ensureCanvasUILayer(canvasModel);
+      const key = `ui:${u.id}::canvas:${ent.canvasId}`;
+      ensureUIInstanceInContainer(u, canvasModel.uiOverlay, key);
+    } else if (ent.cameraId) {
+      const camModel = cameras.find((c) => c.id === ent.cameraId);
+      if (!camModel) {
+        cleanupCacheByPrefix(`ui:${u.id}::camera:`);
+        continue;
+      }
+      ensureCameraUILayers(camModel);
+      const key = `ui:${u.id}::camera:${ent.cameraId}`;
+      ensureUIInstanceInContainer(u, camModel.uiLayer, key, { type: 'camera', camera: camModel.instance });
+    } else if (ent.worldId) {
+      // render world-ui into every camera that watches that world
+      const activeCams = cameras.filter((c) => c.worldId === ent.worldId);
+      const activeIds = new Set(activeCams.map((c) => c.id));
+
+      for (const camModel of activeCams) {
+        ensureCameraUILayers(camModel);
+        const key = `ui:${u.id}::world:${ent.worldId}::camera:${camModel.id}`;
+        ensureUIInstanceInContainer(u, camModel.worldUiLayer, key);
+      }
+
+      // cleanup cached objects for cameras that no longer exist / no longer match
+      const prefix = `ui:${u.id}::world:${ent.worldId}::camera:`;
+      for (const [key, obj] of uiDisplayCache) {
+        if (!key.startsWith(prefix)) continue;
+        const camId = key.substring(prefix.length);
+        if (!activeIds.has(camId)) {
+          destroyDisplayObject(obj);
+          uiDisplayCache.delete(key);
+        }
+      }
+    }
+  }
+}
+
+function cleanupCacheByPrefix(prefix) {
+  for (const [key, obj] of uiDisplayCache) {
+    if (key.startsWith(prefix)) {
+      destroyDisplayObject(obj);
+      uiDisplayCache.delete(key);
+    }
+  }
+}
+
+function createUITextFromForm() {
+  const id = uiTextForm.id?.trim() || suggestId('ui_text', uiEntities);
+  if (uiEntities.some((u) => u.id === id)) return;
+
+  const bindTo = uiTextForm.bindTo;
+  const binding = bindTo === 'canvas'
+    ? { canvasId: uiTextForm.canvasId }
+    : bindTo === 'camera'
+      ? { cameraId: uiTextForm.cameraId }
+      : { worldId: uiTextForm.worldId };
+
+  const instance = markRaw(new UITextEntity({
+    id,
+    position: { x: Number(uiTextForm.x) || 0, y: Number(uiTextForm.y) || 0 },
+    rotation: 0,
+    scale: { x: 1, y: 1 },
+    screenSpace: !!uiTextForm.screenSpace,
+    ...binding,
+    text: {
+      content: uiTextForm.content || 'Hello UI',
+      fontSize: Number(uiTextForm.fontSize) || 18,
+      fontFamily: 'Arial',
+      color: uiTextForm.color || '#ffffff',
+      align: 'left'
+    }
+  }));
+
+  const model = {
+    id,
+    subtype: 'text',
+    bindingLabel: getBindingLabel(instance),
+    instance
+  };
+  uiEntities.push(model);
+  select({ type: 'ui', id });
+}
+
+function createUIButtonFromForm() {
+  const id = uiButtonForm.id?.trim() || suggestId('ui_button', uiEntities);
+  if (uiEntities.some((u) => u.id === id)) return;
+
+  const bindTo = uiButtonForm.bindTo;
+  const binding = bindTo === 'canvas'
+    ? { canvasId: uiButtonForm.canvasId }
+    : bindTo === 'camera'
+      ? { cameraId: uiButtonForm.cameraId }
+      : { worldId: uiButtonForm.worldId };
+
+  const instance = markRaw(new UIButtonEntity({
+    id,
+    position: { x: Number(uiButtonForm.x) || 0, y: Number(uiButtonForm.y) || 0 },
+    rotation: 0,
+    scale: { x: 1, y: 1 },
+    screenSpace: !!uiButtonForm.screenSpace,
+    ...binding,
+    text: {
+      content: uiButtonForm.label || 'Click',
+      fontSize: 16,
+      fontFamily: 'Arial',
+      textColor: '#111111'
+    },
+    button: {
+      width: Number(uiButtonForm.width) || 160,
+      height: Number(uiButtonForm.height) || 44,
+      backgroundColor: uiButtonForm.bg || '#4fc3f7',
+      backgroundColorHover: uiButtonForm.bgHover || '#29b6f6',
+      onClick: (ent) => {
+        // user-requested behavior
+        console.log(`[UI BUTTON CLICK] ${ent?.id}`, ent);
+      }
+    }
+  }));
+
+  const model = {
+    id,
+    subtype: 'button',
+    bindingLabel: getBindingLabel(instance),
+    instance
+  };
+  uiEntities.push(model);
+  select({ type: 'ui', id });
+}
+
+// ---------------------------
 // Input handling for selected camera
 // ---------------------------
 const keys = new Set();
@@ -743,6 +1240,9 @@ function loop() {
     if (keys.has('KeyD')) { cameraUi.focusX += speed; moved = true; }
     if (moved) applySelectedCameraUi();
   }
+
+  // Update UI transforms (camera-bound scaling, etc.)
+  updateUITransforms();
 
   for (const c of canvases) {
     try { c.instance.render(); } catch (_) {}
@@ -804,6 +1304,12 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 .toolbar__buttons {
   display: flex;
   gap: 8px;
+}
+.toolbar__divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.10);
+  margin: 0 6px;
 }
 .toolbar__right {
   display: flex;
@@ -878,6 +1384,7 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
   padding: 4px 6px;
   border-radius: 6px;
 }
+.tree__add-group { display: flex; gap: 6px; }
 .tree__add:hover:not(:disabled) { background: rgba(123, 211, 255, 0.10); }
 .tree__add:disabled { opacity: 0.35; cursor: not-allowed; }
 .tree__empty {
