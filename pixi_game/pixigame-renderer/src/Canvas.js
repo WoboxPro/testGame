@@ -75,6 +75,9 @@ export class Canvas {
       autoDensity: options.autoDensity || true
     });
     
+    // Разрешаем сортировку по zIndex для корректного порядка слоёв
+    try { this.app.stage.sortableChildren = true; } catch (_) {}
+    
     // Определяем DOM контейнер
     let targetContainer = domContainer;
     if (!targetContainer && this.containerId) {

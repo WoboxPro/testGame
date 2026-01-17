@@ -434,7 +434,7 @@ function addEntitiesToWorld(worldId, count) {
   if (!world) return;
   
   for (let i = 0; i < count; i++) {
-    const entityId = world.createEntity({
+    world.createEntity({
       position: {
         x: (Math.random() - 0.5) * (world.width || 2000) * 0.8,
         y: (Math.random() - 0.5) * (world.height || 2000) * 0.8
@@ -445,20 +445,6 @@ function addEntitiesToWorld(worldId, count) {
         shape: Math.random() > 0.5 ? 'circle' : 'rect'
       }
     });
-    
-    const position = world.getComponent(entityId, 'position');
-    const appearance = world.getComponent(entityId, 'appearance');
-    
-    const graphics = new PIXI.Graphics();
-    
-    if (appearance.shape === 'circle') {
-      graphics.circle(0, 0, appearance.size / 2).fill(appearance.color);
-    } else {
-      graphics.rect(-appearance.size / 2, -appearance.size / 2, appearance.size, appearance.size).fill(appearance.color);
-    }
-    
-    graphics.position.set(position.x, position.y);
-    world.addComponent(entityId, 'displayObject', graphics);
   }
   
   updateWorldDisplays(worldId);
@@ -479,16 +465,12 @@ function clearWorldEntities(worldId) {
     world.borderGraphicsList = [];
   }
   
-  // Удаляем displayObjects сущностей из слоев камер
-  for (const [entityId, components] of world.entities) {
-    const displayObject = components.get('displayObject');
-    if (displayObject) {
-      if (displayObject.parent) {
-        displayObject.parent.removeChild(displayObject);
-      }
-      displayObject.destroy();
+  // Очищаем слои всех камер привязанных к этому миру
+  cameras.value.forEach(camera => {
+    if (camera.worldId === worldId && camera.worldLayer) {
+      camera.worldLayer.removeChildren();
     }
-  }
+  });
   
   world.entities.clear();
   world._entityCounter = 1;
@@ -501,27 +483,8 @@ function updateWorldDisplays(worldId) {
   if (!world) return;
   
   cameras.value.forEach(camera => {
-    if (camera.worldId === worldId) {
-      if (!camera.worldLayer) {
-        console.warn('updateWorldDisplays: camera.worldLayer is null for camera', camera.id);
-        return;
-      }
-      
-      camera.worldLayer.removeChildren();
-      
-      for (const [entityId, components] of world.entities) {
-        const displayObject = components.get('displayObject');
-        const position = components.get('position');
-        
-        if (displayObject && position) {
-          displayObject.position.set(position.x, position.y);
-          camera.worldLayer.addChild(displayObject);
-        }
-      }
-      
-      if (world.showBorders) {
-        drawWorldBorders(world, camera.worldLayer);
-      }
+    if (camera.worldId === worldId && world.showBorders) {
+      drawWorldBorders(world, camera.worldLayer);
     }
   });
 }

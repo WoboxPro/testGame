@@ -62,6 +62,11 @@ export class Camera {
     this._entityDisplayObjects = new Map(); // entityId -> PIXI.Container
     
     console.log(`📷 Камера создана: ${this.id}, anchor=${this.anchor}, mode=${this.positionMode}`);
+    
+    // Если canvas передан, сразу инициализируемся
+    if (this.canvas) {
+      this.canvas.addCamera(this);
+    }
   }
   
   /**
@@ -71,6 +76,9 @@ export class Camera {
     if (!canvas.app) {
       throw new Error('Canvas должен быть запущен перед добавлением камеры');
     }
+    
+    // Сохраняем ссылку на canvas
+    this.canvas = canvas;
     
     // Создаем контейнер для этой камеры
     this.container = new PIXI.Container();
@@ -90,8 +98,8 @@ export class Camera {
     this.mask = new PIXI.Graphics();
     this.mask.rect(0, 0, this.width, this.height);
     this.mask.fill({ color: 0xFFFFFF });
+    this.container.addChild(this.mask);
     this.container.mask = this.mask;
-    canvas.app.stage.addChild(this.mask);
     
     // Создаем слой мира (внутри container)
     this.worldLayer = new PIXI.Container();
@@ -347,14 +355,52 @@ export class Camera {
   }
   
   /**
-   * 🎨 Рендеринг камеры (пока пустой, без world)
+   * 🎨 Рендеринг камеры
    */
   render() {
     if (!this.world || !this.container) return;
     
-    // TODO: Рендерить сущности из World
-    // Пока просто обновляем позицию мира
+    // Обновляем позицию мира
     this._updateWorldPosition();
+    
+    // Рендерим сущности из мира
+    const aliveIds = new Set();
+    
+    for (const [entityId, components] of this.world.entities) {
+      const position = components.get('position');
+      const appearance = components.get('appearance');
+      
+      if (!position || !appearance) continue;
+      
+      console.log(`Camera ${this.id}: Entity ${entityId} at (${position.x}, ${position.y})`);
+      
+      // Переиспользуем или создаем graphics
+      let graphics = this._entityDisplayObjects.get(entityId);
+      if (!graphics) {
+        graphics = new PIXI.Graphics();
+        
+        if (appearance.shape === 'circle') {
+          graphics.circle(0, 0, appearance.size / 2).fill(appearance.color);
+        } else {
+          graphics.rect(-appearance.size / 2, -appearance.size / 2, appearance.size, appearance.size).fill(appearance.color);
+        }
+        
+        this._entityDisplayObjects.set(entityId, graphics);
+        this.worldLayer.addChild(graphics);
+      }
+      
+      graphics.position.set(position.x, position.y);
+      aliveIds.add(entityId);
+    }
+    
+    // Удаляем устаревшие объекты
+    for (const [entityId, graphics] of this._entityDisplayObjects) {
+      if (!aliveIds.has(entityId)) {
+        this.worldLayer.removeChild(graphics);
+        graphics.destroy();
+        this._entityDisplayObjects.delete(entityId);
+      }
+    }
   }
   
   /**
