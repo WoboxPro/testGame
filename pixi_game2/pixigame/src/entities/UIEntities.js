@@ -1,4 +1,3 @@
-import * as PIXI from 'pixi.js';
 import { Entity } from './Entity.js';
 
 /**
@@ -46,7 +45,9 @@ export class UIButtonEntity extends UIEntity {
       height: Number(options.button?.height ?? 44),
       backgroundColor: options.button?.backgroundColor ?? '#4fc3f7',
       backgroundColorHover: options.button?.backgroundColorHover ?? '#29b6f6',
-      onClick: typeof options.button?.onClick === 'function' ? options.button.onClick : null
+      // Network-friendly UI: store an action identifier (no function closures)
+      actionId: options.button?.actionId ?? null,
+      actionPayload: options.button?.actionPayload ?? null
     };
 
     // collision for click (rect)
@@ -68,81 +69,3 @@ export class UIButtonEntity extends UIEntity {
     ];
   }
 }
-
-// -------------------------
-// PIXI helpers (renderer-facing)
-// -------------------------
-
-export function createPixiDisplayObjectForUI(uiEntity) {
-  if (!uiEntity || uiEntity.type !== 'ui') return null;
-
-  if (uiEntity.subtype === 'text') {
-    const style = new PIXI.TextStyle({
-      fontFamily: uiEntity.text.fontFamily,
-      fontSize: uiEntity.text.fontSize,
-      fill: uiEntity.text.color,
-      align: uiEntity.text.align,
-      wordWrap: !!uiEntity.text.wordWrap,
-      wordWrapWidth: uiEntity.text.wordWrapWidth
-    });
-    const t = new PIXI.Text({ text: uiEntity.text.content, style });
-    t.zIndex = uiEntity.z_index || 0;
-    t.alpha = uiEntity.opacity ?? 1;
-    t.visible = uiEntity.visible !== false;
-    return t;
-  }
-
-  if (uiEntity.subtype === 'button') {
-    const root = new PIXI.Container();
-    root.sortableChildren = true;
-    root.zIndex = uiEntity.z_index || 0;
-    root.alpha = uiEntity.opacity ?? 1;
-    root.visible = uiEntity.visible !== false;
-
-    const bg = new PIXI.Graphics();
-    bg.rect(0, 0, uiEntity.button.width, uiEntity.button.height).fill(uiEntity.button.backgroundColor);
-    bg.zIndex = 0;
-    root.addChild(bg);
-
-    const label = new PIXI.Text({
-      text: uiEntity.text.content,
-      style: {
-        fontFamily: uiEntity.text.fontFamily,
-        fontSize: uiEntity.text.fontSize,
-        fill: uiEntity.text.textColor,
-        align: 'center'
-      }
-    });
-    label.anchor?.set?.(0.5);
-    label.x = uiEntity.button.width / 2;
-    label.y = uiEntity.button.height / 2;
-    label.zIndex = 1;
-    root.addChild(label);
-
-    // interactivity
-    root.eventMode = 'static';
-    root.cursor = 'pointer';
-    root.hitArea = new PIXI.Rectangle(0, 0, uiEntity.button.width, uiEntity.button.height);
-
-    root.on('pointerover', () => {
-      bg.clear();
-      bg.rect(0, 0, uiEntity.button.width, uiEntity.button.height).fill(uiEntity.button.backgroundColorHover);
-    });
-    root.on('pointerout', () => {
-      bg.clear();
-      bg.rect(0, 0, uiEntity.button.width, uiEntity.button.height).fill(uiEntity.button.backgroundColor);
-    });
-    root.on('pointertap', () => {
-      try {
-        if (uiEntity.button.onClick) uiEntity.button.onClick(uiEntity);
-      } catch (e) {
-        console.error('UIButton onClick error:', e);
-      }
-    });
-
-    return root;
-  }
-
-  return null;
-}
-

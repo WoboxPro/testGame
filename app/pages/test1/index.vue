@@ -533,8 +533,9 @@
 import { computed, markRaw, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { World } from '../../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
+import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
 import * as PIXI from 'pixi.js';
-import { UITextEntity, UIButtonEntity, createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
+import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
 
 // ---------------------------
 // State
@@ -1031,7 +1032,7 @@ function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
   if (!container) return;
   let obj = uiDisplayCache.get(cacheKey);
   if (!obj) {
-    obj = markRaw(createPixiDisplayObjectForUI(uiModel.instance));
+    obj = markRaw(createPixiDisplayObjectForUI(uiModel.instance, { onAction: handleUIAction }));
     if (!obj) return;
     uiDisplayCache.set(cacheKey, obj);
     container.addChild(obj);
@@ -1058,6 +1059,15 @@ function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
   obj.alpha = Number.isFinite(e.opacity) ? e.opacity : 1;
   obj.visible = e.visible !== false;
   obj.zIndex = Number.isFinite(e.z_index) ? e.z_index : 9999;
+}
+
+function handleUIAction(actionId, payload, entity) {
+  // For now: simple demo action (network-friendly)
+  if (actionId === 'console_log') {
+    console.log(payload?.message ?? '[UI ACTION]', { actionId, payload, entity });
+    return;
+  }
+  console.log('[UI ACTION]', { actionId, payload, entity });
 }
 
 function updateUITransforms() {
@@ -1183,10 +1193,8 @@ function createUIButtonFromForm() {
       height: Number(uiButtonForm.height) || 44,
       backgroundColor: uiButtonForm.bg || '#4fc3f7',
       backgroundColorHover: uiButtonForm.bgHover || '#29b6f6',
-      onClick: (ent) => {
-        // user-requested behavior
-        console.log(`[UI BUTTON CLICK] ${ent?.id}`, ent);
-      }
+      actionId: 'console_log',
+      actionPayload: { message: `[UI BUTTON CLICK] ${id}` }
     }
   }));
 
