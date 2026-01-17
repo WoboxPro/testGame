@@ -1,0 +1,9 @@
+{
+  "name": "@pixigame/renderer",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./src/index.js",
+  "dependencies": {
+    "pixi.js": "^8.0.0"
+  }
+}
