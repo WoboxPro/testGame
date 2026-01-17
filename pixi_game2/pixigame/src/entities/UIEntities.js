@@ -40,11 +40,28 @@ export class UIButtonEntity extends UIEntity {
       textColor: options.text?.textColor ?? '#111111'
     };
 
+    const legacyBgColor = options.button?.backgroundColor ?? '#4fc3f7';
+    const legacyBgHover = options.button?.backgroundColorHover ?? '#29b6f6';
+    const bg = options.button?.background || {};
+
     this.button = {
       width: Number(options.button?.width ?? 160),
       height: Number(options.button?.height ?? 44),
-      backgroundColor: options.button?.backgroundColor ?? '#4fc3f7',
-      backgroundColorHover: options.button?.backgroundColorHover ?? '#29b6f6',
+
+      /**
+       * Network-friendly background config.
+       * - If textureUrl is present => renderer uses sprite background
+       * - Else => renderer uses color fallback
+       */
+      background: {
+        color: bg.color ?? legacyBgColor,
+        colorHover: bg.colorHover ?? legacyBgHover,
+        textureUrl: bg.textureUrl ?? null,
+        textureUrlHover: bg.textureUrlHover ?? null,
+        tint: bg.tint ?? null,
+        tintHover: bg.tintHover ?? null,
+      },
+
       // Network-friendly UI: store an action identifier (no function closures)
       actionId: options.button?.actionId ?? null,
       actionPayload: options.button?.actionPayload ?? null

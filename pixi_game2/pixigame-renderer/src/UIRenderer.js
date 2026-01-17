@@ -35,13 +35,33 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
 
     const w = Number(uiEntity.button?.width ?? 160);
     const h = Number(uiEntity.button?.height ?? 44);
-    const bgColor = uiEntity.button?.backgroundColor ?? '#4fc3f7';
-    const bgHover = uiEntity.button?.backgroundColorHover ?? '#29b6f6';
+    const bgCfg = uiEntity.button?.background || {};
+    const bgColor = bgCfg.color ?? uiEntity.button?.backgroundColor ?? '#4fc3f7';
+    const bgHover = bgCfg.colorHover ?? uiEntity.button?.backgroundColorHover ?? '#29b6f6';
+    const texUrl = bgCfg.textureUrl || null;
+    const texUrlHover = bgCfg.textureUrlHover || null;
+    const tint = bgCfg.tint;
+    const tintHover = bgCfg.tintHover;
 
-    const bg = new PIXI.Graphics();
-    bg.rect(0, 0, w, h).fill(bgColor);
-    bg.zIndex = 0;
-    root.addChild(bg);
+    // Always draw color fallback (network-friendly + works while texture loads/fails)
+    const bgFill = new PIXI.Graphics();
+    bgFill.rect(0, 0, w, h).fill(bgColor);
+    bgFill.zIndex = 0;
+    root.addChild(bgFill);
+
+    /** @type {PIXI.Sprite | null} */
+    let bgSprite = null;
+    if (texUrl) {
+      const sprite = PIXI.Sprite.from(texUrl);
+      sprite.width = w;
+      sprite.height = h;
+      if (tint) {
+        try { sprite.tint = tint; } catch (_) {}
+      }
+      sprite.zIndex = 1;
+      root.addChild(sprite);
+      bgSprite = sprite;
+    }
 
     const label = new PIXI.Text({
       text: uiEntity.text?.content ?? 'Button',
@@ -55,7 +75,7 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
     label.anchor?.set?.(0.5);
     label.x = w / 2;
     label.y = h / 2;
-    label.zIndex = 1;
+    label.zIndex = 2;
     root.addChild(label);
 
     // interactivity
@@ -64,12 +84,24 @@ export function createPixiDisplayObjectForUI(uiEntity, ctx = {}) {
     root.hitArea = new PIXI.Rectangle(0, 0, w, h);
 
     root.on('pointerover', () => {
-      bg.clear();
-      bg.rect(0, 0, w, h).fill(bgHover);
+      bgFill.clear();
+      bgFill.rect(0, 0, w, h).fill(bgHover);
+      if (bgSprite) {
+        if (texUrlHover) bgSprite.texture = PIXI.Texture.from(texUrlHover);
+        if (tintHover) {
+          try { bgSprite.tint = tintHover; } catch (_) {}
+        }
+      }
     });
     root.on('pointerout', () => {
-      bg.clear();
-      bg.rect(0, 0, w, h).fill(bgColor);
+      bgFill.clear();
+      bgFill.rect(0, 0, w, h).fill(bgColor);
+      if (bgSprite) {
+        bgSprite.texture = PIXI.Texture.from(texUrl);
+        if (tint) {
+          try { bgSprite.tint = tint; } catch (_) {}
+        }
+      }
     });
     root.on('pointertap', () => {
       const actionId = uiEntity.button?.actionId;

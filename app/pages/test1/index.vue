@@ -517,6 +517,17 @@
                 <input class="field__input" v-model.trim="uiButtonForm.bgHover" placeholder="#29b6f6" />
               </label>
             </div>
+
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Texture URL (optional)</span>
+                <input class="field__input" v-model.trim="uiButtonForm.textureUrl" placeholder="/person.png" />
+              </label>
+              <label class="field">
+                <span class="field__label">Texture Hover URL (optional)</span>
+                <input class="field__input" v-model.trim="uiButtonForm.textureUrlHover" placeholder="/spritesheet.png" />
+              </label>
+            </div>
           </div>
         </div>
 
@@ -626,7 +637,9 @@ const uiButtonForm = reactive({
   width: 160,
   height: 44,
   bg: '#4fc3f7',
-  bgHover: '#29b6f6'
+  bgHover: '#29b6f6',
+  textureUrl: '',
+  textureUrlHover: ''
 });
 
 function openCreate(type) {
@@ -1191,8 +1204,12 @@ function createUIButtonFromForm() {
     button: {
       width: Number(uiButtonForm.width) || 160,
       height: Number(uiButtonForm.height) || 44,
-      backgroundColor: uiButtonForm.bg || '#4fc3f7',
-      backgroundColorHover: uiButtonForm.bgHover || '#29b6f6',
+      background: {
+        color: uiButtonForm.bg || '#4fc3f7',
+        colorHover: uiButtonForm.bgHover || '#29b6f6',
+        textureUrl: uiButtonForm.textureUrl?.trim() || null,
+        textureUrlHover: uiButtonForm.textureUrlHover?.trim() || null,
+      },
       actionId: 'console_log',
       actionPayload: { message: `[UI BUTTON CLICK] ${id}` }
     }
@@ -1263,6 +1280,8 @@ onMounted(() => {
   window.addEventListener('keyup', onKeyUp);
   // Passive false to allow preventDefault for zoom
   window.addEventListener('wheel', onWheel, { passive: false });
+  // Preload textures from public/assets manifest into PIXI.Assets cache
+  preloadPublicAssetsToCache();
   if (!rafId) loop();
 });
 
@@ -1277,6 +1296,22 @@ onUnmounted(() => {
 
 // Keep inspector sliders in sync when camera selection changes
 watch(selectedCamera, () => syncCameraUiFromSelected());
+
+let _assetsPreloadStarted = false;
+async function preloadPublicAssetsToCache() {
+  if (_assetsPreloadStarted) return;
+  _assetsPreloadStarted = true;
+  try {
+    const res = await fetch('/assets/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const json = await res.json();
+    const images = Array.isArray(json?.images) ? json.images : [];
+    if (images.length === 0) return;
+    await PIXI.Assets.load(images);
+  } catch (_) {
+    // ignore
+  }
+}
 </script>
 
 <style scoped>
