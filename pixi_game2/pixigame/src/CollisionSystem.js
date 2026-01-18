@@ -12,6 +12,8 @@ export class CollisionSystem {
   constructor(world, options = {}) {
     this.world = world;
     this.enabled = options.enabled !== false;
+    // Small slop to reduce jitter when resolving overlap
+    this.separationSlop = Number.isFinite(options.separationSlop) ? options.separationSlop : 0.001;
 
     // 📋 Типы коллизий
     this.collisionTypes = {
@@ -181,8 +183,17 @@ export class CollisionSystem {
   _handleCollisionStay(idA, compA, idB, compB, relation, intersect) {
     // Блокировка движения
     if (relation.block) {
-      // TODO: реализовать блокировку движения
-      // console.log(`   🚫 BLOCK: движение заблокировано`);
+      const posA = compA.get('position');
+      const posB = compB.get('position');
+      const collA = compA.get('collision');
+      const collB = compB.get('collision');
+
+      if (!posA || !posB || !collA || !collB) return;
+
+      const mtv = this._computeMTV(collA, posA, collB, posB);
+      if (!mtv) return;
+
+      this._resolveBlock(compA, compB, mtv);
     }
   }
 
@@ -202,14 +213,18 @@ export class CollisionSystem {
     const shapeA = collisionA.shape || 'circle';
     const shapeB = collisionB.shape || 'circle';
 
+    // Collider centers (position + optional offset)
+    const cPosA = this._getColliderCenter(posA, collisionA);
+    const cPosB = this._getColliderCenter(posB, collisionB);
+
     if (shapeA === 'circle' && shapeB === 'circle') {
-      return this._circleCircle(collisionA, posA, collisionB, posB);
+      return this._circleCircle(collisionA, cPosA, collisionB, cPosB);
     } else if (shapeA === 'rect' && shapeB === 'rect') {
-      return this._rectRect(collisionA, posA, collisionB, posB);
+      return this._rectRect(collisionA, cPosA, collisionB, cPosB);
     } else {
       // circle + rect
-      const circle = shapeA === 'circle' ? { collision: collisionA, pos: posA } : { collision: collisionB, pos: posB };
-      const rect = shapeA === 'rect' ? { collision: collisionA, pos: posA } : { collision: collisionB, pos: posB };
+      const circle = shapeA === 'circle' ? { collision: collisionA, pos: cPosA } : { collision: collisionB, pos: cPosB };
+      const rect = shapeA === 'rect' ? { collision: collisionA, pos: cPosA } : { collision: collisionB, pos: cPosB };
       return this._circleRect(circle.collision, circle.pos, rect.collision, rect.pos);
     }
   }
@@ -308,6 +323,200 @@ export class CollisionSystem {
       intersect: true,
       point: { x: closestX, y: closestY }
     };
+  }
+
+  /**
+   * 📌 Центр коллайдера (учитывает offset)
+   */
+  _getColliderCenter(position, collision) {
+    const ox = Number(collision?.offset?.x) || 0;
+    const oy = Number(collision?.offset?.y) || 0;
+    return { x: position.x + ox, y: position.y + oy };
+  }
+
+  /**
+   * 🧱 MTV (минимальный вектор раздвижения) для режима block.
+   * Возвращает normal/penetration для перемещения A из B (как если бы B был статичен).
+   */
+  _computeMTV(collA, posA, collB, posB) {
+    const shapeA = collA.shape || 'circle';
+    const shapeB = collB.shape || 'circle';
+
+    const cA = this._getColliderCenter(posA, collA);
+    const cB = this._getColliderCenter(posB, collB);
+
+    if (shapeA === 'circle' && shapeB === 'circle') {
+      return this._mtvCircleCircle(collA, cA, collB, cB);
+    }
+    if (shapeA === 'rect' && shapeB === 'rect') {
+      return this._mtvRectRect(collA, cA, collB, cB);
+    }
+    if (shapeA === 'circle' && shapeB === 'rect') {
+      return this._mtvCircleRect(collA, cA, collB, cB);
+    }
+    if (shapeA === 'rect' && shapeB === 'circle') {
+      // Compute MTV for moving the circle (B) out of rect (A), then invert for A.
+      const mtvCircle = this._mtvCircleRect(collB, cB, collA, cA);
+      if (!mtvCircle) return null;
+      return {
+        normal: { x: -mtvCircle.normal.x, y: -mtvCircle.normal.y },
+        penetration: mtvCircle.penetration
+      };
+    }
+
+    return null;
+  }
+
+  _mtvCircleCircle(collA, cA, collB, cB) {
+    const rA = this._getRadius(collA);
+    const rB = this._getRadius(collB);
+    const dx = cB.x - cA.x;
+    const dy = cB.y - cA.y;
+    const distSq = dx * dx + dy * dy;
+    const radii = rA + rB;
+    if (distSq >= radii * radii) return null;
+
+    const dist = Math.sqrt(distSq) || 0.0001;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const penetration = radii - dist;
+
+    // normal points where A should move (away from B)
+    return { normal: { x: -nx, y: -ny }, penetration };
+  }
+
+  _mtvRectRect(collA, cA, collB, cB) {
+    const a = this._getRectSize(collA);
+    const b = this._getRectSize(collB);
+
+    const dx = cB.x - cA.x;
+    const dy = cB.y - cA.y;
+
+    const overlapX = (a.width / 2 + b.width / 2) - Math.abs(dx);
+    const overlapY = (a.height / 2 + b.height / 2) - Math.abs(dy);
+
+    if (overlapX <= 0 || overlapY <= 0) return null;
+
+    if (overlapX < overlapY) {
+      return {
+        normal: { x: dx > 0 ? -1 : 1, y: 0 },
+        penetration: overlapX
+      };
+    }
+
+    return {
+      normal: { x: 0, y: dy > 0 ? -1 : 1 },
+      penetration: overlapY
+    };
+  }
+
+  _mtvCircleRect(collCircle, cCircle, collRect, cRect) {
+    const r = this._getRadius(collCircle);
+    const rect = this._getRectSize(collRect);
+    const hx = rect.width / 2;
+    const hy = rect.height / 2;
+
+    const left = cRect.x - hx;
+    const right = cRect.x + hx;
+    const top = cRect.y - hy;
+    const bottom = cRect.y + hy;
+
+    const closestX = Math.max(left, Math.min(cCircle.x, right));
+    const closestY = Math.max(top, Math.min(cCircle.y, bottom));
+    const dx = cCircle.x - closestX;
+    const dy = cCircle.y - closestY;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq >= r * r) return null;
+
+    // Circle center inside rect: choose the nearest side and push out
+    if (dx === 0 && dy === 0) {
+      const toLeft = cCircle.x - left;
+      const toRight = right - cCircle.x;
+      const toTop = cCircle.y - top;
+      const toBottom = bottom - cCircle.y;
+
+      const min = Math.min(toLeft, toRight, toTop, toBottom);
+      if (min === toLeft) return { normal: { x: -1, y: 0 }, penetration: toLeft + r };
+      if (min === toRight) return { normal: { x: 1, y: 0 }, penetration: toRight + r };
+      if (min === toTop) return { normal: { x: 0, y: -1 }, penetration: toTop + r };
+      return { normal: { x: 0, y: 1 }, penetration: toBottom + r };
+    }
+
+    const dist = Math.sqrt(distSq) || 0.0001;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const penetration = r - dist;
+
+    return { normal: { x: nx, y: ny }, penetration };
+  }
+
+  _getBodyType(components) {
+    const physics = components.get('physics');
+    if (physics?.bodyType === 'static') return 'static';
+    if (physics?.bodyType === 'dynamic') return 'dynamic';
+    const coll = components.get('collision');
+    // Sensible defaults for built-in types
+    if (coll?.type === 'build') return 'static';
+    if (coll?.type === 'unit') return 'dynamic';
+
+    // Heuristic: entities with velocity are considered dynamic
+    return components.get('velocity') ? 'dynamic' : 'static';
+  }
+
+  _resolveBlock(compA, compB, mtv) {
+    const posA = compA.get('position');
+    const posB = compB.get('position');
+    if (!posA || !posB) return;
+
+    const typeA = this._getBodyType(compA);
+    const typeB = this._getBodyType(compB);
+
+    const n = mtv.normal;
+    const penetration = Math.max(0, mtv.penetration) + this.separationSlop;
+    if (!Number.isFinite(penetration) || penetration <= 0) return;
+
+    // How much to move each entity (A gets +n, B gets -n)
+    let moveA = 0;
+    let moveB = 0;
+
+    if (typeA === 'dynamic' && typeB === 'dynamic') {
+      moveA = penetration / 2;
+      moveB = penetration / 2;
+    } else if (typeA === 'dynamic' && typeB === 'static') {
+      moveA = penetration;
+      moveB = 0;
+    } else if (typeA === 'static' && typeB === 'dynamic') {
+      moveA = 0;
+      moveB = penetration;
+    } else {
+      // both static
+      return;
+    }
+
+    if (moveA) {
+      posA.x += n.x * moveA;
+      posA.y += n.y * moveA;
+      const velA = compA.get('velocity');
+      if (velA) this._clipVelocityAgainstNormal(velA, n);
+    }
+
+    if (moveB) {
+      posB.x -= n.x * moveB;
+      posB.y -= n.y * moveB;
+      const velB = compB.get('velocity');
+      if (velB) this._clipVelocityAgainstNormal(velB, { x: -n.x, y: -n.y });
+    }
+  }
+
+  _clipVelocityAgainstNormal(velocity, normal) {
+    if (!velocity) return;
+    const vn = (velocity.x || 0) * normal.x + (velocity.y || 0) * normal.y;
+    // If velocity points into the collision, remove that component
+    if (vn < 0) {
+      velocity.x -= normal.x * vn;
+      velocity.y -= normal.y * vn;
+    }
   }
 
   /**

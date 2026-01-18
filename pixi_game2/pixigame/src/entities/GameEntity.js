@@ -14,6 +14,7 @@ export class GameEntity extends Entity {
   /**
    * @param {Partial<Entity> & {
    *  subtype?: 'unit'|'build'|'prop',
+   *  velocity?: {x:number,y:number},
    *  appearance?: {
    *    shape: 'circle'|'rect'|'sprite',
    *    color?: number|string,
@@ -32,6 +33,12 @@ export class GameEntity extends Entity {
 
     // Подтип игровой сущности
     this.subtype = options.subtype || 'unit';
+
+    // Движение (используется EntityController и ECS velocity компонентом)
+    // Важно: храним ссылку на объект velocity, чтобы world.entities мог ссылаться на неё напрямую
+    this.velocity = options.velocity
+      ? { x: Number(options.velocity.x) || 0, y: Number(options.velocity.y) || 0 }
+      : undefined;
 
     // Внешний вид
     this.appearance = {
@@ -109,6 +116,7 @@ export class GameEntity extends Entity {
     return {
       ...super.getInfo?.() || {},
       subtype: this.subtype,
+      velocity: this.velocity,
       appearance: this.appearance,
       hasCollision: this.hasCollision,
       collision: this.collision
