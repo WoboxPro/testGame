@@ -312,9 +312,10 @@ export class CollisionSystem {
 
   /**
    * 📏 Получить радиус коллизии
+   * size в appearance = диаметр (как в EntityRenderer), делим на 2 для радиуса
    */
   _getRadius(collision) {
-    return collision.size || 15;
+    return (collision.size || 30) / 2;
   }
 
   /**
