@@ -134,6 +134,8 @@
             <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedWorld.type }}</div></div>
             <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedWorld.width }}×{{ selectedWorld.height }}</div></div>
             <div class="kv__row"><div class="kv__k">Background</div><div class="kv__v">{{ selectedWorld.backgroundColor }}</div></div>
+            <div class="kv__row" v-if="selectedWorld.instance.backgroundTexture?.textureUrl"><div class="kv__k">Texture</div><div class="kv__v">{{ selectedWorld.instance.backgroundTexture.textureUrl }}</div></div>
+            <div class="kv__row" v-if="selectedWorld.instance.backgroundTexture?.textureUrl"><div class="kv__k">Scale Mode</div><div class="kv__v">{{ selectedWorld.instance.backgroundTexture.scaleMode }}</div></div>
             <div class="kv__row"><div class="kv__k">Entities</div><div class="kv__v">{{ selectedWorld.instance.entities.size }}</div></div>
           </div>
 
@@ -242,6 +244,24 @@
               <span class="field__label">Background</span>
               <input class="field__input" v-model.trim="worldForm.backgroundColor" placeholder="#000000" />
             </label>
+            <label class="field">
+              <span class="field__label">Texture URL (optional)</span>
+              <input class="field__input" v-model.trim="worldForm.textureUrl" placeholder="/assets/spritesheet.png" />
+            </label>
+            <div class="grid2" v-if="worldForm.textureUrl">
+              <label class="field">
+                <span class="field__label">Texture Scale Mode</span>
+                <select class="field__input" v-model="worldForm.textureScaleMode">
+                  <option value="tile">tile (замостить)</option>
+                  <option value="stretch">stretch (растянуть)</option>
+                  <option value="center">center (центрировать)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field__label">Tint (optional)</span>
+                <input class="field__input" v-model.trim="worldForm.tint" placeholder="#ffffff" />
+              </label>
+            </div>
             <label class="field field--row">
               <input type="checkbox" v-model="worldForm.spawnDemo" />
               <span class="field__label">Spawn demo entities (10)</span>
@@ -327,6 +347,11 @@
                 <option value="bottomleft">bottomleft</option>
                 <option value="bottomright">bottomright</option>
               </select>
+            </label>
+
+            <label class="field">
+              <span class="field__label">World Background Color</span>
+              <input class="field__input" v-model.trim="cameraForm.worldBackgroundColor" placeholder="#2a2a2a" />
             </label>
 
             <div class="grid2">
@@ -587,6 +612,9 @@ const worldForm = reactive({
   width: 1000,
   height: 1000,
   backgroundColor: '#000000',
+  textureUrl: '',
+  textureScaleMode: 'tile',
+  tint: '',
   spawnDemo: true
 });
 
@@ -616,7 +644,8 @@ const cameraForm = reactive({
   zoom: 1,
   priority: 0,
   minZoom: 0.1,
-  maxZoom: 5.0
+  maxZoom: 5.0,
+  worldBackgroundColor: '#2a2a2a'
 });
 
 const uiTextForm = reactive({
@@ -719,12 +748,22 @@ function createWorldFromForm() {
   const id = worldForm.id?.trim() || suggestId('world', worlds);
   if (worlds.some((w) => w.id === id)) return;
 
+  const backgroundTexture = {};
+  if (worldForm.textureUrl?.trim()) {
+    backgroundTexture.textureUrl = worldForm.textureUrl.trim();
+    backgroundTexture.scaleMode = worldForm.textureScaleMode || 'tile';
+    if (worldForm.tint?.trim()) {
+      backgroundTexture.tint = worldForm.tint.trim();
+    }
+  }
+
   const instance = markRaw(new World({
     id,
     type: worldForm.type,
     width: Number(worldForm.width) || 1000,
     height: Number(worldForm.height) || 1000,
-    backgroundColor: worldForm.backgroundColor || '#000000'
+    backgroundColor: worldForm.backgroundColor || '#000000',
+    backgroundTexture: Object.keys(backgroundTexture).length > 0 ? backgroundTexture : undefined
   }));
 
   const model = {
@@ -815,6 +854,7 @@ function createCameraFromForm() {
     minZoom: Number(cameraForm.minZoom) || 0.1,
     maxZoom: Number(cameraForm.maxZoom) || 5.0,
     priority: Number(cameraForm.priority) || 0,
+    worldBackgroundColor: cameraForm.worldBackgroundColor || '#2a2a2a',
     world: worldModel.instance,
     canvas: canvasModel.instance
   }));

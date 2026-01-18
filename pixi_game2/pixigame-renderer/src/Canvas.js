@@ -141,32 +141,35 @@ export class Canvas {
   
   render() {
     if (!this.app || !this.isStarted) return;
-    
+
     const sortedCameras = Array.from(this.cameras.values())
       .sort((a, b) => (a.priority || 0) - (b.priority || 0));
-    
+
     for (const camera of sortedCameras) {
       if (!camera.world) continue;
-      
+
       this._updateCameraViewport(camera);
-      
-      if (camera.worldBackgroundColor) {
+
+      // Рендерим фон мира если есть цвет фона ИЛИ текстура
+      const hasWorldBgColor = camera.worldBackgroundColor && camera.worldBackgroundColor !== 'transparent';
+      const hasWorldTexture = camera.world?.backgroundTexture?.textureUrl;
+      if (hasWorldBgColor || hasWorldTexture) {
         this._renderWorldBackground(camera);
       }
-      
+
       if (camera.cameraBackgroundColor) {
         this._renderCameraBackground(camera);
       }
-      
+
       this.entityRenderer.renderEntities(
         camera,
         camera.world,
         camera.entitiesContainer
       );
     }
-    
+
     this._updateCameraBorders();
-    
+
     this.app.renderer.render(this.app.stage);
   }
   
@@ -205,22 +208,119 @@ export class Canvas {
   }
   
   _renderWorldBackground(camera) {
-    if (!camera.worldBackgroundLayer) return;
-    
+    if (!camera.worldBackgroundLayer || !camera.world) return;
+
     camera.worldBackgroundLayer.removeChildren();
-    
+
+    const bounds = camera._getWorldBoundsInView();
+    const world = camera.world;
+    const bgTexture = world.backgroundTexture;
+
+    // Сначала рендерим цветовой фон
     if (camera.worldBackgroundColor && camera.worldBackgroundColor !== 'transparent') {
       const graphics = new PIXI.Graphics();
-      const bounds = camera._getWorldBoundsInView();
-      
-      graphics.rect(
-        bounds.minX,
-        bounds.minY,
-        bounds.maxX - bounds.minX,
-        bounds.maxY - bounds.minY
-      ).fill(camera.worldBackgroundColor);
-      
+
+      if (world.type === 'bounded') {
+        // Для ограниченного мира - фон на весь мир
+        graphics.rect(0, 0, world.width, world.height).fill(camera.worldBackgroundColor);
+      } else {
+        // Для бесконечного мира - фон на видимую область
+        graphics.rect(
+          bounds.minX,
+          bounds.minY,
+          bounds.maxX - bounds.minX,
+          bounds.maxY - bounds.minY
+        ).fill(camera.worldBackgroundColor);
+      }
+
       camera.worldBackgroundLayer.addChild(graphics);
+    }
+
+    // Затем рендерим текстуру если указана
+    if (bgTexture?.textureUrl) {
+      this._renderWorldTexture(camera, world, bgTexture, bounds);
+    }
+  }
+
+  _renderWorldTexture(camera, world, bgTexture, bounds) {
+    const textureUrl = bgTexture.textureUrl;
+    const scaleMode = bgTexture.scaleMode || 'tile';
+    const tint = bgTexture.tint;
+
+    if (scaleMode === 'tile') {
+      // Для тайлинга используем TilingSprite
+      const texture = PIXI.Texture.from(textureUrl);
+
+      let spriteWidth, spriteHeight;
+
+      if (world.type === 'bounded') {
+        spriteWidth = world.width;
+        spriteHeight = world.height;
+      } else {
+        // Для infinite мира делаем огромный фиксированный спрайт
+        // Он будет зафиксирован в (0,0) мировых координат
+        spriteWidth = 100000;
+        spriteHeight = 100000;
+      }
+
+      const tilingSprite = new PIXI.TilingSprite({
+        texture,
+        width: spriteWidth,
+        height: spriteHeight
+      });
+
+      // Применяем tint если указан
+      if (tint) {
+        try { tilingSprite.tint = tint; } catch (_) {}
+      }
+
+      // Фиксируем спрайт в мировых координатах (0, 0)
+      // Он не двигается вместе с камерой
+      tilingSprite.x = 0;
+      tilingSprite.y = 0;
+
+      camera.worldBackgroundLayer.addChild(tilingSprite);
+    } else if (scaleMode === 'stretch') {
+      // Растягиваем текстуру на всю область
+      const sprite = PIXI.Sprite.from(textureUrl);
+
+      if (tint) {
+        try { sprite.tint = tint; } catch (_) {}
+      }
+
+      if (world.type === 'bounded') {
+        sprite.x = 0;
+        sprite.y = 0;
+        sprite.width = world.width;
+        sprite.height = world.height;
+      } else {
+        sprite.x = bounds.minX;
+        sprite.y = bounds.minY;
+        sprite.width = bounds.maxX - bounds.minX;
+        sprite.height = bounds.maxY - bounds.minY;
+      }
+
+      camera.worldBackgroundLayer.addChild(sprite);
+    } else if (scaleMode === 'center') {
+      // Центрируем текстуру без масштабирования
+      const sprite = PIXI.Sprite.from(textureUrl);
+
+      if (tint) {
+        try { sprite.tint = tint; } catch (_) {}
+      }
+
+      const texWidth = sprite.texture.width;
+      const texHeight = sprite.texture.height;
+
+      if (world.type === 'bounded') {
+        sprite.x = (world.width - texWidth) / 2;
+        sprite.y = (world.height - texHeight) / 2;
+      } else {
+        sprite.x = (bounds.minX + bounds.maxX - texWidth) / 2;
+        sprite.y = (bounds.minY + bounds.maxY - texHeight) / 2;
+      }
+
+      camera.worldBackgroundLayer.addChild(sprite);
     }
   }
   
