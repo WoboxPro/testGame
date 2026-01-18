@@ -2097,11 +2097,11 @@ function removeGameEntity(entityId) {
   if (idx < 0) return;
 
   const entityModel = gameEntities[idx];
-  // Remove from world
-  if (entityModel.worldId) {
+  // Remove from world (используем entityId из world, а не UI id)
+  if (entityModel.worldId && entityModel.entityId) {
     const worldModel = worlds.find((w) => w.id === entityModel.worldId);
     if (worldModel?.instance) {
-      worldModel.instance.removeEntity(entityId);
+      worldModel.instance.removeEntity(entityModel.entityId);
     }
   }
 
