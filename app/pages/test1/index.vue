@@ -772,7 +772,59 @@
                 <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.maxZoom" />
               </label>
             </div>
-            <div class="info-box">
+
+            <label class="field field--row">
+              <input type="checkbox" v-model="controllerForm.customBindings" />
+              <span class="field__label">Custom key bindings</span>
+            </label>
+
+            <div v-if="controllerForm.customBindings" class="bindings-editor">
+              <div class="info-box" style="margin-bottom: 12px;">
+                <strong>⌨️ Click field and press key to record</strong>
+              </div>
+
+              <div class="binding-row" v-for="actionKey in Object.keys(controllerForm.bindings)" :key="actionKey">
+                <span class="binding-action">{{ formatActionName(actionKey) }}</span>
+                <div class="binding-input-wrapper">
+                  <input
+                    class="binding-input"
+                    :class="{ 'is-recording': keyRecording.action === actionKey && keyRecording.field === 'primary' }"
+                    :value="controllerForm.bindings[actionKey].primary"
+                    :placeholder="keyRecording.action === actionKey && keyRecording.field === 'primary' ? 'Press any key...' : 'Primary key'"
+                    readonly
+                    @focus="startKeyRecording(actionKey, 'primary')"
+                    @blur="stopKeyRecording"
+                    @keydown="handleKeyRecording"
+                  />
+                  <button
+                    v-if="controllerForm.bindings[actionKey].primary"
+                    class="binding-clear"
+                    @click="controllerForm.bindings[actionKey].primary = ''"
+                    title="Clear"
+                  >×</button>
+                </div>
+                <div class="binding-input-wrapper">
+                  <input
+                    class="binding-input"
+                    :class="{ 'is-recording': keyRecording.action === actionKey && keyRecording.field === 'secondary' }"
+                    :value="controllerForm.bindings[actionKey].secondary"
+                    :placeholder="keyRecording.action === actionKey && keyRecording.field === 'secondary' ? 'Press any key...' : 'Secondary (optional)'"
+                    readonly
+                    @focus="startKeyRecording(actionKey, 'secondary')"
+                    @blur="stopKeyRecording"
+                    @keydown="handleKeyRecording"
+                  />
+                  <button
+                    v-if="controllerForm.bindings[actionKey].secondary"
+                    class="binding-clear"
+                    @click="controllerForm.bindings[actionKey].secondary = ''"
+                    title="Clear"
+                  >×</button>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="info-box">
               <strong>🎮 Default controls:</strong><br>
               Movement: 5213 (Numpad)<br>
               Zoom: Numpad +/–<br>
@@ -992,8 +1044,51 @@ const controllerForm = reactive({
   moveSpeed: 500,
   zoomSpeed: 2,
   minZoom: 0.1,
-  maxZoom: 5.0
+  maxZoom: 5.0,
+  customBindings: false, // Show custom key bindings
+  // Custom key bindings for each action
+  bindings: {
+    move_up: { primary: '', secondary: '' },
+    move_down: { primary: '', secondary: '' },
+    move_left: { primary: '', secondary: '' },
+    move_right: { primary: '', secondary: '' },
+    zoom_in: { primary: '', secondary: '' },
+    zoom_out: { primary: '', secondary: '' },
+    switch_camera: { primary: '', secondary: '' }
+  }
 });
+
+// Key recording state for custom bindings
+const keyRecording = reactive({
+  action: null,
+  field: null // 'primary' or 'secondary'
+});
+
+function startKeyRecording(action, field) {
+  keyRecording.action = action;
+  keyRecording.field = field;
+}
+
+function stopKeyRecording() {
+  keyRecording.action = null;
+  keyRecording.field = null;
+}
+
+function handleKeyRecording(e) {
+  if (!keyRecording.action) return;
+
+  e.preventDefault();
+
+  // Record the key code
+  const keyCode = e.code;
+  controllerForm.bindings[keyRecording.action][keyRecording.field] = keyCode;
+
+  // Stop recording after capturing
+  stopKeyRecording();
+
+  // Remove focus from input
+  e.target.blur();
+}
 
 function openCreate(type) {
   createModal.open = true;
@@ -1030,6 +1125,12 @@ function openCreate(type) {
     controllerForm.id = suggestId('controller', controllers);
     controllerForm.type = 'camera';
     controllerForm.cameraId = cameras[0]?.id || '';
+    controllerForm.customBindings = false;
+    // Reset bindings to empty
+    for (const action of Object.keys(controllerForm.bindings)) {
+      controllerForm.bindings[action].primary = '';
+      controllerForm.bindings[action].secondary = '';
+    }
   }
 }
 
@@ -1068,6 +1169,19 @@ function suggestId(prefix, list) {
   let i = 1;
   while (existing.has(`${prefix}_${i}`)) i++;
   return `${prefix}_${i}`;
+}
+
+function formatActionName(actionKey) {
+  const names = {
+    move_up: '⬆️ Move Up',
+    move_down: '⬇️ Move Down',
+    move_left: '⬅️ Move Left',
+    move_right: '➡️ Move Right',
+    zoom_in: '🔍 Zoom In',
+    zoom_out: '🔍 Zoom Out',
+    switch_camera: '📷 Switch Camera'
+  };
+  return names[actionKey] || actionKey;
 }
 
 // ---------------------------
@@ -1957,6 +2071,20 @@ function createControllerFromForm() {
       return;
     }
 
+    // Build custom bindings if enabled
+    let bindings = undefined;
+    if (controllerForm.customBindings) {
+      bindings = {};
+      for (const [action, keys] of Object.entries(controllerForm.bindings)) {
+        const primary = keys.primary?.trim() || null;
+        const secondary = keys.secondary?.trim() || null;
+        // Only include if at least primary is set
+        if (primary) {
+          bindings[action] = { primary, secondary };
+        }
+      }
+    }
+
     const instance = markRaw(new CameraController({
       id,
       target: cameraModel.instance,
@@ -1964,7 +2092,8 @@ function createControllerFromForm() {
       moveSpeed: Number(controllerForm.moveSpeed) || 500,
       zoomSpeed: Number(controllerForm.zoomSpeed) || 2,
       minZoom: Number(controllerForm.minZoom) || 0.1,
-      maxZoom: Number(controllerForm.maxZoom) || 5.0
+      maxZoom: Number(controllerForm.maxZoom) || 5.0,
+      bindings: bindings // Pass custom bindings or undefined (uses defaults)
     }));
 
     // Передаём все камеры для переключения
@@ -2449,6 +2578,83 @@ async function preloadPublicAssetsToCache() {
 }
 .info-box strong {
   color: #bfe7ff;
+}
+
+/* Bindings Editor */
+.bindings-editor {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.binding-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.binding-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+.binding-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+.binding-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+  padding-right: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.binding-input:focus {
+  outline: 2px solid rgba(79, 195, 247, 0.25);
+  border-color: rgba(79, 195, 247, 0.30);
+}
+.binding-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+.binding-input.is-recording {
+  border-color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+.binding-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.binding-clear:hover {
+  background: rgba(255, 100, 100, 0.2);
+  color: rgba(255, 100, 100, 0.9);
 }
 
 /* Tree Actions */
