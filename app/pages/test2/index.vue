@@ -38,7 +38,8 @@
             <span class="viewport-info">
               Worlds: {{ worlds.length }} |
               Canvases: {{ canvases.length }} |
-              Cameras: {{ cameras.length }}
+              Cameras: {{ cameras.length }} |
+              Controllers: {{ controllers.length }}
             </span>
             <button class="btn btn--secondary" @click="resetAll">♻️ Reset</button>
           </div>
@@ -70,6 +71,7 @@ import { Region } from '../../pixi_game2/pixigame/src/Region.js';
 import { Canvas, Camera } from '../../pixi_game2/pixigame-renderer/src/index.js';
 import { UITextEntity, UIButtonEntity } from '../../pixi_game2/pixigame/src/entities/UIEntities.js';
 import { createPixiDisplayObjectForUI } from '../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
+import { CameraController } from '../../pixi_game2/pixigame/src/CameraController.js';
 import * as PIXI from 'pixi.js';
 
 // State
@@ -81,10 +83,7 @@ const canvases = reactive([]);
 const cameras = reactive([]);
 const uiEntities = reactive([]);
 const regions = reactive([]);
-
-// PixiGame state
-let pixiGame = null;
-let rafId = null;
+const controllers = reactive([]);
 
 // canvasId -> DOM element
 const canvasHosts = new Map();
@@ -236,12 +235,24 @@ function loadSample() {
         }
       }
     ],
+    controllers: [
+      {
+        id: "controller_1",
+        type: "camera",
+        targetId: "camera_1",
+        moveSpeed: 500,
+        zoomSpeed: 2,
+        minZoom: 0.1,
+        maxZoom: 5.0
+      }
+    ],
     summary: {
       worldCount: 1,
       canvasCount: 1,
       cameraCount: 1,
       uiEntityCount: 2,
-      regionCount: 1
+      regionCount: 1,
+      controllerCount: 1
     }
   };
 
@@ -353,6 +364,13 @@ async function loadFromJson() {
     if (config.regions) {
       for (const regionConfig of config.regions) {
         loadRegion(regionConfig);
+      }
+    }
+
+    // Load controllers
+    if (config.controllers) {
+      for (const controllerConfig of config.controllers) {
+        loadController(controllerConfig);
       }
     }
 
@@ -582,6 +600,42 @@ function loadRegion(config) {
   console.log(`✅ Region loaded: ${config.displayName}`);
 }
 
+function loadController(config) {
+  if (config.type !== 'camera') {
+    console.warn(`⚠️ Only camera controllers are supported currently`);
+    return;
+  }
+
+  const cameraModel = cameras.find(c => c.id === config.targetId);
+  if (!cameraModel) {
+    console.warn(`⚠️ Camera ${config.targetId} not found for controller ${config.id}`);
+    return;
+  }
+
+  const instance = markRaw(new CameraController({
+    id: config.id,
+    target: cameraModel.instance,
+    targetId: config.targetId,
+    moveSpeed: config.moveSpeed || 500,
+    zoomSpeed: config.zoomSpeed || 2,
+    minZoom: config.minZoom || 0.1,
+    maxZoom: config.maxZoom || 5.0,
+    bindings: config.bindings // Custom bindings or undefined (uses defaults)
+  }));
+
+  // Передаём все камеры для переключения
+  instance.setAllCameras(cameras.map(c => c.instance));
+
+  controllers.push({
+    id: config.id,
+    type: config.type,
+    targetId: config.targetId,
+    instance
+  });
+
+  console.log(`✅ Controller loaded: ${config.id}`);
+}
+
 async function startAllCanvases() {
   // Start all canvases
   for (const canvasModel of canvases) {
@@ -645,10 +699,24 @@ function handleUIAction(actionId, payload, entity) {
   console.log('[UI ACTION]', { actionId, payload, entity });
 }
 
+// PixiGame state
+let pixiGame = null;
+let rafId = null;
+let lastTime = performance.now();
+
 function startRenderLoop() {
   if (rafId) return;
 
   const loop = () => {
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    // Update all controllers
+    for (const controller of controllers) {
+      controller.instance.update(dt);
+    }
+
     for (const canvasModel of canvases) {
       canvasModel.instance.render();
     }
@@ -695,6 +763,7 @@ function resetAll() {
   cameras.length = 0;
   uiEntities.length = 0;
   regions.length = 0;
+  controllers.length = 0;
 
   // Clear canvas hosts
   canvasHosts.clear();
@@ -719,7 +788,29 @@ function showStatus(type, message) {
 // Lifecycle
 // ---------------------------
 
+// Input handling for controllers
+function onKeyDown(e) {
+  // Pass key events to all controllers
+  for (const controller of controllers) {
+    controller.instance.handleKeyDown?.(e.code);
+  }
+}
+
+function onKeyUp(e) {
+  // Pass key events to all controllers
+  for (const controller of controllers) {
+    controller.instance.handleKeyUp?.(e.code);
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+});
+
 onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('keyup', onKeyUp);
   resetAll();
 });
 </script>
