@@ -200,10 +200,6 @@
             <div class="kv__row"><div class="kv__k">Entities</div><div class="kv__v">{{ selectedWorld.instance.entities.size }}</div></div>
           </div>
 
-          <div class="actions">
-            <button class="btn" @click="spawnDemoEntities(selectedWorld.id, 10)">➕ Spawn 10 demo entities</button>
-            <button class="btn" @click="clearWorldEntities(selectedWorld.id)" :disabled="selectedWorld.instance.entities.size === 0">🧹 Clear entities</button>
-          </div>
         </div>
 
         <!-- Canvas Inspector -->
@@ -346,10 +342,6 @@
             <label class="field" v-if="worldForm.showBounds">
               <span class="field__label">Bounds Color</span>
               <input class="field__input" v-model.trim="worldForm.boundsColor" placeholder="#FF4444" />
-            </label>
-            <label class="field field--row">
-              <input type="checkbox" v-model="worldForm.spawnDemo" />
-              <span class="field__label">Spawn demo entities (10)</span>
             </label>
           </div>
 
@@ -952,7 +944,6 @@ const worldForm = reactive({
   tint: '',
   showBounds: false,
   boundsColor: '#FF4444',
-  spawnDemo: true
 });
 
 const canvasForm = reactive({
@@ -1456,9 +1447,6 @@ function createWorldFromForm() {
   worlds.push(model);
   select({ type: 'world', id });
 
-  if (worldForm.spawnDemo) {
-    spawnDemoEntities(id, 10);
-  }
 }
 
 async function createCanvasFromForm() {
@@ -1690,32 +1678,6 @@ function focusCameraOnWorldCenter(cameraId) {
   if (!worldModel) return;
   camModel.instance.setFocus?.(0, 0);
   syncCameraUiFromSelected();
-}
-
-// ---------------------------
-// Demo entities (for visibility testing)
-// ---------------------------
-function spawnDemoEntities(worldId, count = 10) {
-  const w = worlds.find((x) => x.id === worldId);
-  if (!w) return;
-  const world = w.instance;
-
-  for (let i = 0; i < count; i++) {
-    const x = (Math.random() - 0.5) * world.width * 0.8;
-    const y = (Math.random() - 0.5) * world.height * 0.8;
-    const color = Math.floor(Math.random() * 0xffffff);
-    const size = 20 + Math.random() * 50;
-    world.createEntity({
-      position: { x, y },
-      appearance: { shape: 'circle', color, size }
-    });
-  }
-}
-
-function clearWorldEntities(worldId) {
-  const w = worlds.find((x) => x.id === worldId);
-  if (!w) return;
-  w.instance.entities.clear();
 }
 
 // ---------------------------
