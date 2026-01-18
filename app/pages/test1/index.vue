@@ -318,6 +318,19 @@
             <div class="kv__row" v-if="selectedRegion.regionType.borders.enabled"><div class="kv__k">Border Color</div><div class="kv__v">{{ selectedRegion.regionType.borders.color }}</div></div>
           </div>
         </div>
+
+        <!-- Controller Inspector -->
+        <div v-else-if="selected.type === 'controller' && selectedController" class="inspector__content">
+          <div class="inspector__title">Controller: {{ selectedController.id }}</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedController.type }}</div></div>
+            <div class="kv__row"><div class="kv__k">Target</div><div class="kv__v">{{ selectedController.targetId || 'none' }}</div></div>
+            <div class="kv__row"><div class="kv__k">Move Speed</div><div class="kv__v">{{ selectedController.instance.moveSpeed }}</div></div>
+            <div class="kv__row" v-if="selectedController.type === 'camera'"><div class="kv__k">Zoom Speed</div><div class="kv__v">{{ selectedController.instance.zoomSpeed }}</div></div>
+            <div class="kv__row" v-if="selectedController.type === 'camera'"><div class="kv__k">Min Zoom</div><div class="kv__v">{{ selectedController.instance.minZoom }}</div></div>
+            <div class="kv__row" v-if="selectedController.type === 'camera'"><div class="kv__k">Max Zoom</div><div class="kv__v">{{ selectedController.instance.maxZoom }}</div></div>
+          </div>
+        </div>
       </aside>
     </div>
 
@@ -838,36 +851,57 @@
             </label>
             <label class="field">
               <span class="field__label">Type</span>
-              <select class="field__input" v-model="controllerForm.type" disabled>
+              <select class="field__input" v-model="controllerForm.type">
                 <option value="camera">Camera</option>
+                <option value="entity">Entity</option>
               </select>
             </label>
-            <label class="field">
-              <span class="field__label">Camera</span>
-              <select class="field__input" v-model="controllerForm.cameraId">
-                <option v-for="c in cameras" :key="c.id" :value="c.id">{{ c.id }}</option>
-              </select>
-            </label>
-            <div class="grid2">
+
+            <!-- Camera-specific fields -->
+            <template v-if="controllerForm.type === 'camera'">
               <label class="field">
-                <span class="field__label">Move Speed</span>
-                <input class="field__input" type="number" v-model.number="controllerForm.moveSpeed" />
+                <span class="field__label">Camera</span>
+                <select class="field__input" v-model="controllerForm.cameraId">
+                  <option v-for="c in cameras" :key="c.id" :value="c.id">{{ c.id }}</option>
+                </select>
               </label>
+              <div class="grid2">
+                <label class="field">
+                  <span class="field__label">Move Speed</span>
+                  <input class="field__input" type="number" v-model.number="controllerForm.moveSpeed" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Zoom Speed</span>
+                  <input class="field__input" type="number" v-model.number="controllerForm.zoomSpeed" />
+                </label>
+              </div>
+              <div class="grid2">
+                <label class="field">
+                  <span class="field__label">Min Zoom</span>
+                  <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.minZoom" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Max Zoom</span>
+                  <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.maxZoom" />
+                </label>
+              </div>
+            </template>
+
+            <!-- Entity-specific fields -->
+            <template v-else-if="controllerForm.type === 'entity'">
               <label class="field">
-                <span class="field__label">Zoom Speed</span>
-                <input class="field__input" type="number" v-model.number="controllerForm.zoomSpeed" />
+                <span class="field__label">Entity</span>
+                <select class="field__input" v-model="controllerForm.entityId">
+                  <option v-for="e in gameEntities" :key="e.id" :value="e.id">{{ e.id }} ({{ e.subtype }})</option>
+                </select>
               </label>
-            </div>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Min Zoom</span>
-                <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.minZoom" />
-              </label>
-              <label class="field">
-                <span class="field__label">Max Zoom</span>
-                <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.maxZoom" />
-              </label>
-            </div>
+              <div class="grid2">
+                <label class="field">
+                  <span class="field__label">Move Speed</span>
+                  <input class="field__input" type="number" v-model.number="controllerForm.moveSpeed" />
+                </label>
+              </div>
+            </template>
 
             <label class="field field--row">
               <input type="checkbox" v-model="controllerForm.customBindings" />
@@ -879,13 +913,13 @@
                 <strong>⌨️ Click field and press key to record</strong>
               </div>
 
-              <div class="binding-row" v-for="actionKey in Object.keys(controllerForm.bindings)" :key="actionKey">
+              <div class="binding-row" v-for="actionKey in getControllerActions(controllerForm.type)" :key="actionKey">
                 <span class="binding-action">{{ formatActionName(actionKey) }}</span>
                 <div class="binding-input-wrapper">
                   <input
                     class="binding-input"
                     :class="{ 'is-recording': keyRecording.action === actionKey && keyRecording.field === 'primary' }"
-                    :value="controllerForm.bindings[actionKey].primary"
+                    :value="controllerForm.bindings[actionKey]?.primary || ''"
                     :placeholder="keyRecording.action === actionKey && keyRecording.field === 'primary' ? 'Press any key...' : 'Primary key'"
                     readonly
                     @focus="startKeyRecording(actionKey, 'primary')"
@@ -893,7 +927,7 @@
                     @keydown="handleKeyRecording"
                   />
                   <button
-                    v-if="controllerForm.bindings[actionKey].primary"
+                    v-if="controllerForm.bindings[actionKey]?.primary"
                     class="binding-clear"
                     @click="controllerForm.bindings[actionKey].primary = ''"
                     title="Clear"
@@ -903,7 +937,7 @@
                   <input
                     class="binding-input"
                     :class="{ 'is-recording': keyRecording.action === actionKey && keyRecording.field === 'secondary' }"
-                    :value="controllerForm.bindings[actionKey].secondary"
+                    :value="controllerForm.bindings[actionKey]?.secondary || ''"
                     :placeholder="keyRecording.action === actionKey && keyRecording.field === 'secondary' ? 'Press any key...' : 'Secondary (optional)'"
                     readonly
                     @focus="startKeyRecording(actionKey, 'secondary')"
@@ -911,7 +945,7 @@
                     @keydown="handleKeyRecording"
                   />
                   <button
-                    v-if="controllerForm.bindings[actionKey].secondary"
+                    v-if="controllerForm.bindings[actionKey]?.secondary"
                     class="binding-clear"
                     @click="controllerForm.bindings[actionKey].secondary = ''"
                     title="Clear"
@@ -989,6 +1023,7 @@ import * as PIXI from 'pixi.js';
 import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
 import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
 import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
+import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
 
 // ---------------------------
 // State
@@ -1150,8 +1185,9 @@ const gameEntityForm = reactive({
 
 const controllerForm = reactive({
   id: '',
-  type: 'camera', // camera | entity (future)
+  type: 'camera', // camera | entity
   cameraId: '', // For camera controllers
+  entityId: '', // For entity controllers
   moveSpeed: 500,
   zoomSpeed: 2,
   minZoom: 0.1,
@@ -1165,7 +1201,7 @@ const controllerForm = reactive({
     move_right: { primary: '', secondary: '' },
     zoom_in: { primary: '', secondary: '' },
     zoom_out: { primary: '', secondary: '' },
-    switch_camera: { primary: '', secondary: '' }
+    switch_target: { primary: '', secondary: '' }
   }
 });
 
@@ -1248,6 +1284,7 @@ function openCreate(type) {
     controllerForm.id = suggestId('controller', controllers);
     controllerForm.type = 'camera';
     controllerForm.cameraId = cameras[0]?.id || '';
+    controllerForm.entityId = gameEntities[0]?.id || '';
     controllerForm.customBindings = false;
     // Reset bindings to empty
     for (const action of Object.keys(controllerForm.bindings)) {
@@ -1305,9 +1342,18 @@ function formatActionName(actionKey) {
     move_right: '➡️ Move Right',
     zoom_in: '🔍 Zoom In',
     zoom_out: '🔍 Zoom Out',
-    switch_camera: '📷 Switch Camera'
+    switch_target: '🔄 Switch Target'
   };
   return names[actionKey] || actionKey;
+}
+
+function getControllerActions(type) {
+  if (type === 'entity') {
+    return ['move_up', 'move_down', 'move_left', 'move_right', 'switch_target'];
+  } else {
+    // Camera has all actions including zoom
+    return ['move_up', 'move_down', 'move_left', 'move_right', 'zoom_in', 'zoom_out', 'switch_target'];
+  }
 }
 
 // ---------------------------
@@ -1703,6 +1749,15 @@ function updateAllControllersCameraList() {
   }
 }
 
+function updateAllControllersEntityList() {
+  const allEntityInstances = gameEntities.map(e => e.instance);
+  for (const controller of controllers) {
+    if (controller.instance.setAllEntities) {
+      controller.instance.setAllEntities(allEntityInstances);
+    }
+  }
+}
+
 function removeWorld(worldId) {
   // remove cameras referencing this world
   const camsToRemove = cameras.filter((c) => c.worldId === worldId).map((c) => c.id);
@@ -1903,6 +1958,9 @@ function removeGameEntity(entityId) {
 
   gameEntities.splice(idx, 1);
   if (selected.value?.type === 'game_entity' && selected.value.id === entityId) selected.value = null;
+
+  // Update all entity controllers with the updated entity list
+  updateAllControllersEntityList();
 }
 
 function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
@@ -2138,6 +2196,9 @@ function createGameEntityFromForm() {
   };
   gameEntities.push(model);
   select({ type: 'game_entity', id });
+
+  // Update all entity controllers with the new entity list
+  updateAllControllersEntityList();
 }
 
 function createRegionFromForm() {
@@ -2229,25 +2290,25 @@ function createControllerFromForm() {
   const id = controllerForm.id?.trim() || suggestId('controller', controllers);
   if (controllers.some((c) => c.id === id)) return;
 
+  // Build custom bindings if enabled
+  let bindings = undefined;
+  if (controllerForm.customBindings) {
+    bindings = {};
+    for (const [action, keys] of Object.entries(controllerForm.bindings)) {
+      const primary = keys.primary?.trim() || null;
+      const secondary = keys.secondary?.trim() || null;
+      // Only include if at least primary is set
+      if (primary) {
+        bindings[action] = { primary, secondary };
+      }
+    }
+  }
+
   if (controllerForm.type === 'camera') {
     const cameraModel = cameras.find((c) => c.id === controllerForm.cameraId);
     if (!cameraModel) {
       console.warn('⚠️ Camera not found for controller');
       return;
-    }
-
-    // Build custom bindings if enabled
-    let bindings = undefined;
-    if (controllerForm.customBindings) {
-      bindings = {};
-      for (const [action, keys] of Object.entries(controllerForm.bindings)) {
-        const primary = keys.primary?.trim() || null;
-        const secondary = keys.secondary?.trim() || null;
-        // Only include if at least primary is set
-        if (primary) {
-          bindings[action] = { primary, secondary };
-        }
-      }
     }
 
     const instance = markRaw(new CameraController({
@@ -2268,6 +2329,34 @@ function createControllerFromForm() {
       id,
       type: 'camera',
       targetId: cameraModel.id,
+      instance
+    };
+
+    controllers.push(model);
+    select({ type: 'controller', id });
+
+  } else if (controllerForm.type === 'entity') {
+    const entityModel = gameEntities.find((e) => e.id === controllerForm.entityId);
+    if (!entityModel) {
+      console.warn('⚠️ Entity not found for controller');
+      return;
+    }
+
+    const instance = markRaw(new EntityController({
+      id,
+      target: entityModel.instance,
+      targetId: entityModel.id,
+      moveSpeed: Number(controllerForm.moveSpeed) || 200,
+      bindings: bindings // Pass custom bindings or undefined (uses defaults)
+    }));
+
+    // Передаём все сущности для переключения
+    instance.setAllEntities(gameEntities.map(e => e.instance));
+
+    const model = {
+      id,
+      type: 'entity',
+      targetId: entityModel.id,
       instance
     };
 

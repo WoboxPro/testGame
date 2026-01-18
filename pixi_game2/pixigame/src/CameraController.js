@@ -49,7 +49,7 @@ export class CameraController extends Controller {
     MOVE_RIGHT: 'move_right',
     ZOOM_IN: 'zoom_in',
     ZOOM_OUT: 'zoom_out',
-    SWITCH_CAMERA: 'switch_camera'
+    SWITCH_CAMERA: 'switch_target'
   };
 
   _getDefaultBindings() {
@@ -78,9 +78,9 @@ export class CameraController extends Controller {
         primary: 'NumpadSubtract',    // NumPad -
         secondary: null
       },
-      switch_camera: {
-        primary: 'Tab',
-        secondary: 'Numpad0'
+      switch_target: {
+        primary: 'Numpad0',
+        secondary: null
       }
     };
   }
