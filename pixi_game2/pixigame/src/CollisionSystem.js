@@ -313,18 +313,23 @@ export class CollisionSystem {
   /**
    * 📏 Получить радиус коллизии
    * size в appearance = диаметр (как в EntityRenderer), делим на 2 для радиуса
+   * scale - коэффициент масштаба (1.0 = 100%, 0.8 = 80%, 1.2 = 120%)
    */
   _getRadius(collision) {
-    return (collision.size || 30) / 2;
+    const baseSize = collision.size || 30;
+    const scale = collision.scale || 1.0;
+    return (baseSize * scale) / 2;
   }
 
   /**
    * 📐 Получить размеры прямоугольника
+   * scale - коэффициент масштаба (1.0 = 100%, 0.8 = 80%, 1.2 = 120%)
    */
   _getRectSize(collision) {
+    const scale = collision.scale || 1.0;
     return {
-      width: collision.width || 30,
-      height: collision.height || 30
+      width: (collision.width || 30) * scale,
+      height: (collision.height || 30) * scale
     };
   }
 

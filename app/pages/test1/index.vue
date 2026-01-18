@@ -801,7 +801,11 @@
             </div>
             <label class="field field--row">
               <input type="checkbox" v-model="gameEntityForm.hasCollision" />
-              <span class="field__label">Has Collision (не работает пока)</span>
+              <span class="field__label">Has Collision</span>
+            </label>
+            <label class="field" v-if="gameEntityForm.hasCollision">
+              <span class="field__label">Collision Scale (1.0 = 100%)</span>
+              <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="gameEntityForm.collisionScale" />
             </label>
           </div>
 
@@ -1281,7 +1285,8 @@ const gameEntityForm = reactive({
   size: 30, // для circle
   width: 40, // для rect
   height: 40, // для rect
-  hasCollision: false
+  hasCollision: false,
+  collisionScale: 1.0 // масштаб коллизии (1.0 = 100%)
 });
 
 const controllerForm = reactive({
@@ -1392,6 +1397,7 @@ function openCreate(type) {
     gameEntityForm.width = 40;
     gameEntityForm.height = 40;
     gameEntityForm.hasCollision = false;
+    gameEntityForm.collisionScale = 1.0;
   } else if (type === 'region') {
     regionForm.id = suggestId('region', regions);
     regionForm.name = `region_${regions.length + 1}`;
@@ -2319,7 +2325,8 @@ function createGameEntityFromForm() {
       width: Number(gameEntityForm.width) || 40,
       height: Number(gameEntityForm.height) || 40
     },
-    hasCollision: !!gameEntityForm.hasCollision
+    hasCollision: !!gameEntityForm.hasCollision,
+    collisionScale: Number(gameEntityForm.collisionScale) || 1.0
   }));
 
   // Add entity to world using ECS format (plain object with components)

@@ -56,6 +56,7 @@ export class GameEntity extends Entity {
     this.collisionWidth = options.collisionWidth || null;   // для rect
     this.collisionHeight = options.collisionHeight || null; // для rect
     this.collisionOffset = options.collisionOffset || { x: 0, y: 0 };
+    this.collisionScale = options.collisionScale !== undefined ? options.collisionScale : 1.0; // масштаб коллизии (1.0 = 100%)
 
     // Если есть коллизия - создаём компонент для ECS
     if (this.hasCollision) {
@@ -75,7 +76,8 @@ export class GameEntity extends Entity {
       size: this.collisionSize || this.appearance.size,
       width: this.collisionWidth || this.appearance.width,
       height: this.collisionHeight || this.appearance.height,
-      offset: { ...this.collisionOffset }
+      offset: { ...this.collisionOffset },
+      scale: this.collisionScale  // масштаб коллизии (1.0 = 100%)
     };
   }
 
