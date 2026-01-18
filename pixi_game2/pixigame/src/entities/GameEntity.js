@@ -47,57 +47,36 @@ export class GameEntity extends Entity {
     // Коллизия
     this.hasCollision = options.hasCollision !== undefined ? options.hasCollision : false;
 
-    // Если есть коллизия - создаём её на основе appearance
-    if (this.hasCollision && (!options.collision || options.collision.length === 0)) {
-      this._createDefaultCollision();
-    } else {
-      this.collision = Array.isArray(options.collision) ? options.collision : [];
+    // Коллизионный тип (для новой системы)
+    this.collisionType = options.collisionType || this.subtype || 'unit'; // unit, build, etc
+
+    // Параметры коллизии (переопределяют appearance)
+    this.collisionShape = options.collisionShape || null;  // circle, rect
+    this.collisionSize = options.collisionSize || null;     // для circle
+    this.collisionWidth = options.collisionWidth || null;   // для rect
+    this.collisionHeight = options.collisionHeight || null; // для rect
+    this.collisionOffset = options.collisionOffset || { x: 0, y: 0 };
+
+    // Если есть коллизия - создаём компонент для ECS
+    if (this.hasCollision) {
+      this.collision = this._createCollisionComponent();
     }
   }
 
   /**
-   * Создать коллизию по умолчанию на основе формы
+   * Создать collision компонент для ECS
    */
-  _createDefaultCollision() {
-    const shape = this.appearance.shape;
-    const size = this.appearance.size;
-    const width = this.appearance.width;
-    const height = this.appearance.height;
+  _createCollisionComponent() {
+    const shape = this.collisionShape || this.appearance.shape;
 
-    if (shape === 'circle') {
-      this.collision = [
-        {
-          id: `${this.id}_collision`,
-          enabled: true,
-          offset: { x: 0, y: 0 },
-          shape: 'circle',
-          radius: size / 2,
-          type: 'hitbox',
-          layer: 'default',
-          mask: ['default'],
-          active: true,
-          debugVisible: false,
-          debugColor: '#00ff00'
-        }
-      ];
-    } else if (shape === 'rect') {
-      this.collision = [
-        {
-          id: `${this.id}_collision`,
-          enabled: true,
-          offset: { x: 0, y: 0 },
-          shape: 'rect',
-          width: width,
-          height: height,
-          type: 'hitbox',
-          layer: 'default',
-          mask: ['default'],
-          active: true,
-          debugVisible: false,
-          debugColor: '#00ff00'
-        }
-      ];
-    }
+    return {
+      type: this.collisionType,  // 'unit' | 'build' | ...
+      shape: shape,              // 'circle' | 'rect'
+      size: this.collisionSize || this.appearance.size,
+      width: this.collisionWidth || this.appearance.width,
+      height: this.collisionHeight || this.appearance.height,
+      offset: { ...this.collisionOffset }
+    };
   }
 
   /**
@@ -106,9 +85,9 @@ export class GameEntity extends Entity {
   setAppearance(appearance) {
     this.appearance = { ...this.appearance, ...appearance };
 
-    // Если есть коллизия и изменилась форма - обновить коллизию
-    if (this.hasCollision && appearance.shape) {
-      this._createDefaultCollision();
+    // Если есть коллизия - обновить
+    if (this.hasCollision) {
+      this.collision = this._createCollisionComponent();
     }
   }
 
@@ -117,10 +96,10 @@ export class GameEntity extends Entity {
    */
   setCollision(hasCollision) {
     this.hasCollision = hasCollision;
-    if (hasCollision && this.collision.length === 0) {
-      this._createDefaultCollision();
-    } else if (!hasCollision) {
-      this.collision = [];
+    if (hasCollision) {
+      this.collision = this._createCollisionComponent();
+    } else {
+      this.collision = null;
     }
   }
 

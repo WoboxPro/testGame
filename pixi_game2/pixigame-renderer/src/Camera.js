@@ -7,29 +7,32 @@ import * as PIXI from 'pixi.js';
 export class Camera {
   constructor(options = {}) {
     this.id = options.id || `camera_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    
+
     this.width = options.width || 400;
     this.height = options.height || 300;
-    
+
     this.positionMode = options.positionMode || 'absolute';
     this.x = options.x || 0;
     this.y = options.y || 0;
-    
+
     this.anchor = options.anchor || 'center';
     this.focusX = options.focusX || 0;
     this.focusY = options.focusY || 0;
-    
+
     this.world = options.world || null;
     this.canvas = options.canvas || null;
-    
+
     this.zoom = options.zoom || 1.0;
     this.maxZoom = options.maxZoom || 5.0;
     this.minZoom = options.minZoom || 0.1;
-    
+
     this.priority = options.priority || 0;
-    
+
     this.worldBackgroundColor = options.worldBackgroundColor || null;
     this.cameraBackgroundColor = options.cameraBackgroundColor || null;
+
+    // Following entity
+    this.followEntityId = options.followEntityId || null;
     
     this._isInitialized = false;
     this.container = null;
@@ -112,7 +115,42 @@ export class Camera {
     canvas.addCamera(this);
     console.log(`📷 Камера ${this.id} привязана к canvas: ${canvas?.id}`);
   }
-  
+
+  /**
+   * Привязать камеру к сущности для слежения
+   * @param {string} entityId - ID сущности в world.entities
+   */
+  setFollowEntity(entityId) {
+    this.followEntityId = entityId;
+    console.log(`📷 Камера ${this.id} следит за сущностью: ${entityId}`);
+  }
+
+  /**
+   * Отвязать камеру от сущности
+   */
+  clearFollowEntity() {
+    this.followEntityId = null;
+    console.log(`📷 Камера ${this.id} перестала следить за сущностью`);
+  }
+
+  /**
+   * Обновить позицию камеры на основе позиции сущности
+   * Вызывается автоматически при рендере
+   */
+  _updateFollowEntity() {
+    if (!this.followEntityId || !this.world) return;
+
+    const entityComponents = this.world.entities.get(this.followEntityId);
+    if (!entityComponents) return;
+
+    const position = entityComponents.get('position');
+    if (!position) return;
+
+    // Центрируем камеру на сущности
+    this.focusX = position.x;
+    this.focusY = position.y;
+  }
+
   setFocus(x, y) {
     this.focusX = x;
     this.focusY = y;

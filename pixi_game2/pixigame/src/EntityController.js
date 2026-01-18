@@ -2,10 +2,16 @@
  * 🎮 EntityController - Контроллер для управления игровыми сущностями
  *
  * Поддерживает:
- * - Движение сущности (влево/вправо/вверх/вниз)
+ * - Движение через velocity (вектор скорости)
+ * - Плавное ускорение/торможение
  * - Переключение активной сущности
  * - Первичные и вторичные клавиши для каждого действия
  * - ECS совместимость (работает с world.entities Map)
+ *
+ * Система движения:
+ * - WASD → меняет velocity
+ * - update() → применяет velocity к позиции
+ * - friction → плавное торможение
  */
 
 import { Controller } from './Controller.js';
@@ -20,6 +26,12 @@ export class EntityController extends Controller {
     // Скорость движения (единиц в секунду)
     this.moveSpeed = options.moveSpeed !== undefined ? options.moveSpeed : 200;
 
+    // Ускорение (как быстро разгоняемся)
+    this.acceleration = options.acceleration !== undefined ? options.acceleration : 1000;
+
+    // Трение (как быстро тормозим когда отпускаем клавиши)
+    this.friction = options.friction !== undefined ? options.friction : 5;
+
     // Привязка клавиш
     this.bindings = options.bindings || this._getDefaultBindings();
 
@@ -29,7 +41,7 @@ export class EntityController extends Controller {
     // Ссылка на все сущности (для переключения)
     this.allEntities = options.allEntities || [];
 
-    console.log(`🎮 EntityController создан: ${this.id}`);
+    console.log(`🎮 EntityController создан: ${this.id} (velocity система)`);
   }
 
   /**
@@ -154,53 +166,70 @@ export class EntityController extends Controller {
 
   /**
    * Обновление контроллера (вызывается каждый кадр)
+   *
+   * Система движения через velocity:
+   * 1. WASD меняет velocity (с ускорением)
+   * 2. Трение уменьшает velocity когда клавиши отпущены
+   * 3. Velocity применяется к позиции
    */
   update(dt) {
     if (!this.enabled || !this.target) return;
 
     const entity = this.target;
-    const moveAmount = this.moveSpeed * dt;
 
-    let moved = false;
-
-    // Для ECS сущности позиция может быть в entity.position (GameEntity)
-    // или в компонентах world.entities
-    let position = entity.position; // GameEntity case
-
-    // Если это не GameEntity, попробуем получить из world
-    if (!position && entity.worldId && entity.entityId) {
-      // Нужно передать world для доступа к компонентам
-      // Это будет обрабатываться извне через setWorldReference
-      return;
-    }
-
+    // Получаем позицию (GameEntity case)
+    let position = entity.position;
     if (!position) return;
 
-    // Движение вверх
+    // Получаем или создаем velocity компонент
+    if (!entity.velocity) {
+      entity.velocity = { x: 0, y: 0 };
+    }
+    const velocity = entity.velocity;
+
+    // Ввод от WASD → ускорение velocity
+    const accel = this.acceleration * dt;
+
     if (this.isActionActive(EntityController.ACTIONS.MOVE_UP)) {
-      position.y -= moveAmount;
-      moved = true;
+      velocity.y -= accel;
     }
-
-    // Движение вниз
     if (this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
-      position.y += moveAmount;
-      moved = true;
+      velocity.y += accel;
     }
-
-    // Движение влево
     if (this.isActionActive(EntityController.ACTIONS.MOVE_LEFT)) {
-      position.x -= moveAmount;
-      moved = true;
+      velocity.x -= accel;
     }
-
-    // Движение вправо
     if (this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
-      position.x += moveAmount;
-      moved = true;
+      velocity.x += accel;
     }
 
-    if (moved && this.onEntityMoved) {
+    // Ограничиваем максимальную скорость
+    const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+    if (speed > this.moveSpeed) {
+      const scale = this.moveSpeed / speed;
+      velocity.x *= scale;
+      velocity.y *= scale;
+    }
+
+    // Трение (уменьшаем velocity когда нет ввода)
+    if (!this.isActionActive(EntityController.ACTIONS.MOVE_UP) &&
+        !this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
+      velocity.y *= (1 - this.friction * dt);
+    }
+    if (!this.isActionActive(EntityController.ACTIONS.MOVE_LEFT) &&
+        !this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
+      velocity.x *= (1 - this.friction * dt);
+    }
+
+    // Останавливаем очень маленькую скорость
+    if (Math.abs(velocity.x) < 0.1) velocity.x = 0;
+    if (Math.abs(velocity.y) < 0.1) velocity.y = 0;
+
+    // Применяем velocity к позиции
+    position.x += velocity.x * dt;
+    position.y += velocity.y * dt;
+
+    if ((velocity.x !== 0 || velocity.y !== 0) && this.onEntityMoved) {
       this.onEntityMoved(entity);
     }
   }
@@ -230,8 +259,11 @@ export class EntityController extends Controller {
     return {
       ...super.getInfo(),
       moveSpeed: this.moveSpeed,
+      acceleration: this.acceleration,
+      friction: this.friction,
       bindings: this.bindings,
-      activeEntityId: this.target?.id
+      activeEntityId: this.target?.id,
+      currentVelocity: this.target?.velocity || { x: 0, y: 0 }
     };
   }
 }

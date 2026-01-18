@@ -8,6 +8,7 @@ export { RegionSystem } from './RegionSystem.js';
 export { Controller } from './Controller.js';
 export { CameraController } from './CameraController.js';
 export { EntityController } from './EntityController.js';
+export { CollisionSystem } from './CollisionSystem.js';
 
 // Entities
 export { GameEntity, UnitEntity, BuildEntity, PropEntity } from './entities/GameEntity.js';

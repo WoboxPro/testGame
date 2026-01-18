@@ -156,6 +156,9 @@ export class Canvas {
     for (const camera of sortedCameras) {
       if (!camera.world) continue;
 
+      // Update camera position if following an entity
+      camera._updateFollowEntity();
+
       this._updateCameraViewport(camera);
 
       // Рендерим фон мира если есть цвет фона ИЛИ текстура
@@ -230,7 +233,7 @@ export class Canvas {
     const world = camera.world;
     const bgTexture = world.backgroundTexture;
 
-    console.log(`🎨 _renderWorldBackground: worldBackgroundColor=${camera.worldBackgroundColor}, textureUrl=${bgTexture?.textureUrl || 'none'}`);
+    // console.log(`🎨 _renderWorldBackground: worldBackgroundColor=${camera.worldBackgroundColor}, textureUrl=${bgTexture?.textureUrl || 'none'}`);
 
     // Сначала рендерим цветовой фон
     if (camera.worldBackgroundColor && camera.worldBackgroundColor !== 'transparent') {
@@ -261,7 +264,7 @@ export class Canvas {
   _renderWorldBounds(camera) {
     if (!camera.worldBoundsLayer || !camera.world) return;
     if (!camera.world.showBounds || camera.world.type !== 'bounded') {
-      console.log(`🔲 _renderWorldBounds: skipped (showBounds=${camera.world.showBounds}, type=${camera.world.type})`);
+      // console.log(`🔲 _renderWorldBounds: skipped (showBounds=${camera.world.showBounds}, type=${camera.world.type})`);
       return;
     }
 
@@ -274,7 +277,7 @@ export class Canvas {
     });
 
     camera.worldBoundsLayer.addChild(boundsGraphics);
-    console.log(`🔲 _renderWorldBounds: rendered ${camera.world.width}x${camera.world.height} in ${camera.world.boundsColor}`);
+    // console.log(`🔲 _renderWorldBounds: rendered ${camera.world.width}x${camera.world.height} in ${camera.world.boundsColor}`);
   }
 
   _renderRegions(camera) {

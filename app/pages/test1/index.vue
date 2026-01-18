@@ -176,6 +176,39 @@
             <span class="tree__meta">{{ c.type }} → {{ c.targetId || 'none' }}</span>
             <button class="tree__delete" title="Delete" @click.stop="removeController(c.id)">×</button>
           </div>
+
+          <div class="tree__section">
+            <div class="tree__title">Collisions</div>
+            <div class="tree__actions">
+              <button class="tree__add" @click="openCreate('collision_type')">+ Type</button>
+              <button class="tree__add" @click="openCreate('collision_relation')">+ Relation</button>
+            </div>
+          </div>
+          <div class="tree__subsection">
+            <div class="tree__subtitle">Types</div>
+            <div v-if="getCollisionTypes().length === 0" class="tree__empty">No types</div>
+            <div
+              v-for="type in getCollisionTypes()"
+              :key="type.id"
+              class="tree__item tree__item--small"
+            >
+              <span class="tree__name">{{ type.id }}</span>
+              <span class="tree__meta">{{ type.defaultShape }}</span>
+              <button class="tree__delete" @click.stop="removeCollisionType(type.id)">×</button>
+            </div>
+          </div>
+          <div class="tree__subsection">
+            <div class="tree__subtitle">Relations</div>
+            <div v-if="getCollisionRelations().length === 0" class="tree__empty">No relations</div>
+            <div
+              v-for="rel in getCollisionRelations()"
+              :key="rel.key"
+              class="tree__item tree__item--small"
+            >
+              <span class="tree__name">{{ rel.typeA }} ↔ {{ rel.typeB }}</span>
+              <span class="tree__meta">{{ rel.modes }}</span>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -245,6 +278,7 @@
             <div class="kv__row"><div class="kv__k">Canvas</div><div class="kv__v">{{ selectedCamera.canvasId }}</div></div>
             <div class="kv__row"><div class="kv__k">World</div><div class="kv__v">{{ selectedCamera.worldId }}</div></div>
             <div class="kv__row"><div class="kv__k">Viewport</div><div class="kv__v">{{ selectedCamera.width }}×{{ selectedCamera.height }} @ ({{ selectedCamera.x }}, {{ selectedCamera.y }})</div></div>
+            <div class="kv__row"><div class="kv__k">Following Entity</div><div class="kv__v">{{ selectedCamera.followEntityId ? getEntityLabelById(selectedCamera.followEntityId) : 'None' }}</div></div>
           </div>
 
           <div class="inspector__group">
@@ -465,6 +499,14 @@
               <span class="field__label">Attach to World</span>
               <select class="field__input" v-model="cameraForm.worldId">
                 <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field__label">Follow Entity (optional)</span>
+              <select class="field__input" v-model="cameraForm.followEntityId">
+                <option value="">None</option>
+                <option v-for="e in gameEntities" :key="e.id" :value="e.entityId">{{ e.id }} ({{ e.subtype }})</option>
               </select>
             </label>
 
@@ -961,6 +1003,61 @@
               Switch camera: Tab or Numpad 0
             </div>
           </div>
+
+          <!-- Collision Type Form -->
+          <div v-else-if="createModal.type === 'collision_type'" class="form">
+            <label class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="collisionTypeForm.worldId">
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Type ID</span>
+              <input class="field__input" v-model.trim="collisionTypeForm.id" placeholder="projectile" />
+            </label>
+            <label class="field">
+              <span class="field__label">Display Name</span>
+              <input class="field__input" v-model.trim="collisionTypeForm.name" placeholder="Projectile" />
+            </label>
+            <label class="field">
+              <span class="field__label">Default Shape</span>
+              <select class="field__input" v-model="collisionTypeForm.defaultShape">
+                <option value="circle">Circle (круг)</option>
+                <option value="rect">Rectangle (прямоугольник)</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Collision Relation Form -->
+          <div v-else-if="createModal.type === 'collision_relation'" class="form">
+            <label class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="collisionRelationForm.worldId">
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Type A</span>
+              <select class="field__input" v-model="collisionRelationForm.typeA">
+                <option v-for="type in getCollisionTypesForWorld(collisionRelationForm.worldId)" :key="type.id" :value="type.id">{{ type.id }} ({{ type.name }})</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Type B</span>
+              <select class="field__input" v-model="collisionRelationForm.typeB">
+                <option v-for="type in getCollisionTypesForWorld(collisionRelationForm.worldId)" :key="type.id" :value="type.id">{{ type.id }} ({{ type.name }})</option>
+              </select>
+            </label>
+            <label class="field field--row">
+              <input type="checkbox" v-model="collisionRelationForm.block" />
+              <span class="field__label">Block (блокировать движение)</span>
+            </label>
+            <label class="field field--row">
+              <input type="checkbox" v-model="collisionRelationForm.trigger" />
+              <span class="field__label">Trigger (вызывать событие)</span>
+            </label>
+          </div>
         </div>
 
         <div class="modal__footer">
@@ -1035,6 +1132,9 @@ const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const gameEntities = reactive([]); // { id, subtype, worldId, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
+
+// Collision types (managed per world for now)
+const collisionTypes = reactive([]); // { id, name, defaultShape, worldId }
 
 const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', id }
 
@@ -1115,6 +1215,7 @@ const cameraForm = reactive({
   minZoom: 0.1,
   maxZoom: 5.0,
   worldBackgroundColor: '#2a2a2a',
+  followEntityId: '', // ID сущности за которой следит камера
   createDefaultController: false
 });
 
@@ -1211,6 +1312,21 @@ const keyRecording = reactive({
   field: null // 'primary' or 'secondary'
 });
 
+const collisionTypeForm = reactive({
+  id: '',      // Type ID (e.g., 'unit', 'build', 'projectile')
+  name: '',    // Display name (e.g., 'Unit', 'Building')
+  defaultShape: 'circle', // 'circle' | 'rect'
+  worldId: ''  // Which world to add to
+});
+
+const collisionRelationForm = reactive({
+  typeA: '',   // First collision type
+  typeB: '',   // Second collision type
+  block: false,
+  trigger: false,
+  worldId: ''  // Which world to add to
+});
+
 function startKeyRecording(action, field) {
   keyRecording.action = action;
   keyRecording.field = field;
@@ -1249,6 +1365,7 @@ function openCreate(type) {
     cameraForm.id = suggestId('camera', cameras);
     cameraForm.canvasId = canvases[0]?.id || '';
     cameraForm.worldId = worlds[0]?.id || '';
+    cameraForm.followEntityId = '';
     cameraForm.x = 10 + (cameras.length % 3) * 400;
     cameraForm.y = 10;
   } else if (type === 'ui_text') {
@@ -1291,6 +1408,17 @@ function openCreate(type) {
       controllerForm.bindings[action].primary = '';
       controllerForm.bindings[action].secondary = '';
     }
+  } else if (type === 'collision_type') {
+    collisionTypeForm.id = '';
+    collisionTypeForm.name = '';
+    collisionTypeForm.defaultShape = 'circle';
+    collisionTypeForm.worldId = worlds[0]?.id || '';
+  } else if (type === 'collision_relation') {
+    collisionRelationForm.typeA = '';
+    collisionRelationForm.typeB = '';
+    collisionRelationForm.block = true;
+    collisionRelationForm.trigger = true;
+    collisionRelationForm.worldId = worlds[0]?.id || '';
   }
 }
 
@@ -1324,6 +1452,12 @@ async function confirmCreate() {
   } else if (createModal.type === 'controller') {
     createControllerFromForm();
     closeCreate();
+  } else if (createModal.type === 'collision_type') {
+    createCollisionTypeFromForm();
+    closeCreate();
+  } else if (createModal.type === 'collision_relation') {
+    createCollisionRelationFromForm();
+    closeCreate();
   }
 }
 
@@ -1354,6 +1488,13 @@ function getControllerActions(type) {
     // Camera has all actions including zoom
     return ['move_up', 'move_down', 'move_left', 'move_right', 'zoom_in', 'zoom_out', 'switch_target'];
   }
+}
+
+function getEntityLabelById(entityId) {
+  if (!entityId) return '';
+  const entity = gameEntities.find(e => e.entityId === entityId);
+  if (!entity) return entityId;
+  return `${entity.id} (${entity.subtype})`;
 }
 
 // ---------------------------
@@ -1702,6 +1843,7 @@ function createCameraFromForm() {
     maxZoom: Number(cameraForm.maxZoom) || 5.0,
     priority: Number(cameraForm.priority) || 0,
     worldBackgroundColor: cameraForm.worldBackgroundColor || '#2a2a2a',
+    followEntityId: cameraForm.followEntityId || null,
     world: worldModel.instance,
     canvas: canvasModel.instance
   }));
@@ -1721,6 +1863,7 @@ function createCameraFromForm() {
     minZoom: instance.minZoom,
     maxZoom: instance.maxZoom,
     anchor: instance.anchor,
+    followEntityId: instance.followEntityId,
     instance
   };
 
@@ -2164,7 +2307,9 @@ function createGameEntityFromForm() {
     id,
     worldId: gameEntityForm.worldId,
     subtype: gameEntityForm.subtype || 'unit',
+    collisionType: gameEntityForm.subtype || 'unit',  // collision type = subtype
     position: { x: Number(gameEntityForm.x) || 0, y: Number(gameEntityForm.y) || 0 },
+    velocity: { x: 0, y: 0 }, // 🚀 Velocity компонент для движения
     rotation: 0,
     scale: { x: 1, y: 1 },
     appearance: {
@@ -2181,9 +2326,10 @@ function createGameEntityFromForm() {
   const entityId = worldModel.instance.createEntity({
     _entityRef: instance, // Ссылка на GameEntity для инспекции
     position: instance.position,
+    velocity: instance.velocity, // 🚀 Velocity компонент в ECS
     appearance: instance.appearance,
     subtype: instance.subtype,
-    hasCollision: instance.hasCollision
+    collision: instance.hasCollision ? instance.collision : undefined
   });
 
   const model = {
@@ -2395,6 +2541,122 @@ function removeRegion(regionId) {
 }
 
 // ---------------------------
+// Collision functions
+// ---------------------------
+function createCollisionTypeFromForm() {
+  const id = collisionTypeForm.id?.trim();
+  const name = collisionTypeForm.name?.trim() || id;
+  const worldId = collisionTypeForm.worldId;
+  const defaultShape = collisionTypeForm.defaultShape;
+
+  if (!id) {
+    console.warn('⚠️ Collision type ID is required');
+    return;
+  }
+
+  const worldModel = worlds.find((w) => w.id === worldId);
+  if (!worldModel) {
+    console.warn('⚠️ World not found');
+    return;
+  }
+
+  // Add collision type to world's collision system
+  worldModel.instance.collisionSystem.addCollisionType(id, {
+    name,
+    description: `Collision type: ${name}`,
+    defaultShape
+  });
+
+  console.log(`✅ Collision type added: ${id} (${name}) - ${defaultShape}`);
+}
+
+function createCollisionRelationFromForm() {
+  const typeA = collisionRelationForm.typeA;
+  const typeB = collisionRelationForm.typeB;
+  const block = collisionRelationForm.block;
+  const trigger = collisionRelationForm.trigger;
+  const worldId = collisionRelationForm.worldId;
+
+  if (!typeA || !typeB) {
+    console.warn('⚠️ Both Type A and Type B are required');
+    return;
+  }
+
+  if (typeA === typeB) {
+    console.warn('⚠️ Type A and Type B must be different');
+    return;
+  }
+
+  const worldModel = worlds.find((w) => w.id === worldId);
+  if (!worldModel) {
+    console.warn('⚠️ World not found');
+    return;
+  }
+
+  // Set collision relation
+  worldModel.instance.collisionSystem.setCollisionRelation(typeA, typeB, {
+    block,
+    trigger
+  });
+
+  console.log(`✅ Collision relation added: ${typeA} ↔ ${typeB} = block:${block}, trigger:${trigger}`);
+}
+
+function getCollisionTypes() {
+  // Get all collision types from the first world (for now)
+  if (worlds.length === 0) return [];
+  const world = worlds[0].instance;
+  const types = world.collisionSystem.collisionTypes;
+  return Object.entries(types).map(([id, config]) => ({
+    id,
+    name: config.name,
+    defaultShape: config.defaultShape
+  }));
+}
+
+function getCollisionTypesForWorld(worldId) {
+  const worldModel = worlds.find((w) => w.id === worldId);
+  if (!worldModel) return [];
+  const world = worldModel.instance;
+  const types = world.collisionSystem.collisionTypes;
+  return Object.entries(types).map(([id, config]) => ({
+    id,
+    name: config.name,
+    defaultShape: config.defaultShape
+  }));
+}
+
+function getCollisionRelations() {
+  if (worlds.length === 0) return [];
+  const world = worlds[0].instance;
+  const matrix = world.collisionSystem.collisionMatrix;
+  const relations = [];
+
+  for (const [typeA, targets] of Object.entries(matrix)) {
+    for (const [typeB, modes] of Object.entries(targets)) {
+      const modeStr = [];
+      if (modes.block) modeStr.push('block');
+      if (modes.trigger) modeStr.push('trigger');
+      relations.push({
+        key: `${typeA}:${typeB}`,
+        typeA,
+        typeB,
+        modes: modeStr.join('+') || '-'
+      });
+    }
+  }
+
+  return relations;
+}
+
+function removeCollisionType(typeId) {
+  if (worlds.length === 0) return;
+  const world = worlds[0].instance;
+  world.collisionSystem.removeCollisionType(typeId);
+  console.log(`🗑️ Collision type removed: ${typeId}`);
+}
+
+// ---------------------------
 // Input handling for controllers
 // ---------------------------
 let lastTime = performance.now();
@@ -2443,6 +2705,11 @@ function loop() {
   // Update all controllers
   for (const controller of controllers) {
     controller.instance.update(dt);
+  }
+
+  // Update all worlds (collision checks, etc)
+  for (const world of worlds) {
+    world.instance.update();
   }
 
   // Sync cameraUi from selected camera if there's an active controller
