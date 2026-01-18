@@ -29,7 +29,10 @@
         <div class="tree">
           <div class="tree__section">
             <div class="tree__title">Worlds</div>
-            <button class="tree__add" @click="openCreate('world')">+ Add</button>
+            <div class="tree__actions">
+              <button class="tree__add" @click="openCreate('world')">+ Add</button>
+              <button class="tree__json" @click="openJsonModal('world')" title="Export JSON">{ }</button>
+            </div>
           </div>
           <div v-if="worlds.length === 0" class="tree__empty">No worlds</div>
           <div
@@ -45,7 +48,10 @@
 
           <div class="tree__section">
             <div class="tree__title">Canvases</div>
-            <button class="tree__add" @click="openCreate('canvas')">+ Add</button>
+            <div class="tree__actions">
+              <button class="tree__add" @click="openCreate('canvas')">+ Add</button>
+              <button class="tree__json" @click="openJsonModal('canvas')" title="Export JSON">{ }</button>
+            </div>
           </div>
           <div v-if="canvases.length === 0" class="tree__empty">No canvases</div>
           <div
@@ -62,7 +68,10 @@
 
           <div class="tree__section">
             <div class="tree__title">Cameras</div>
-            <button class="tree__add" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">+ Add</button>
+            <div class="tree__actions">
+              <button class="tree__add" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">+ Add</button>
+              <button class="tree__json" @click="openJsonModal('camera')" title="Export JSON">{ }</button>
+            </div>
           </div>
           <div v-if="cameras.length === 0" class="tree__empty">No cameras</div>
           <div
@@ -79,9 +88,12 @@
 
           <div class="tree__section">
             <div class="tree__title">UI</div>
-            <div class="tree__add-group">
-              <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">+ Text</button>
-              <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">+ Button</button>
+            <div class="tree__actions">
+              <div class="tree__add-group">
+                <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">+ Text</button>
+                <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">+ Button</button>
+              </div>
+              <button class="tree__json" @click="openJsonModal('ui')" title="Export JSON">{ }</button>
             </div>
           </div>
           <div v-if="uiEntities.length === 0" class="tree__empty">No UI</div>
@@ -99,7 +111,10 @@
 
           <div class="tree__section">
             <div class="tree__title">Regions</div>
-            <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('region')">+ Add</button>
+            <div class="tree__actions">
+              <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('region')">+ Add</button>
+              <button class="tree__json" @click="openJsonModal('region')" title="Export JSON">{ }</button>
+            </div>
           </div>
           <div v-if="regions.length === 0" class="tree__empty">No regions</div>
           <div
@@ -696,6 +711,47 @@
         </div>
       </div>
     </div>
+
+    <!-- JSON Export Modal -->
+    <div v-if="jsonModal.open" class="modal-backdrop" @click.self="closeJsonModal">
+      <div class="modal modal--json">
+        <div class="modal__header">
+          <div class="modal__title">{{ jsonModal.title }} - JSON Configuration</div>
+          <button class="modal__close" @click="closeJsonModal">×</button>
+        </div>
+
+        <div class="modal__body">
+          <div class="json__info">
+            <span class="json__count">{{ jsonModal.items.length }} items</span>
+            <button class="btn btn--small" @click="copyJsonToClipboard">📋 Copy</button>
+          </div>
+          <div class="json__tabs" v-if="jsonModal.items.length > 0">
+            <button
+              class="json__tab"
+              :class="{ 'is-active': jsonModal.selectedIndex === -1 }"
+              @click="jsonModal.selectedIndex = -1"
+            >
+              All ({{ jsonModal.items.length }})
+            </button>
+            <button
+              v-for="(item, idx) in jsonModal.items"
+              :key="idx"
+              class="json__tab"
+              :class="{ 'is-active': jsonModal.selectedIndex === idx }"
+              @click="jsonModal.selectedIndex = idx"
+            >
+              {{ item.name || item.id }}
+            </button>
+          </div>
+          <textarea class="json__output" readonly v-model="jsonModal.selectedJson" spellcheck="false"></textarea>
+        </div>
+
+        <div class="modal__footer">
+          <button class="btn" @click="closeJsonModal">Close</button>
+          <button class="btn btn--primary" @click="copyJsonToClipboard">📋 Copy to Clipboard</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -732,6 +788,28 @@ function setCanvasHost(canvasId, el) {
 // Modal/forms
 // ---------------------------
 const createModal = reactive({ open: false, type: null });
+
+// JSON Export Modal
+const jsonModal = reactive({
+  open: false,
+  title: '',
+  items: [], // { id, name, json }
+  selectedIndex: 0,
+  get selectedJson() {
+    if (this.items.length === 0) return '';
+    if (this.selectedIndex === -1) {
+      // All items as array
+      const allItems = this.items.map(item => JSON.parse(item.json));
+      return JSON.stringify(allItems, null, 2);
+    }
+    return this.items[this.selectedIndex]?.json || '';
+  }
+});
+
+// Helper for computed selected JSON
+watch(() => jsonModal.selectedIndex, () => {
+  // Trigger reactivity
+});
 
 const worldForm = reactive({
   id: '',
@@ -894,6 +972,184 @@ function suggestId(prefix, list) {
   let i = 1;
   while (existing.has(`${prefix}_${i}`)) i++;
   return `${prefix}_${i}`;
+}
+
+// ---------------------------
+// JSON Export
+// ---------------------------
+function openJsonModal(type) {
+  jsonModal.open = true;
+  jsonModal.items = [];
+  jsonModal.selectedIndex = 0;
+
+  switch (type) {
+    case 'world':
+      jsonModal.title = 'Worlds';
+      jsonModal.items = worlds.map(w => ({
+        id: w.id,
+        name: w.id,
+        json: JSON.stringify(getWorldJsonConfig(w), null, 2)
+      }));
+      break;
+    case 'canvas':
+      jsonModal.title = 'Canvases';
+      jsonModal.items = canvases.map(c => ({
+        id: c.id,
+        name: c.id,
+        json: JSON.stringify(getCanvasJsonConfig(c), null, 2)
+      }));
+      break;
+    case 'camera':
+      jsonModal.title = 'Cameras';
+      jsonModal.items = cameras.map(c => ({
+        id: c.id,
+        name: c.id,
+        json: JSON.stringify(getCameraJsonConfig(c), null, 2)
+      }));
+      break;
+    case 'ui':
+      jsonModal.title = 'UI Entities';
+      jsonModal.items = uiEntities.map(u => ({
+        id: u.id,
+        name: `${u.subtype}: ${u.id}`,
+        json: JSON.stringify(getUIJsonConfig(u), null, 2)
+      }));
+      break;
+    case 'region':
+      jsonModal.title = 'Regions';
+      jsonModal.items = regions.map(r => ({
+        id: r.id,
+        name: r.displayName,
+        json: JSON.stringify(getRegionJsonConfig(r), null, 2)
+      }));
+      break;
+  }
+}
+
+function closeJsonModal() {
+  jsonModal.open = false;
+  jsonModal.items = [];
+  jsonModal.selectedIndex = 0; // Reset to first item, not -1 (All)
+}
+
+async function copyJsonToClipboard() {
+  try {
+    await navigator.clipboard.writeText(jsonModal.selectedJson);
+    console.log('JSON copied to clipboard');
+  } catch (err) {
+    console.error('Failed to copy:', err);
+  }
+}
+
+// JSON config extractors
+function getWorldJsonConfig(worldModel) {
+  const w = worldModel.instance;
+  return {
+    id: worldModel.id,
+    type: worldModel.type,
+    width: worldModel.width,
+    height: worldModel.height,
+    backgroundColor: worldModel.backgroundColor,
+    showBounds: w.showBounds,
+    boundsColor: w.boundsColor,
+    backgroundTexture: w.backgroundTexture.textureUrl ? {
+      textureUrl: w.backgroundTexture.textureUrl,
+      scaleMode: w.backgroundTexture.scaleMode,
+      tint: w.backgroundTexture.tint
+    } : undefined,
+    regions: w.regionSystem.getAllRegions().map(r => ({
+      id: r.id,
+      displayName: r.displayName,
+      bounds: r.bounds,
+      hasTexture: r.hasTexture,
+      bordersEnabled: r.bordersEnabled
+    }))
+  };
+}
+
+function getCanvasJsonConfig(canvasModel) {
+  return {
+    id: canvasModel.id,
+    sizeMode: canvasModel.sizeMode,
+    width: canvasModel.width,
+    height: canvasModel.height,
+    backgroundColor: canvasModel.backgroundColor,
+    antialias: canvasModel.antialias,
+    resolution: canvasModel.resolution,
+    cameraCount: cameras.filter(c => c.canvasId === canvasModel.id).length
+  };
+}
+
+function getCameraJsonConfig(cameraModel) {
+  const c = cameraModel.instance;
+  return {
+    id: cameraModel.id,
+    canvasId: cameraModel.canvasId,
+    worldId: cameraModel.worldId,
+    anchor: cameraModel.anchor,
+    width: cameraModel.width,
+    height: cameraModel.height,
+    x: cameraModel.x,
+    y: cameraModel.y,
+    focusX: c.focusX,
+    focusY: c.focusY,
+    zoom: c.zoom,
+    minZoom: c.minZoom,
+    maxZoom: c.maxZoom,
+    priority: cameraModel.priority
+  };
+}
+
+function getUIJsonConfig(uiModel) {
+  const u = uiModel.instance;
+  const base = {
+    id: uiModel.id,
+    subtype: uiModel.subtype,
+    bindingLabel: uiModel.bindingLabel,
+    screenSpace: u.screenSpace,
+    position: u.position,
+    rotation: u.rotation,
+    scale: u.scale,
+    visible: u.visible,
+    opacity: u.opacity,
+    z_index: u.z_index
+  };
+
+  if (uiModel.subtype === 'text') {
+    return {
+      ...base,
+      text: u.text
+    };
+  } else if (uiModel.subtype === 'button') {
+    return {
+      ...base,
+      text: u.text,
+      button: u.button
+    };
+  }
+  return base;
+}
+
+function getRegionJsonConfig(regionModel) {
+  const r = regionModel.regionType;
+  return {
+    id: regionModel.id,
+    name: r.name,
+    displayName: regionModel.displayName,
+    worldId: regionModel.worldId,
+    bounds: regionModel.bounds,
+    groundTexture: r.groundTexture.textureUrl ? {
+      textureUrl: r.groundTexture.textureUrl,
+      scaleMode: r.groundTexture.scaleMode,
+      tint: r.groundTexture.tint
+    } : undefined,
+    borders: {
+      enabled: r.borders.enabled,
+      color: r.borders.color,
+      width: r.borders.width,
+      alpha: r.borders.alpha
+    }
+  };
 }
 
 // ---------------------------
@@ -1890,5 +2146,88 @@ async function preloadPublicAssetsToCache() {
   color: rgba(255, 255, 255, 0.92);
 }
 .field__input:focus { outline: 2px solid rgba(79, 195, 247, 0.25); border-color: rgba(79, 195, 247, 0.30); }
+
+/* Tree Actions */
+.tree__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tree__add-group { display: flex; gap: 6px; }
+.tree__json {
+  border: none;
+  background: transparent;
+  color: #7bd3ff;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tree__json:hover { background: rgba(123, 211, 255, 0.10); }
+
+/* JSON Modal */
+.modal--json {
+  width: min(800px, 96vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.json__info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.json__count {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+.btn--small {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.json__tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.json__tab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+.json__tab:hover { background: rgba(255, 255, 255, 0.08); }
+.json__tab.is-active {
+  background: rgba(79, 195, 247, 0.20);
+  border-color: rgba(79, 195, 247, 0.30);
+  color: #d9f4ff;
+}
+.json__output {
+  width: 100%;
+  min-height: 300px;
+  max-height: 500px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.30);
+  color: #bfe7ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.json__output:focus {
+  outline: 2px solid rgba(79, 195, 247, 0.25);
+  border-color: rgba(79, 195, 247, 0.30);
+}
 </style>
 
