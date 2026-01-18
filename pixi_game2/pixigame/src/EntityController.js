@@ -61,7 +61,7 @@ export class EntityController extends Controller {
         primary: 'KeyD',     // D
         secondary: null
       },
-      switch_entity: {
+      switch_target: {
         primary: 'Tab',
         secondary: null
       }
@@ -126,16 +126,17 @@ export class EntityController extends Controller {
   _switchEntity() {
     if (!this.allEntities || this.allEntities.length === 0) return;
 
-    const currentIndex = this.allEntities.findIndex(e => e === this.target);
+    // Используем targetId вместо сравнения ссылок, так как список может обновляться
+    const currentIndex = this.allEntities.findIndex(e => e.id === this.targetId);
     const nextIndex = (currentIndex + 1) % this.allEntities.length;
     const nextEntity = this.allEntities[nextIndex];
 
-    if (nextEntity && nextEntity !== this.target) {
+    if (nextEntity && nextEntity.id !== this.targetId) {
       // Переключаем цель
-      const oldTarget = this.target;
+      const oldTargetId = this.targetId;
       this.attachTo(nextEntity);
 
-      console.log(`🎮 Переключение сущности: ${oldTarget?.id} -> ${nextEntity.id}`);
+      console.log(`🎮 Переключение сущности: ${oldTargetId} -> ${nextEntity.id}`);
 
       // Callback для уведомления о переключении
       if (this.onEntitySwitched) {
