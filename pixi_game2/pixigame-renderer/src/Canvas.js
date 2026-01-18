@@ -78,7 +78,15 @@ export class Canvas {
     
     this._initLayers();
     this.entityRenderer = new EntityRenderer(this);
-    
+
+    // Initialize any cameras that were added before the canvas started
+    for (const camera of this.cameras.values()) {
+      if (!camera._isInitialized) {
+        camera._initForCanvas(this);
+        console.log(`📷 Камера ${camera.id} инициализирована при запуске canvas`);
+      }
+    }
+
     this.isStarted = true;
     console.log(`🖼️ Canvas ${this.id} запущен: ${this.width}x${this.height}`);
   }
@@ -222,6 +230,8 @@ export class Canvas {
     const world = camera.world;
     const bgTexture = world.backgroundTexture;
 
+    console.log(`🎨 _renderWorldBackground: worldBackgroundColor=${camera.worldBackgroundColor}, textureUrl=${bgTexture?.textureUrl || 'none'}`);
+
     // Сначала рендерим цветовой фон
     if (camera.worldBackgroundColor && camera.worldBackgroundColor !== 'transparent') {
       const graphics = new PIXI.Graphics();
@@ -250,7 +260,10 @@ export class Canvas {
 
   _renderWorldBounds(camera) {
     if (!camera.worldBoundsLayer || !camera.world) return;
-    if (!camera.world.showBounds || camera.world.type !== 'bounded') return;
+    if (!camera.world.showBounds || camera.world.type !== 'bounded') {
+      console.log(`🔲 _renderWorldBounds: skipped (showBounds=${camera.world.showBounds}, type=${camera.world.type})`);
+      return;
+    }
 
     camera.worldBoundsLayer.removeChildren();
 
@@ -261,6 +274,7 @@ export class Canvas {
     });
 
     camera.worldBoundsLayer.addChild(boundsGraphics);
+    console.log(`🔲 _renderWorldBounds: rendered ${camera.world.width}x${camera.world.height} in ${camera.world.boundsColor}`);
   }
 
   _renderRegions(camera) {
@@ -269,6 +283,8 @@ export class Canvas {
     const regionSystem = camera.world.regionSystem;
     if (!regionSystem || regionSystem.regions.size === 0) return;
 
+    console.log(`🗺️ _renderRegions: ${regionSystem.regions.size} regions`);
+
     // Рендерим регионы по приоритету
     const sortedRegions = Array.from(regionSystem.regions.values())
       .sort((a, b) => b.bounds.priority - a.bounds.priority);
@@ -276,6 +292,8 @@ export class Canvas {
     for (const region of sortedRegions) {
       const regionType = region.regionType;
       const bounds = region.bounds;
+
+      console.log(`🗺️ Region: ${regionType.displayName}, texture=${regionType.groundTexture?.textureUrl || 'none'}, borders=${regionType.borders?.enabled}`);
 
       // 🎨 Рендерим текстуру региона если есть
       if (regionType.groundTexture?.textureUrl) {

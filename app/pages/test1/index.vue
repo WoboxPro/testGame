@@ -1118,6 +1118,9 @@ function getUIJsonConfig(uiModel) {
   const base = {
     id: uiModel.id,
     subtype: uiModel.subtype,
+    canvasId: u.canvasId || null,
+    cameraId: u.cameraId || null,
+    worldId: u.worldId || null,
     bindingLabel: uiModel.bindingLabel,
     screenSpace: u.screenSpace,
     position: u.position,
@@ -1821,15 +1824,15 @@ function onWheel(e) {
 // Render loop for multiple canvases
 let rafId = null;
 function loop() {
-  // WASD pan selected camera
+  // Numpad pan selected camera: 5=up, 2=down, 1=left, 4=right
   if (selectedCamera.value) {
     const cam = selectedCamera.value.instance;
     const speed = 10 / (Number(cam.zoom) || 1);
     let moved = false;
-    if (keys.has('KeyW')) { cameraUi.focusY -= speed; moved = true; }
-    if (keys.has('KeyS')) { cameraUi.focusY += speed; moved = true; }
-    if (keys.has('KeyA')) { cameraUi.focusX -= speed; moved = true; }
-    if (keys.has('KeyD')) { cameraUi.focusX += speed; moved = true; }
+    if (keys.has('Numpad5')) { cameraUi.focusY -= speed; moved = true; }
+    if (keys.has('Numpad2')) { cameraUi.focusY += speed; moved = true; }
+    if (keys.has('Numpad1')) { cameraUi.focusX -= speed; moved = true; }
+    if (keys.has('Numpad3')) { cameraUi.focusX += speed; moved = true; }
     if (moved) applySelectedCameraUi();
   }
 
