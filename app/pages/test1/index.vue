@@ -24,7 +24,10 @@
     <div class="layout">
       <!-- Hierarchy -->
       <aside class="panel hierarchy">
-        <div class="panel__header">Hierarchy</div>
+        <div class="panel__header">
+          <span class="panel__title">Hierarchy</span>
+          <button class="panel__json-btn" @click="openJsonModal('all')" title="Export All JSON">{ } All</button>
+        </div>
 
         <div class="tree">
           <div class="tree__section">
@@ -157,7 +160,9 @@
 
       <!-- Inspector -->
       <aside class="panel inspector">
-        <div class="panel__header">Inspector</div>
+        <div class="panel__header">
+          <span class="panel__title">Inspector</span>
+        </div>
 
         <div v-if="!selected" class="inspector__empty">Select an item in the Hierarchy.</div>
 
@@ -983,6 +988,14 @@ function openJsonModal(type) {
   jsonModal.selectedIndex = 0;
 
   switch (type) {
+    case 'all':
+      jsonModal.title = 'Full Project Setup';
+      jsonModal.items = [{
+        id: 'all',
+        name: 'All Data',
+        json: JSON.stringify(getAllProjectJson(), null, 2)
+      }];
+      break;
     case 'world':
       jsonModal.title = 'Worlds';
       jsonModal.items = worlds.map(w => ({
@@ -1148,6 +1161,25 @@ function getRegionJsonConfig(regionModel) {
       color: r.borders.color,
       width: r.borders.width,
       alpha: r.borders.alpha
+    }
+  };
+}
+
+function getAllProjectJson() {
+  return {
+    version: '1.0',
+    timestamp: new Date().toISOString(),
+    worlds: worlds.map(w => getWorldJsonConfig(w)),
+    canvases: canvases.map(c => getCanvasJsonConfig(c)),
+    cameras: cameras.map(c => getCameraJsonConfig(c)),
+    uiEntities: uiEntities.map(u => getUIJsonConfig(u)),
+    regions: regions.map(r => getRegionJsonConfig(r)),
+    summary: {
+      worldCount: worlds.length,
+      canvasCount: canvases.length,
+      cameraCount: cameras.length,
+      uiEntityCount: uiEntities.length,
+      regionCount: regions.length
     }
   };
 }
@@ -1939,7 +1971,28 @@ async function preloadPublicAssetsToCache() {
   color: #cfe9ff;
   background: rgba(255, 255, 255, 0.04);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
+.panel__title {
+  font-weight: 900;
+  font-size: 14px;
+}
+.panel__json-btn {
+  border: none;
+  background: rgba(79, 195, 247, 0.15);
+  color: #7bd3ff;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.panel__json-btn:hover { background: rgba(79, 195, 247, 0.25); }
 
 .tree {
   padding: 10px;
