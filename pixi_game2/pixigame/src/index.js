@@ -9,5 +9,6 @@ export { Controller } from './Controller.js';
 export { CameraController } from './CameraController.js';
 
 // Entities
+export { GameEntity, UnitEntity, BuildEntity, PropEntity } from './entities/GameEntity.js';
 export { UITextEntity } from './entities/UIEntities.js';
 export { UIButtonEntity } from './entities/UIEntities.js';

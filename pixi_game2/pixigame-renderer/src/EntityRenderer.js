@@ -98,15 +98,17 @@ export class EntityRenderer {
   
   _updateGraphics(graphics, appearance) {
     graphics.clear();
-    
+
     const shape = appearance.shape || 'circle';
     const color = appearance.color || '#FF0000';
-    const size = appearance.size || 50;
-    
+
     if (shape === 'circle') {
+      const size = appearance.size || 50;
       graphics.circle(0, 0, size / 2).fill(color);
     } else if (shape === 'rect') {
-      graphics.rect(-size / 2, -size / 2, size, size).fill(color);
+      const width = appearance.width || appearance.size || 50;
+      const height = appearance.height || appearance.size || 50;
+      graphics.rect(-width / 2, -height / 2, width, height).fill(color);
     }
   }
   

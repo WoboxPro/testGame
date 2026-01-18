@@ -12,6 +12,8 @@
           <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">➕ UI Text</button>
           <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">➕ UI Button</button>
           <div class="toolbar__divider" />
+          <button class="btn btn--primary" :disabled="worlds.length === 0" @click="openCreate('game_entity')">➕ Game Entity</button>
+          <div class="toolbar__divider" />
           <button class="btn btn--primary" :disabled="worlds.length === 0" @click="openCreate('region')">➕ Region</button>
         </div>
       </div>
@@ -110,6 +112,29 @@
             <span class="tree__name">{{ u.id }}</span>
             <span class="tree__meta">{{ u.subtype }} • {{ u.bindingLabel }}</span>
             <button class="tree__delete" title="Delete" @click.stop="removeUI(u.id)">×</button>
+          </div>
+
+          <div class="tree__section">
+            <div class="tree__title">Entities</div>
+            <div class="tree__actions">
+              <div class="tree__add-group">
+                <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Unit</button>
+                <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Build</button>
+              </div>
+              <button class="tree__json" @click="openJsonModal('game_entity')" title="Export JSON">{ }</button>
+            </div>
+          </div>
+          <div v-if="gameEntities.length === 0" class="tree__empty">No entities</div>
+          <div
+            v-for="e in gameEntities"
+            :key="e.id"
+            class="tree__item"
+            :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id }"
+            @click="select({ type: 'game_entity', id: e.id })"
+          >
+            <span class="tree__name">{{ e.id }}</span>
+            <span class="tree__meta">{{ e.subtype }} • {{ e.appearance.shape }} • {{ e.worldId }}</span>
+            <button class="tree__delete" title="Delete" @click.stop="removeGameEntity(e.id)">×</button>
           </div>
 
           <div class="tree__section">
@@ -260,6 +285,21 @@
           <div v-else-if="selectedUI.subtype === 'button'" class="kv">
             <div class="kv__row"><div class="kv__k">Label</div><div class="kv__v">{{ selectedUI.instance.text.content }}</div></div>
             <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedUI.instance.button.width }}×{{ selectedUI.instance.button.height }}</div></div>
+          </div>
+        </div>
+
+        <!-- GameEntity Inspector -->
+        <div v-else-if="selected.type === 'game_entity' && selectedGameEntity" class="inspector__content">
+          <div class="inspector__title">Entity: {{ selectedGameEntity.id }}</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedGameEntity.subtype }}</div></div>
+            <div class="kv__row"><div class="kv__k">World</div><div class="kv__v">{{ selectedGameEntity.worldId }}</div></div>
+            <div class="kv__row"><div class="kv__k">Shape</div><div class="kv__v">{{ selectedGameEntity.appearance.shape }}</div></div>
+            <div class="kv__row"><div class="kv__k">Color</div><div class="kv__v" :style="{color: '#' + selectedGameEntity.instance.appearance.color.toString(16).padStart(6, '0')}">{{ '#' + selectedGameEntity.instance.appearance.color.toString(16).padStart(6, '0') }}</div></div>
+            <div class="kv__row" v-if="selectedGameEntity.appearance.shape === 'circle'"><div class="kv__k">Size</div><div class="kv__v">{{ selectedGameEntity.appearance.size }}</div></div>
+            <div class="kv__row" v-else><div class="kv__k">Size</div><div class="kv__v">{{ selectedGameEntity.appearance.width }}×{{ selectedGameEntity.appearance.height }}</div></div>
+            <div class="kv__row"><div class="kv__k">Position</div><div class="kv__v">{{ selectedGameEntity.instance.position.x }}, {{ selectedGameEntity.instance.position.y }}</div></div>
+            <div class="kv__row"><div class="kv__k">Collision</div><div class="kv__v">{{ selectedGameEntity.instance.hasCollision ? 'enabled' : 'disabled' }}</div></div>
           </div>
         </div>
 
@@ -646,6 +686,70 @@
             </label>
           </div>
 
+          <!-- Game Entity Form -->
+          <div v-else-if="createModal.type === 'game_entity'" class="form">
+            <label class="field">
+              <span class="field__label">ID</span>
+              <input class="field__input" v-model.trim="gameEntityForm.id" placeholder="unit_1" />
+            </label>
+            <label class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="gameEntityForm.worldId">
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Type</span>
+              <select class="field__input" v-model="gameEntityForm.subtype">
+                <option value="unit">Unit (юнит)</option>
+                <option value="build">Build (здание)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Shape</span>
+              <select class="field__input" v-model="gameEntityForm.shape">
+                <option value="circle">Circle (круг)</option>
+                <option value="rect">Rectangle (квадрат)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Color</span>
+              <input class="field__input" v-model.trim="gameEntityForm.color" placeholder="#4fc3f7" />
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">X</span>
+                <input class="field__input" type="number" v-model.number="gameEntityForm.x" />
+              </label>
+              <label class="field">
+                <span class="field__label">Y</span>
+                <input class="field__input" type="number" v-model.number="gameEntityForm.y" />
+              </label>
+            </div>
+            <div v-if="gameEntityForm.shape === 'circle'">
+              <label class="field">
+                <span class="field__label">Size (radius × 2)</span>
+                <input class="field__input" type="number" v-model.number="gameEntityForm.size" />
+              </label>
+            </div>
+            <div v-else>
+              <div class="grid2">
+                <label class="field">
+                  <span class="field__label">Width</span>
+                  <input class="field__input" type="number" v-model.number="gameEntityForm.width" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Height</span>
+                  <input class="field__input" type="number" v-model.number="gameEntityForm.height" />
+                </label>
+              </div>
+            </div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="gameEntityForm.hasCollision" />
+              <span class="field__label">Has Collision (не работает пока)</span>
+            </label>
+          </div>
+
           <!-- Region Form -->
           <div v-else-if="createModal.type === 'region'" class="form">
             <label class="field">
@@ -882,6 +986,7 @@ import { Region } from '../../../pixi_game2/pixigame/src/Region.js';
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
 import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
 import * as PIXI from 'pixi.js';
+import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
 import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
 import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
 
@@ -892,6 +997,7 @@ const worlds = reactive([]);   // { id, type, width, height, backgroundColor, in
 const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor, antialias, resolution, instance }
 const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, focusX, focusY, zoom, priority, minZoom, maxZoom, anchor, instance }
 const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
+const gameEntities = reactive([]); // { id, subtype, worldId, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
 
@@ -1028,6 +1134,20 @@ const regionForm = reactive({
   borderWidth: 3
 });
 
+const gameEntityForm = reactive({
+  id: '',
+  worldId: '',
+  subtype: 'unit', // unit | build
+  x: 0,
+  y: 0,
+  shape: 'circle', // circle | rect
+  color: '#4fc3f7',
+  size: 30, // для circle
+  width: 40, // для rect
+  height: 40, // для rect
+  hasCollision: false
+});
+
 const controllerForm = reactive({
   id: '',
   type: 'camera', // camera | entity (future)
@@ -1107,6 +1227,18 @@ function openCreate(type) {
     uiButtonForm.canvasId = canvases[0]?.id || '';
     uiButtonForm.cameraId = cameras[0]?.id || '';
     uiButtonForm.worldId = worlds[0]?.id || '';
+  } else if (type === 'game_entity') {
+    gameEntityForm.id = suggestId('unit', gameEntities);
+    gameEntityForm.worldId = worlds[0]?.id || '';
+    gameEntityForm.subtype = 'unit';
+    gameEntityForm.x = 0;
+    gameEntityForm.y = 0;
+    gameEntityForm.shape = 'circle';
+    gameEntityForm.color = '#4fc3f7';
+    gameEntityForm.size = 30;
+    gameEntityForm.width = 40;
+    gameEntityForm.height = 40;
+    gameEntityForm.hasCollision = false;
   } else if (type === 'region') {
     regionForm.id = suggestId('region', regions);
     regionForm.name = `region_${regions.length + 1}`;
@@ -1145,6 +1277,9 @@ async function confirmCreate() {
     closeCreate();
   } else if (createModal.type === 'ui_button') {
     createUIButtonFromForm();
+    closeCreate();
+  } else if (createModal.type === 'game_entity') {
+    createGameEntityFromForm();
     closeCreate();
   } else if (createModal.type === 'region') {
     createRegionFromForm();
@@ -1653,6 +1788,7 @@ const selectedWorld = computed(() => (selected.value?.type === 'world' ? worlds.
 const selectedCanvas = computed(() => (selected.value?.type === 'canvas' ? canvases.find((c) => c.id === selected.value.id) : null));
 const selectedCamera = computed(() => (selected.value?.type === 'camera' ? cameras.find((c) => c.id === selected.value.id) : null));
 const selectedUI = computed(() => (selected.value?.type === 'ui' ? uiEntities.find((u) => u.id === selected.value.id) : null));
+const selectedGameEntity = computed(() => (selected.value?.type === 'game_entity' ? gameEntities.find((e) => e.id === selected.value.id) : null));
 const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
 const selectedController = computed(() => (selected.value?.type === 'controller' ? controllers.find((c) => c.id === selected.value.id) : null));
 
@@ -1750,6 +1886,23 @@ function removeUI(uiId) {
 
   uiEntities.splice(idx, 1);
   if (selected.value?.type === 'ui' && selected.value.id === uiId) selected.value = null;
+}
+
+function removeGameEntity(entityId) {
+  const idx = gameEntities.findIndex((e) => e.id === entityId);
+  if (idx < 0) return;
+
+  const entityModel = gameEntities[idx];
+  // Remove from world
+  if (entityModel.worldId) {
+    const worldModel = worlds.find((w) => w.id === entityModel.worldId);
+    if (worldModel?.instance) {
+      worldModel.instance.removeEntity(entityId);
+    }
+  }
+
+  gameEntities.splice(idx, 1);
+  if (selected.value?.type === 'game_entity' && selected.value.id === entityId) selected.value = null;
 }
 
 function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
@@ -1935,6 +2088,56 @@ function createUIButtonFromForm() {
   };
   uiEntities.push(model);
   select({ type: 'ui', id });
+}
+
+function createGameEntityFromForm() {
+  const id = gameEntityForm.id?.trim() || suggestId('unit', gameEntities);
+  if (gameEntities.some((e) => e.id === id)) return;
+
+  const worldModel = worlds.find((w) => w.id === gameEntityForm.worldId);
+  if (!worldModel) return;
+
+  // Convert hex color to number for PIXI
+  const colorHex = gameEntityForm.color?.trim() || '#4fc3f7';
+  const colorNum = parseInt(colorHex.replace('#', ''), 16);
+
+  // Create GameEntity instance
+  const instance = markRaw(new GameEntity({
+    id,
+    worldId: gameEntityForm.worldId,
+    subtype: gameEntityForm.subtype || 'unit',
+    position: { x: Number(gameEntityForm.x) || 0, y: Number(gameEntityForm.y) || 0 },
+    rotation: 0,
+    scale: { x: 1, y: 1 },
+    appearance: {
+      shape: gameEntityForm.shape || 'circle',
+      color: colorNum,
+      size: Number(gameEntityForm.size) || 30,
+      width: Number(gameEntityForm.width) || 40,
+      height: Number(gameEntityForm.height) || 40
+    },
+    hasCollision: !!gameEntityForm.hasCollision
+  }));
+
+  // Add entity to world using ECS format (plain object with components)
+  const entityId = worldModel.instance.createEntity({
+    _entityRef: instance, // Ссылка на GameEntity для инспекции
+    position: instance.position,
+    appearance: instance.appearance,
+    subtype: instance.subtype,
+    hasCollision: instance.hasCollision
+  });
+
+  const model = {
+    id,
+    entityId, // ID в world.entities Map
+    subtype: instance.subtype,
+    worldId: gameEntityForm.worldId,
+    appearance: instance.appearance,
+    instance
+  };
+  gameEntities.push(model);
+  select({ type: 'game_entity', id });
 }
 
 function createRegionFromForm() {
