@@ -1,10 +1,12 @@
 /**
  * 🌍 World - ECS-compatible world container
- * 
+ *
  * Supports 2 world types:
  * - bounded: Limited size (width x height)
  * - infinite: Unlimited size
  */
+
+import { RegionSystem } from './RegionSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -33,6 +35,9 @@ export class World {
     this.showBounds = options.showBounds !== undefined ? options.showBounds : false;
     // Цвет границ мира
     this.boundsColor = options.boundsColor || '#FF4444';
+
+    // 🗺️ Система регионов
+    this.regionSystem = new RegionSystem(this);
 
     this.entities = new Map();
     this._entityCounter = 1;

@@ -157,6 +157,9 @@ export class Canvas {
         this._renderWorldBackground(camera);
       }
 
+      // 🗺️ Рендерим регионы (поверх фона мира, перед сущностями)
+      this._renderRegions(camera);
+
       if (camera.cameraBackgroundColor) {
         this._renderCameraBackground(camera);
       }
@@ -258,6 +261,95 @@ export class Canvas {
     });
 
     camera.worldBoundsLayer.addChild(boundsGraphics);
+  }
+
+  _renderRegions(camera) {
+    if (!camera.worldBackgroundLayer || !camera.world) return;
+
+    const regionSystem = camera.world.regionSystem;
+    if (!regionSystem || regionSystem.regions.size === 0) return;
+
+    // Рендерим регионы по приоритету
+    const sortedRegions = Array.from(regionSystem.regions.values())
+      .sort((a, b) => b.bounds.priority - a.bounds.priority);
+
+    for (const region of sortedRegions) {
+      const regionType = region.regionType;
+      const bounds = region.bounds;
+
+      // 🎨 Рендерим текстуру региона если есть
+      if (regionType.groundTexture?.textureUrl) {
+        this._renderRegionTexture(camera, regionType, bounds);
+      }
+
+      // 🔲 Рендерим границы региона если включены
+      if (regionType.borders?.enabled) {
+        this._renderRegionBorders(camera, regionType, bounds);
+      }
+    }
+  }
+
+  _renderRegionTexture(camera, regionType, bounds) {
+    const textureUrl = regionType.groundTexture.textureUrl;
+    const scaleMode = regionType.groundTexture.scaleMode || 'tile';
+    const tint = regionType.groundTexture.tint;
+
+    if (scaleMode === 'tile') {
+      const texture = PIXI.Texture.from(textureUrl);
+      const tilingSprite = new PIXI.TilingSprite({
+        texture,
+        width: bounds.width,
+        height: bounds.height
+      });
+
+      if (tint) {
+        try { tilingSprite.tint = tint; } catch (_) {}
+      }
+
+      tilingSprite.x = bounds.x;
+      tilingSprite.y = bounds.y;
+
+      camera.worldBackgroundLayer.addChild(tilingSprite);
+    } else if (scaleMode === 'stretch') {
+      const sprite = PIXI.Sprite.from(textureUrl);
+
+      if (tint) {
+        try { sprite.tint = tint; } catch (_) {}
+      }
+
+      sprite.x = bounds.x;
+      sprite.y = bounds.y;
+      sprite.width = bounds.width;
+      sprite.height = bounds.height;
+
+      camera.worldBackgroundLayer.addChild(sprite);
+    } else if (scaleMode === 'center') {
+      const sprite = PIXI.Sprite.from(textureUrl);
+
+      if (tint) {
+        try { sprite.tint = tint; } catch (_) {}
+      }
+
+      const texWidth = sprite.texture.width;
+      const texHeight = sprite.texture.height;
+
+      sprite.x = bounds.x + (bounds.width - texWidth) / 2;
+      sprite.y = bounds.y + (bounds.height - texHeight) / 2;
+
+      camera.worldBackgroundLayer.addChild(sprite);
+    }
+  }
+
+  _renderRegionBorders(camera, regionType, bounds) {
+    const borders = regionType.borders;
+    const borderGraphics = new PIXI.Graphics();
+    borderGraphics.rect(bounds.x, bounds.y, bounds.width, bounds.height).stroke({
+      color: borders.color || '#00FFFF',
+      width: borders.width || 3,
+      alpha: borders.alpha || 1.0
+    });
+
+    camera.worldBackgroundLayer.addChild(borderGraphics);
   }
 
   _renderWorldTexture(camera, world, bgTexture, bounds) {

@@ -11,6 +11,8 @@
           <div class="toolbar__divider" />
           <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">➕ UI Text</button>
           <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">➕ UI Button</button>
+          <div class="toolbar__divider" />
+          <button class="btn btn--primary" :disabled="worlds.length === 0" @click="openCreate('region')">➕ Region</button>
         </div>
       </div>
       <div class="toolbar__right">
@@ -93,6 +95,23 @@
             <span class="tree__name">{{ u.id }}</span>
             <span class="tree__meta">{{ u.subtype }} • {{ u.bindingLabel }}</span>
             <button class="tree__delete" title="Delete" @click.stop="removeUI(u.id)">×</button>
+          </div>
+
+          <div class="tree__section">
+            <div class="tree__title">Regions</div>
+            <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('region')">+ Add</button>
+          </div>
+          <div v-if="regions.length === 0" class="tree__empty">No regions</div>
+          <div
+            v-for="r in regions"
+            :key="r.id"
+            class="tree__item"
+            :class="{ 'is-selected': selected?.type === 'region' && selected?.id === r.id }"
+            @click="select({ type: 'region', id: r.id })"
+          >
+            <span class="tree__name">{{ r.displayName }}</span>
+            <span class="tree__meta">{{ r.bounds.width }}×{{ r.bounds.height }}</span>
+            <button class="tree__delete" title="Delete" @click.stop="removeRegion(r.id)">×</button>
           </div>
         </div>
       </aside>
@@ -205,6 +224,22 @@
           <div v-else-if="selectedUI.subtype === 'button'" class="kv">
             <div class="kv__row"><div class="kv__k">Label</div><div class="kv__v">{{ selectedUI.instance.text.content }}</div></div>
             <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedUI.instance.button.width }}×{{ selectedUI.instance.button.height }}</div></div>
+          </div>
+        </div>
+
+        <!-- Region Inspector -->
+        <div v-else-if="selected.type === 'region' && selectedRegion" class="inspector__content">
+          <div class="inspector__title">Region: {{ selectedRegion.displayName }}</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">ID</div><div class="kv__v">{{ selectedRegion.id }}</div></div>
+            <div class="kv__row"><div class="kv__k">World</div><div class="kv__v">{{ selectedRegion.worldId }}</div></div>
+            <div class="kv__row"><div class="kv__k">Position</div><div class="kv__v">{{ selectedRegion.bounds.x }}, {{ selectedRegion.bounds.y }}</div></div>
+            <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedRegion.bounds.width }}×{{ selectedRegion.bounds.height }}</div></div>
+            <div class="kv__row"><div class="kv__k">Priority</div><div class="kv__v">{{ selectedRegion.bounds.priority }}</div></div>
+            <div class="kv__row" v-if="selectedRegion.regionType.groundTexture.textureUrl"><div class="kv__k">Texture</div><div class="kv__v">{{ selectedRegion.regionType.groundTexture.textureUrl }}</div></div>
+            <div class="kv__row" v-if="selectedRegion.regionType.groundTexture.textureUrl"><div class="kv__k">Scale Mode</div><div class="kv__v">{{ selectedRegion.regionType.groundTexture.scaleMode }}</div></div>
+            <div class="kv__row"><div class="kv__k">Show Borders</div><div class="kv__v">{{ selectedRegion.regionType.borders.enabled ? 'enabled' : 'disabled' }}</div></div>
+            <div class="kv__row" v-if="selectedRegion.regionType.borders.enabled"><div class="kv__k">Border Color</div><div class="kv__v">{{ selectedRegion.regionType.borders.color }}</div></div>
           </div>
         </div>
       </aside>
@@ -573,6 +608,86 @@
               </select>
             </label>
           </div>
+
+          <!-- Region Form -->
+          <div v-else-if="createModal.type === 'region'" class="form">
+            <label class="field">
+              <span class="field__label">ID</span>
+              <input class="field__input" v-model.trim="regionForm.id" placeholder="region_1" />
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Name</span>
+                <input class="field__input" v-model.trim="regionForm.name" placeholder="region_1" />
+              </label>
+              <label class="field">
+                <span class="field__label">Display Name</span>
+                <input class="field__input" v-model.trim="regionForm.displayName" placeholder="Region 1" />
+              </label>
+            </div>
+            <label class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="regionForm.worldId">
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">X</span>
+                <input class="field__input" type="number" v-model.number="regionForm.x" />
+              </label>
+              <label class="field">
+                <span class="field__label">Y</span>
+                <input class="field__input" type="number" v-model.number="regionForm.y" />
+              </label>
+            </div>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Width</span>
+                <input class="field__input" type="number" v-model.number="regionForm.width" />
+              </label>
+              <label class="field">
+                <span class="field__label">Height</span>
+                <input class="field__input" type="number" v-model.number="regionForm.height" />
+              </label>
+            </div>
+            <label class="field">
+              <span class="field__label">Priority (higher = on top)</span>
+              <input class="field__input" type="number" v-model.number="regionForm.priority" />
+            </label>
+            <label class="field">
+              <span class="field__label">Texture URL (optional)</span>
+              <input class="field__input" v-model.trim="regionForm.textureUrl" placeholder="/assets/grass.png" />
+            </label>
+            <div class="grid2" v-if="regionForm.textureUrl">
+              <label class="field">
+                <span class="field__label">Scale Mode</span>
+                <select class="field__input" v-model="regionForm.textureScaleMode">
+                  <option value="tile">tile (замостить)</option>
+                  <option value="stretch">stretch (растянуть)</option>
+                  <option value="center">center (центрировать)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field__label">Tint (optional)</span>
+                <input class="field__input" v-model.trim="regionForm.tint" placeholder="#ffffff" />
+              </label>
+            </div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="regionForm.showBorders" />
+              <span class="field__label">Show region borders</span>
+            </label>
+            <div class="grid2" v-if="regionForm.showBorders">
+              <label class="field">
+                <span class="field__label">Border Color</span>
+                <input class="field__input" v-model.trim="regionForm.borderColor" placeholder="#00FFFF" />
+              </label>
+              <label class="field">
+                <span class="field__label">Border Width</span>
+                <input class="field__input" type="number" v-model.number="regionForm.borderWidth" />
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="modal__footer">
@@ -587,6 +702,7 @@
 <script setup>
 import { computed, markRaw, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { World } from '../../../pixi_game2/pixigame/src/World.js';
+import { Region } from '../../../pixi_game2/pixigame/src/Region.js';
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
 import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
 import * as PIXI from 'pixi.js';
@@ -599,8 +715,9 @@ const worlds = reactive([]);   // { id, type, width, height, backgroundColor, in
 const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor, antialias, resolution, instance }
 const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, focusX, focusY, zoom, priority, minZoom, maxZoom, anchor, instance }
 const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
+const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 
-const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui', id }
+const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', id }
 
 const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0 });
 
@@ -693,6 +810,24 @@ const uiButtonForm = reactive({
   scaleMode: 'stretch'
 });
 
+const regionForm = reactive({
+  id: '',
+  name: '',
+  displayName: '',
+  worldId: '',
+  x: 100,
+  y: 100,
+  width: 300,
+  height: 300,
+  priority: 1,
+  textureUrl: '',
+  textureScaleMode: 'tile',
+  tint: '',
+  showBorders: false,
+  borderColor: '#00FFFF',
+  borderWidth: 3
+});
+
 function openCreate(type) {
   createModal.open = true;
   createModal.type = type;
@@ -719,6 +854,11 @@ function openCreate(type) {
     uiButtonForm.canvasId = canvases[0]?.id || '';
     uiButtonForm.cameraId = cameras[0]?.id || '';
     uiButtonForm.worldId = worlds[0]?.id || '';
+  } else if (type === 'region') {
+    regionForm.id = suggestId('region', regions);
+    regionForm.name = `region_${regions.length + 1}`;
+    regionForm.displayName = `Region ${regions.length + 1}`;
+    regionForm.worldId = worlds[0]?.id || '';
   }
 }
 
@@ -742,6 +882,9 @@ async function confirmCreate() {
     closeCreate();
   } else if (createModal.type === 'ui_button') {
     createUIButtonFromForm();
+    closeCreate();
+  } else if (createModal.type === 'region') {
+    createRegionFromForm();
     closeCreate();
   }
 }
@@ -959,10 +1102,12 @@ function removeSelected() {
   else if (type === 'canvas') removeCanvas(id);
   else if (type === 'camera') removeCamera(id);
   else if (type === 'ui') removeUI(id);
+  else if (type === 'region') removeRegion(id);
 }
 
 function resetAll() {
-  // remove everything in safe order: cameras -> canvases -> worlds
+  // remove everything in safe order: regions -> ui -> cameras -> canvases -> worlds
+  for (const r of [...regions]) removeRegion(r.id);
   for (const u of [...uiEntities]) removeUI(u.id);
   for (const cam of [...cameras]) removeCamera(cam.id);
   for (const c of [...canvases]) removeCanvas(c.id);
@@ -982,6 +1127,7 @@ const selectedWorld = computed(() => (selected.value?.type === 'world' ? worlds.
 const selectedCanvas = computed(() => (selected.value?.type === 'canvas' ? canvases.find((c) => c.id === selected.value.id) : null));
 const selectedCamera = computed(() => (selected.value?.type === 'camera' ? cameras.find((c) => c.id === selected.value.id) : null));
 const selectedUI = computed(() => (selected.value?.type === 'ui' ? uiEntities.find((u) => u.id === selected.value.id) : null));
+const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
 
 function syncCameraUiFromSelected() {
   if (!selectedCamera.value) return;
@@ -1288,6 +1434,74 @@ function createUIButtonFromForm() {
   };
   uiEntities.push(model);
   select({ type: 'ui', id });
+}
+
+function createRegionFromForm() {
+  const id = regionForm.id?.trim() || suggestId('region', regions);
+  if (regions.some((r) => r.id === id)) return;
+
+  const worldModel = worlds.find((w) => w.id === regionForm.worldId);
+  if (!worldModel) return;
+
+  // Создаём тип региона
+  const regionType = markRaw(new Region({
+    id: `region_type_${id}`,
+    name: regionForm.name || id,
+    displayName: regionForm.displayName || regionForm.name || id,
+    groundTexture: {
+      textureUrl: regionForm.textureUrl?.trim() || null,
+      scaleMode: regionForm.textureScaleMode || 'tile',
+      tint: regionForm.tint?.trim() || null
+    },
+    borders: {
+      enabled: !!regionForm.showBorders,
+      color: regionForm.borderColor || '#00FFFF',
+      width: Number(regionForm.borderWidth) || 3,
+      alpha: 1.0
+    }
+  }));
+
+  // Добавляем регион в мир
+  const regionInstanceId = worldModel.instance.regionSystem.addRegion(regionType, {
+    x: Number(regionForm.x) || 0,
+    y: Number(regionForm.y) || 0,
+    width: Number(regionForm.width) || 300,
+    height: Number(regionForm.height) || 300,
+    priority: Number(regionForm.priority) || 1
+  });
+
+  const model = {
+    id,
+    worldId: worldModel.id,
+    displayName: regionType.displayName,
+    bounds: {
+      x: Number(regionForm.x) || 0,
+      y: Number(regionForm.y) || 0,
+      width: Number(regionForm.width) || 300,
+      height: Number(regionForm.height) || 300,
+      priority: Number(regionForm.priority) || 1
+    },
+    regionType,
+    regionInstanceId
+  };
+
+  regions.push(model);
+  select({ type: 'region', id });
+}
+
+function removeRegion(regionId) {
+  const regionModel = regions.find((r) => r.id === regionId);
+  if (!regionModel) return;
+
+  const worldModel = worlds.find((w) => w.id === regionModel.worldId);
+  if (worldModel) {
+    worldModel.instance.regionSystem.removeRegion(regionModel.regionInstanceId);
+  }
+
+  const idx = regions.findIndex((r) => r.id === regionId);
+  if (idx >= 0) regions.splice(idx, 1);
+
+  if (selected.value?.type === 'region' && selected.value.id === regionId) selected.value = null;
 }
 
 // ---------------------------
