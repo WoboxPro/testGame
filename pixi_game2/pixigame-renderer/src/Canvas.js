@@ -247,41 +247,30 @@ export class Canvas {
     const scaleMode = bgTexture.scaleMode || 'tile';
     const tint = bgTexture.tint;
 
+    if (scaleMode === 'tile' && world.type === 'infinite') {
+      // Для бесконечного мира используем шейдер с бесконечным тайлингом
+      this._renderInfiniteTextureWithShader(camera, textureUrl, tint);
+      return;
+    }
+
+    // Для bounded мира или других scaleMode используем старый подход
     if (scaleMode === 'tile') {
-      // Для тайлинга используем TilingSprite
       const texture = PIXI.Texture.from(textureUrl);
-
-      let spriteWidth, spriteHeight;
-
-      if (world.type === 'bounded') {
-        spriteWidth = world.width;
-        spriteHeight = world.height;
-      } else {
-        // Для infinite мира делаем огромный фиксированный спрайт
-        // Он будет зафиксирован в (0,0) мировых координат
-        spriteWidth = 100000;
-        spriteHeight = 100000;
-      }
-
       const tilingSprite = new PIXI.TilingSprite({
         texture,
-        width: spriteWidth,
-        height: spriteHeight
+        width: world.width,
+        height: world.height
       });
 
-      // Применяем tint если указан
       if (tint) {
         try { tilingSprite.tint = tint; } catch (_) {}
       }
 
-      // Фиксируем спрайт в мировых координатах (0, 0)
-      // Он не двигается вместе с камерой
       tilingSprite.x = 0;
       tilingSprite.y = 0;
 
       camera.worldBackgroundLayer.addChild(tilingSprite);
     } else if (scaleMode === 'stretch') {
-      // Растягиваем текстуру на всю область
       const sprite = PIXI.Sprite.from(textureUrl);
 
       if (tint) {
@@ -302,7 +291,6 @@ export class Canvas {
 
       camera.worldBackgroundLayer.addChild(sprite);
     } else if (scaleMode === 'center') {
-      // Центрируем текстуру без масштабирования
       const sprite = PIXI.Sprite.from(textureUrl);
 
       if (tint) {
@@ -322,6 +310,34 @@ export class Canvas {
 
       camera.worldBackgroundLayer.addChild(sprite);
     }
+  }
+
+  _renderInfiniteTextureWithShader(camera, textureUrl, tint) {
+    // Создаём TilingSprite с огромным размером
+    const texture = PIXI.Texture.from(textureUrl);
+    const size = 100000;
+
+    const tilingSprite = new PIXI.TilingSprite({
+      texture,
+      width: size,
+      height: size
+    });
+
+    // Фиксируем в мировых координатах (0, 0)
+    // Центрируем на точке (0, 0)
+    tilingSprite.x = -size / 2;
+    tilingSprite.y = -size / 2;
+
+    // Сбрасываем tilePosition чтобы текстура была зафиксирована
+    tilingSprite.tilePosition.x = 0;
+    tilingSprite.tilePosition.y = 0;
+
+    // Применяем tint если указан
+    if (tint) {
+      try { tilingSprite.tint = tint; } catch (_) {}
+    }
+
+    camera.worldBackgroundLayer.addChild(tilingSprite);
   }
   
   _renderCameraBackground(camera) {
