@@ -29,6 +29,11 @@ export class World {
       tint: options.backgroundTexture?.tint || null
     };
 
+    // Показывать ли визуальные границы bounded мира
+    this.showBounds = options.showBounds !== undefined ? options.showBounds : false;
+    // Цвет границ мира
+    this.boundsColor = options.boundsColor || '#FF4444';
+
     this.entities = new Map();
     this._entityCounter = 1;
 

@@ -37,6 +37,7 @@ export class Camera {
     this.worldLayer = null;
     this.worldBackgroundLayer = null;
     this.entitiesContainer = null;
+    this.worldBoundsLayer = null;
     this.cameraBackgroundLayer = null;
     
     if (this.canvas) {
@@ -85,7 +86,12 @@ export class Camera {
     this.entitiesContainer = new PIXI.Container();
     this.entitiesContainer.zIndex = 2;
     this.worldLayer.addChild(this.entitiesContainer);
-    
+
+    // 🌍 Границы мира — поверх сущностей (масштабируются вместе с миром)
+    this.worldBoundsLayer = new PIXI.Container();
+    this.worldBoundsLayer.zIndex = 3;
+    this.worldLayer.addChild(this.worldBoundsLayer);
+
     // 🎨 Фон/оверлей камеры — поверх мира (не должен масштабироваться вместе с миром)
     this.cameraBackgroundLayer = new PIXI.Container();
     this.cameraBackgroundLayer.zIndex = 3;
@@ -272,6 +278,10 @@ export class Camera {
     if (this.entitiesContainer) {
       this.entitiesContainer.destroy({ children: true });
       this.entitiesContainer = null;
+    }
+    if (this.worldBoundsLayer) {
+      this.worldBoundsLayer.destroy({ children: true });
+      this.worldBoundsLayer = null;
     }
     if (this.cameraBackgroundLayer) {
       this.cameraBackgroundLayer.destroy({ children: true });

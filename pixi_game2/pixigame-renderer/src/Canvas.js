@@ -166,6 +166,9 @@ export class Canvas {
         camera.world,
         camera.entitiesContainer
       );
+
+      // Рендерим границы мира после сущностей (поверх всего)
+      this._renderWorldBounds(camera);
     }
 
     this._updateCameraBorders();
@@ -240,6 +243,21 @@ export class Canvas {
     if (bgTexture?.textureUrl) {
       this._renderWorldTexture(camera, world, bgTexture, bounds);
     }
+  }
+
+  _renderWorldBounds(camera) {
+    if (!camera.worldBoundsLayer || !camera.world) return;
+    if (!camera.world.showBounds || camera.world.type !== 'bounded') return;
+
+    camera.worldBoundsLayer.removeChildren();
+
+    const boundsGraphics = new PIXI.Graphics();
+    boundsGraphics.rect(0, 0, camera.world.width, camera.world.height).stroke({
+      color: camera.world.boundsColor || '#FF4444',
+      width: 3
+    });
+
+    camera.worldBoundsLayer.addChild(boundsGraphics);
   }
 
   _renderWorldTexture(camera, world, bgTexture, bounds) {

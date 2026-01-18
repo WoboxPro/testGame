@@ -133,6 +133,8 @@
           <div class="kv">
             <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedWorld.type }}</div></div>
             <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedWorld.width }}×{{ selectedWorld.height }}</div></div>
+            <div class="kv__row"><div class="kv__k">Show Bounds</div><div class="kv__v">{{ selectedWorld.instance.showBounds ? 'enabled' : 'disabled' }}</div></div>
+            <div class="kv__row" v-if="selectedWorld.instance.showBounds"><div class="kv__k">Bounds Color</div><div class="kv__v">{{ selectedWorld.instance.boundsColor }}</div></div>
             <div class="kv__row"><div class="kv__k">Background</div><div class="kv__v">{{ selectedWorld.backgroundColor }}</div></div>
             <div class="kv__row" v-if="selectedWorld.instance.backgroundTexture?.textureUrl"><div class="kv__k">Texture</div><div class="kv__v">{{ selectedWorld.instance.backgroundTexture.textureUrl }}</div></div>
             <div class="kv__row" v-if="selectedWorld.instance.backgroundTexture?.textureUrl"><div class="kv__k">Scale Mode</div><div class="kv__v">{{ selectedWorld.instance.backgroundTexture.scaleMode }}</div></div>
@@ -262,6 +264,14 @@
                 <input class="field__input" v-model.trim="worldForm.tint" placeholder="#ffffff" />
               </label>
             </div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="worldForm.showBounds" />
+              <span class="field__label">Show world bounds</span>
+            </label>
+            <label class="field" v-if="worldForm.showBounds">
+              <span class="field__label">Bounds Color</span>
+              <input class="field__input" v-model.trim="worldForm.boundsColor" placeholder="#FF4444" />
+            </label>
             <label class="field field--row">
               <input type="checkbox" v-model="worldForm.spawnDemo" />
               <span class="field__label">Spawn demo entities (10)</span>
@@ -615,6 +625,8 @@ const worldForm = reactive({
   textureUrl: '',
   textureScaleMode: 'tile',
   tint: '',
+  showBounds: false,
+  boundsColor: '#FF4444',
   spawnDemo: true
 });
 
@@ -763,7 +775,9 @@ function createWorldFromForm() {
     width: Number(worldForm.width) || 1000,
     height: Number(worldForm.height) || 1000,
     backgroundColor: worldForm.backgroundColor || '#000000',
-    backgroundTexture: Object.keys(backgroundTexture).length > 0 ? backgroundTexture : undefined
+    backgroundTexture: Object.keys(backgroundTexture).length > 0 ? backgroundTexture : undefined,
+    showBounds: !!worldForm.showBounds,
+    boundsColor: worldForm.boundsColor || '#FF4444'
   }));
 
   const model = {
