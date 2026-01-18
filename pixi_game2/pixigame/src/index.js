@@ -1,0 +1,13 @@
+/**
+ * 🎮 PixiGame - Game Engine with PIXI.js
+ */
+
+export { World } from './World.js';
+export { Region } from './Region.js';
+export { RegionSystem } from './RegionSystem.js';
+export { Controller } from './Controller.js';
+export { CameraController } from './CameraController.js';
+
+// Entities
+export { UITextEntity } from './entities/UIEntities.js';
+export { UIButtonEntity } from './entities/UIEntities.js';

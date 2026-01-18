@@ -131,6 +131,26 @@
             <span class="tree__meta">{{ r.bounds.width }}×{{ r.bounds.height }}</span>
             <button class="tree__delete" title="Delete" @click.stop="removeRegion(r.id)">×</button>
           </div>
+
+          <div class="tree__section">
+            <div class="tree__title">Controllers</div>
+            <div class="tree__actions">
+              <button class="tree__add" :disabled="cameras.length === 0" @click="openCreate('controller')">+ Add</button>
+              <button class="tree__json" @click="openJsonModal('controller')" title="Export JSON">{ }</button>
+            </div>
+          </div>
+          <div v-if="controllers.length === 0" class="tree__empty">No controllers</div>
+          <div
+            v-for="c in controllers"
+            :key="c.id"
+            class="tree__item"
+            :class="{ 'is-selected': selected?.type === 'controller' && selected?.id === c.id }"
+            @click="select({ type: 'controller', id: c.id })"
+          >
+            <span class="tree__name">{{ c.id }}</span>
+            <span class="tree__meta">{{ c.type }} → {{ c.targetId || 'none' }}</span>
+            <button class="tree__delete" title="Delete" @click.stop="removeController(c.id)">×</button>
+          </div>
         </div>
       </aside>
 
@@ -473,6 +493,11 @@
                 <input class="field__input" type="number" step="0.1" v-model.number="cameraForm.maxZoom" />
               </label>
             </div>
+
+            <label class="field field--row">
+              <input type="checkbox" v-model="cameraForm.createDefaultController" />
+              <span class="field__label">Create default controller (5213 movement, Numpad +/- zoom, Tab to switch)</span>
+            </label>
           </div>
 
           <!-- UI Text Form -->
@@ -708,6 +733,52 @@
               </label>
             </div>
           </div>
+
+          <!-- Controller Form -->
+          <div v-else-if="createModal.type === 'controller'" class="form">
+            <label class="field">
+              <span class="field__label">ID</span>
+              <input class="field__input" v-model.trim="controllerForm.id" placeholder="controller_1" />
+            </label>
+            <label class="field">
+              <span class="field__label">Type</span>
+              <select class="field__input" v-model="controllerForm.type" disabled>
+                <option value="camera">Camera</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Camera</span>
+              <select class="field__input" v-model="controllerForm.cameraId">
+                <option v-for="c in cameras" :key="c.id" :value="c.id">{{ c.id }}</option>
+              </select>
+            </label>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Move Speed</span>
+                <input class="field__input" type="number" v-model.number="controllerForm.moveSpeed" />
+              </label>
+              <label class="field">
+                <span class="field__label">Zoom Speed</span>
+                <input class="field__input" type="number" v-model.number="controllerForm.zoomSpeed" />
+              </label>
+            </div>
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">Min Zoom</span>
+                <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.minZoom" />
+              </label>
+              <label class="field">
+                <span class="field__label">Max Zoom</span>
+                <input class="field__input" type="number" step="0.1" v-model.number="controllerForm.maxZoom" />
+              </label>
+            </div>
+            <div class="info-box">
+              <strong>🎮 Default controls:</strong><br>
+              Movement: 5213 (Numpad)<br>
+              Zoom: Numpad +/–<br>
+              Switch camera: Tab or Numpad 0
+            </div>
+          </div>
         </div>
 
         <div class="modal__footer">
@@ -768,6 +839,7 @@ import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.
 import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
 import * as PIXI from 'pixi.js';
 import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
+import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
 
 // ---------------------------
 // State
@@ -777,6 +849,7 @@ const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor
 const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, focusX, focusY, zoom, priority, minZoom, maxZoom, anchor, instance }
 const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
+const controllers = reactive([]); // { id, type, targetId, instance }
 
 const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', id }
 
@@ -857,7 +930,8 @@ const cameraForm = reactive({
   priority: 0,
   minZoom: 0.1,
   maxZoom: 5.0,
-  worldBackgroundColor: '#2a2a2a'
+  worldBackgroundColor: '#2a2a2a',
+  createDefaultController: false
 });
 
 const uiTextForm = reactive({
@@ -911,6 +985,16 @@ const regionForm = reactive({
   borderWidth: 3
 });
 
+const controllerForm = reactive({
+  id: '',
+  type: 'camera', // camera | entity (future)
+  cameraId: '', // For camera controllers
+  moveSpeed: 500,
+  zoomSpeed: 2,
+  minZoom: 0.1,
+  maxZoom: 5.0
+});
+
 function openCreate(type) {
   createModal.open = true;
   createModal.type = type;
@@ -942,6 +1026,10 @@ function openCreate(type) {
     regionForm.name = `region_${regions.length + 1}`;
     regionForm.displayName = `Region ${regions.length + 1}`;
     regionForm.worldId = worlds[0]?.id || '';
+  } else if (type === 'controller') {
+    controllerForm.id = suggestId('controller', controllers);
+    controllerForm.type = 'camera';
+    controllerForm.cameraId = cameras[0]?.id || '';
   }
 }
 
@@ -968,6 +1056,9 @@ async function confirmCreate() {
     closeCreate();
   } else if (createModal.type === 'region') {
     createRegionFromForm();
+    closeCreate();
+  } else if (createModal.type === 'controller') {
+    createControllerFromForm();
     closeCreate();
   }
 }
@@ -1034,6 +1125,14 @@ function openJsonModal(type) {
         id: r.id,
         name: r.displayName,
         json: JSON.stringify(getRegionJsonConfig(r), null, 2)
+      }));
+      break;
+    case 'controller':
+      jsonModal.title = 'Controllers';
+      jsonModal.items = controllers.map(c => ({
+        id: c.id,
+        name: c.id,
+        json: JSON.stringify(getControllerJsonConfig(c), null, 2)
       }));
       break;
   }
@@ -1168,6 +1267,21 @@ function getRegionJsonConfig(regionModel) {
   };
 }
 
+function getControllerJsonConfig(controllerModel) {
+  const c = controllerModel.instance;
+  const info = c.getInfo();
+  return {
+    id: controllerModel.id,
+    type: controllerModel.type,
+    targetId: controllerModel.targetId,
+    moveSpeed: info.moveSpeed,
+    zoomSpeed: info.zoomSpeed,
+    minZoom: info.minZoom,
+    maxZoom: info.maxZoom,
+    bindings: info.bindings
+  };
+}
+
 function getAllProjectJson() {
   return {
     version: '1.0',
@@ -1177,12 +1291,14 @@ function getAllProjectJson() {
     cameras: cameras.map(c => getCameraJsonConfig(c)),
     uiEntities: uiEntities.map(u => getUIJsonConfig(u)),
     regions: regions.map(r => getRegionJsonConfig(r)),
+    controllers: controllers.map(c => getControllerJsonConfig(c)),
     summary: {
       worldCount: worlds.length,
       canvasCount: canvases.length,
       cameraCount: cameras.length,
       uiEntityCount: uiEntities.length,
-      regionCount: regions.length
+      regionCount: regions.length,
+      controllerCount: controllers.length
     }
   };
 }
@@ -1331,6 +1447,23 @@ function createCameraFromForm() {
 
   // ensure camera UI/world UI layers
   ensureCameraUILayers(model);
+
+  // Create default controller if checkbox is enabled
+  if (cameraForm.createDefaultController) {
+    createDefaultCameraController(model);
+  }
+
+  // Update all controllers with the new camera list
+  updateAllControllersCameraList();
+}
+
+function updateAllControllersCameraList() {
+  const allCameraInstances = cameras.map(c => c.instance);
+  for (const controller of controllers) {
+    if (controller.instance.setAllCameras) {
+      controller.instance.setAllCameras(allCameraInstances);
+    }
+  }
 }
 
 function removeWorld(worldId) {
@@ -1419,6 +1552,7 @@ const selectedCanvas = computed(() => (selected.value?.type === 'canvas' ? canva
 const selectedCamera = computed(() => (selected.value?.type === 'camera' ? cameras.find((c) => c.id === selected.value.id) : null));
 const selectedUI = computed(() => (selected.value?.type === 'ui' ? uiEntities.find((u) => u.id === selected.value.id) : null));
 const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
+const selectedController = computed(() => (selected.value?.type === 'controller' ? controllers.find((c) => c.id === selected.value.id) : null));
 
 function syncCameraUiFromSelected() {
   if (!selectedCamera.value) return;
@@ -1780,6 +1914,88 @@ function createRegionFromForm() {
   select({ type: 'region', id });
 }
 
+// ---------------------------
+// Controllers
+// ---------------------------
+
+function createDefaultCameraController(cameraModel) {
+  const controllerId = suggestId('controller', controllers);
+
+  const instance = markRaw(new CameraController({
+    id: controllerId,
+    target: cameraModel.instance,
+    targetId: cameraModel.id,
+    moveSpeed: 500,
+    zoomSpeed: 2,
+    minZoom: cameraModel.instance.minZoom,
+    maxZoom: cameraModel.instance.maxZoom
+  }));
+
+  // Передаём все камеры для переключения
+  instance.setAllCameras(cameras.map(c => c.instance));
+
+  const model = {
+    id: controllerId,
+    type: 'camera',
+    targetId: cameraModel.id,
+    instance
+  };
+
+  controllers.push(model);
+
+  console.log(`🎮 Создан стандартный контроллер для камеры ${cameraModel.id}`);
+}
+
+function createControllerFromForm() {
+  const id = controllerForm.id?.trim() || suggestId('controller', controllers);
+  if (controllers.some((c) => c.id === id)) return;
+
+  if (controllerForm.type === 'camera') {
+    const cameraModel = cameras.find((c) => c.id === controllerForm.cameraId);
+    if (!cameraModel) {
+      console.warn('⚠️ Camera not found for controller');
+      return;
+    }
+
+    const instance = markRaw(new CameraController({
+      id,
+      target: cameraModel.instance,
+      targetId: cameraModel.id,
+      moveSpeed: Number(controllerForm.moveSpeed) || 500,
+      zoomSpeed: Number(controllerForm.zoomSpeed) || 2,
+      minZoom: Number(controllerForm.minZoom) || 0.1,
+      maxZoom: Number(controllerForm.maxZoom) || 5.0
+    }));
+
+    // Передаём все камеры для переключения
+    instance.setAllCameras(cameras.map(c => c.instance));
+
+    const model = {
+      id,
+      type: 'camera',
+      targetId: cameraModel.id,
+      instance
+    };
+
+    controllers.push(model);
+    select({ type: 'controller', id });
+  }
+}
+
+function removeController(controllerId) {
+  const idx = controllers.findIndex((c) => c.id === controllerId);
+  if (idx >= 0) {
+    const controller = controllers[idx];
+    controller.instance.destroy();
+    controllers.splice(idx, 1);
+  }
+
+  // Reset selection if this controller was selected
+  if (selected.value?.id === controllerId) {
+    selected.value = null;
+  }
+}
+
 function removeRegion(regionId) {
   const regionModel = regions.find((r) => r.id === regionId);
   if (!regionModel) return;
@@ -1796,18 +2012,31 @@ function removeRegion(regionId) {
 }
 
 // ---------------------------
-// Input handling for selected camera
+// Input handling for controllers
 // ---------------------------
-const keys = new Set();
+let lastTime = performance.now();
 
 function onKeyDown(e) {
-  keys.add(e.code);
+  // Pass key events to all controllers
+  for (const controller of controllers) {
+    controller.instance.handleKeyDown?.(e.code);
+  }
 }
+
 function onKeyUp(e) {
-  keys.delete(e.code);
+  // Pass key events to all controllers
+  for (const controller of controllers) {
+    controller.instance.handleKeyUp?.(e.code);
+  }
 }
+
 function onWheel(e) {
   if (!selectedCamera.value) return;
+
+  // Only work if there's an active controller for this camera
+  const controller = controllers.find(c => c.targetId === selectedCamera.value.id && c.instance.enabled);
+  if (!controller) return;
+
   // Only when cursor is over viewport area (avoid scrolling panels)
   const vp = document.querySelector('.viewport');
   if (!vp) return;
@@ -1824,16 +2053,21 @@ function onWheel(e) {
 // Render loop for multiple canvases
 let rafId = null;
 function loop() {
-  // Numpad pan selected camera: 5=up, 2=down, 1=left, 4=right
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1); // Limit dt to avoid huge jumps
+  lastTime = now;
+
+  // Update all controllers
+  for (const controller of controllers) {
+    controller.instance.update(dt);
+  }
+
+  // Sync cameraUi from selected camera if there's an active controller
   if (selectedCamera.value) {
     const cam = selectedCamera.value.instance;
-    const speed = 10 / (Number(cam.zoom) || 1);
-    let moved = false;
-    if (keys.has('Numpad5')) { cameraUi.focusY -= speed; moved = true; }
-    if (keys.has('Numpad2')) { cameraUi.focusY += speed; moved = true; }
-    if (keys.has('Numpad1')) { cameraUi.focusX -= speed; moved = true; }
-    if (keys.has('Numpad3')) { cameraUi.focusX += speed; moved = true; }
-    if (moved) applySelectedCameraUi();
+    cameraUi.zoom = Number(cam.zoom) || 1;
+    cameraUi.focusX = Number(cam.focusX) || 0;
+    cameraUi.focusY = Number(cam.focusY) || 0;
   }
 
   // Update UI transforms (camera-bound scaling, etc.)
@@ -2202,6 +2436,20 @@ async function preloadPublicAssetsToCache() {
   color: rgba(255, 255, 255, 0.92);
 }
 .field__input:focus { outline: 2px solid rgba(79, 195, 247, 0.25); border-color: rgba(79, 195, 247, 0.30); }
+
+/* Info Box */
+.info-box {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.20);
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+.info-box strong {
+  color: #bfe7ff;
+}
 
 /* Tree Actions */
 .tree__actions {
