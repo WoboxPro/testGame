@@ -15,6 +15,7 @@
  */
 
 import { Controller } from './Controller.js';
+import { timeSystem } from './TimeSystem.js';
 
 export class EntityController extends Controller {
   constructor(options = {}) {
@@ -162,9 +163,17 @@ export class EntityController extends Controller {
    * 1. WASD меняет velocity (с ускорением)
    * 2. Трение уменьшает velocity когда клавиши отпущены
    * 3. Velocity применяется к позиции
+   *
+   * dt масштабируется через глобальную TimeSystem (timeScale + paused)
    */
   update(dt) {
     if (!this.enabled || !this.target) return;
+
+    // Применяем масштаб времени из глобальной TimeSystem
+    dt = timeSystem.getDelta(dt);
+
+    // Если игра на паузе или timeScale = 0, пропускаем обновление
+    if (dt === 0) return;
 
     const entity = this.target;
 
@@ -227,13 +236,6 @@ export class EntityController extends Controller {
     if ((velocity.x !== 0 || velocity.y !== 0) && this.onEntityMoved) {
       this.onEntityMoved(entity);
     }
-  }
-
-  /**
-   * Установить ссылку на мир для доступа к ECS компонентам
-   */
-  setWorldReference(world) {
-    this._world = world;
   }
 
   /**

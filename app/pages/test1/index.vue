@@ -212,6 +212,55 @@
         </div>
       </aside>
 
+      <!-- General Settings -->
+      <aside class="panel general-settings">
+        <div class="panel__header">
+          <span class="panel__title">General</span>
+        </div>
+        <div class="inspector__content">
+          <div class="inspector__title">Game Settings</div>
+
+          <!-- Time Scale -->
+          <div class="inspector__group">
+            <div class="inspector__label">Time Scale: {{ gameSettingsUi.timeScale.toFixed(2) }}x</div>
+            <input
+              type="range"
+              v-model.number="gameSettingsUi.timeScale"
+              min="0.1"
+              max="3.0"
+              step="0.1"
+            />
+            <div class="inspector__value">
+              {{ gameSettingsUi.timeScale < 0.5 ? '🐢 Slow' : gameSettingsUi.timeScale > 1.5 ? '🐇 Fast' : '⏱️ Normal' }}
+            </div>
+          </div>
+
+          <!-- Pause -->
+          <div class="inspector__group">
+            <div class="inspector__label">Game State</div>
+            <button
+              class="btn"
+              :class="{ 'btn--danger': gameSettingsUi.paused, 'btn--success': !gameSettingsUi.paused }"
+              @click="gameSettingsUi.paused = !gameSettingsUi.paused"
+            >
+              {{ gameSettingsUi.paused ? '▶️ Resume' : '⏸️ Pause' }}
+            </button>
+            <div class="inspector__value" style="margin-top: 8px;">
+              {{ gameSettingsUi.paused ? 'Game Paused' : 'Game Running' }}
+            </div>
+          </div>
+
+          <!-- Reset -->
+          <div class="inspector__group">
+            <button class="btn btn--secondary" @click="gameSettingsUi.timeScale = 1.0; gameSettingsUi.paused = false;">
+              ↺ Reset to Defaults
+            </button>
+          </div>
+        </div>
+        <!-- Триггер реактивности для обновления UI при изменениях из TimeSystem -->
+        <span style="display: none">{{ gameSettingsTrigger }}</span>
+      </aside>
+
       <!-- Viewport Area -->
       <main class="viewport">
         <div class="viewport__header">
@@ -1150,10 +1199,38 @@ import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity
 import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
 import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
 import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
+import { timeSystem } from '../../../pixi_game2/pixigame/src/TimeSystem.js';
 
 // ---------------------------
 // State
 // ---------------------------
+
+// Game Settings (через глобальную TimeSystem) - computed с двусторонней привязкой
+const gameSettingsUi = {
+  get timeScale() {
+    return timeSystem.getTimeScale();
+  },
+  set timeScale(value) {
+    timeSystem.setTimeScale(value);
+  },
+  get paused() {
+    return timeSystem.isPaused();
+  },
+  set paused(value) {
+    timeSystem.setPaused(value);
+  }
+};
+
+// Форсируем реактивность Vue через trigger
+const gameSettingsTrigger = ref(0);
+
+// Подписываемся на изменения в глобальной TimeSystem для обновления UI
+onMounted(() => {
+  const unsubscribe = timeSystem.onChange(() => {
+    gameSettingsTrigger.value++;
+  });
+  onUnmounted(unsubscribe);
+});
 const worlds = reactive([]);   // { id, type, width, height, backgroundColor, instance }
 const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor, antialias, resolution, instance }
 const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, focusX, focusY, zoom, priority, minZoom, maxZoom, anchor, instance }
@@ -2880,10 +2957,34 @@ async function preloadPublicAssetsToCache() {
 .btn--primary:hover:not(:disabled) {
   background: rgba(79, 195, 247, 0.30);
 }
+.btn--success {
+  background: rgba(52, 211, 153, 0.22);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #d1fae5;
+}
+.btn--success:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.30);
+}
+.btn--danger {
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fee2e2;
+}
+.btn--danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.30);
+}
+.btn--secondary {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+}
+.btn--secondary:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.25);
+}
 
 .layout {
   display: grid;
-  grid-template-columns: 280px 1fr 340px;
+  grid-template-columns: 280px 220px 1fr 340px;
   gap: 12px;
   padding: 12px;
 }
