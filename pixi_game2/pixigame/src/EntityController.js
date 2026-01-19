@@ -23,15 +23,6 @@ export class EntityController extends Controller {
       type: 'entity'
     });
 
-    // Скорость движения (единиц в секунду)
-    this.moveSpeed = options.moveSpeed !== undefined ? options.moveSpeed : 200;
-
-    // Ускорение (как быстро разгоняемся)
-    this.acceleration = options.acceleration !== undefined ? options.acceleration : 1000;
-
-    // Трение (как быстро тормозим когда отпускаем клавиши)
-    this.friction = options.friction !== undefined ? options.friction : 5;
-
     // Привязка клавиш
     this.bindings = options.bindings || this._getDefaultBindings();
 
@@ -181,6 +172,10 @@ export class EntityController extends Controller {
     let position = entity.position;
     if (!position) return;
 
+    // Получаем параметры движения из сущности
+    const movement = entity.movement;
+    if (!movement) return;
+
     // Получаем или создаем velocity компонент
     if (!entity.velocity) {
       entity.velocity = { x: 0, y: 0 };
@@ -188,7 +183,7 @@ export class EntityController extends Controller {
     const velocity = entity.velocity;
 
     // Ввод от WASD → ускорение velocity
-    const accel = this.acceleration * dt;
+    const accel = movement.acceleration * dt;
 
     if (this.isActionActive(EntityController.ACTIONS.MOVE_UP)) {
       velocity.y -= accel;
@@ -205,8 +200,8 @@ export class EntityController extends Controller {
 
     // Ограничиваем максимальную скорость
     const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-    if (speed > this.moveSpeed) {
-      const scale = this.moveSpeed / speed;
+    if (speed > movement.maxSpeed) {
+      const scale = movement.maxSpeed / speed;
       velocity.x *= scale;
       velocity.y *= scale;
     }
@@ -214,11 +209,11 @@ export class EntityController extends Controller {
     // Трение (уменьшаем velocity когда нет ввода)
     if (!this.isActionActive(EntityController.ACTIONS.MOVE_UP) &&
         !this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
-      velocity.y *= (1 - this.friction * dt);
+      velocity.y *= (1 - movement.friction * dt);
     }
     if (!this.isActionActive(EntityController.ACTIONS.MOVE_LEFT) &&
         !this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
-      velocity.x *= (1 - this.friction * dt);
+      velocity.x *= (1 - movement.friction * dt);
     }
 
     // Останавливаем очень маленькую скорость
@@ -258,11 +253,9 @@ export class EntityController extends Controller {
   getInfo() {
     return {
       ...super.getInfo(),
-      moveSpeed: this.moveSpeed,
-      acceleration: this.acceleration,
-      friction: this.friction,
       bindings: this.bindings,
       activeEntityId: this.target?.id,
+      entityMovement: this.target?.movement || null,
       currentVelocity: this.target?.velocity || { x: 0, y: 0 }
     };
   }
