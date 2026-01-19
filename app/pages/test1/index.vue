@@ -2766,7 +2766,7 @@ function createControllerFromForm() {
             x: Number(controllerForm.touchLeftStickX) || 80,
             y: controllerForm.touchLeftStickY
           },
-          zone: 'left-half' // Для первого джостика
+          zone: controllerForm.touchRightStickEnabled && controllerForm.touchRightStickType === 'joystick' ? 'left-half' : null // Если есть правый джостик - левая половина, иначе весь экран
         } : null,
         rightStick: controllerForm.touchRightStickEnabled && controllerForm.touchRightStickType === 'joystick' ? {
           enabled: true,
