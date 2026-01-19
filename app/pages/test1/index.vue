@@ -969,11 +969,8 @@
                   <option v-for="e in gameEntities" :key="e.id" :value="e.id">{{ e.id }} ({{ e.subtype }})</option>
                 </select>
               </label>
-              <div class="grid2">
-                <label class="field">
-                  <span class="field__label">Move Speed</span>
-                  <input class="field__input" type="number" v-model.number="controllerForm.moveSpeed" />
-                </label>
+              <div class="info-box">
+                <strong>📝 Movement settings (maxSpeed, acceleration, friction) are now set in the Entity itself.</strong>
               </div>
             </template>
 
@@ -1741,7 +1738,7 @@ function getControllerJsonConfig(controllerModel) {
     id: controllerModel.id,
     type: controllerModel.type,
     targetId: controllerModel.targetId,
-    moveSpeed: info.moveSpeed,
+    entityMovement: info.entityMovement,
     zoomSpeed: info.zoomSpeed,
     minZoom: info.minZoom,
     maxZoom: info.maxZoom,
@@ -2539,7 +2536,6 @@ function createControllerFromForm() {
       id,
       target: entityModel.instance,
       targetId: entityModel.id,
-      moveSpeed: Number(controllerForm.moveSpeed) || 200,
       bindings: bindings // Pass custom bindings or undefined (uses defaults)
     }));
 
