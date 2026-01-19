@@ -16,6 +16,7 @@
 
 import { Controller } from './Controller.js';
 import { timeSystem } from './TimeSystem.js';
+import { inputSystem } from './input/InputSystem.js';
 
 export class EntityController extends Controller {
   constructor(options = {}) {
@@ -24,7 +25,10 @@ export class EntityController extends Controller {
       type: 'entity'
     });
 
-    // Привязка клавиш
+    // Тип ввода: 'keyboard' | 'touch'
+    this.inputType = options.inputType || 'keyboard';
+
+    // Привязка клавиш (только для keyboard)
     this.bindings = options.bindings || this._getDefaultBindings();
 
     // Состояние нажатых клавиш
@@ -33,7 +37,15 @@ export class EntityController extends Controller {
     // Ссылка на все сущности (для переключения)
     this.allEntities = options.allEntities || [];
 
-    console.log(`🎮 EntityController создан: ${this.id} (velocity система)`);
+    // Настройки touch ввода
+    this.touchConfig = options.touchConfig || null;
+
+    // Если touch контроллер, настраиваем виртуальные джостики
+    if (this.inputType === 'touch' && this.touchConfig) {
+      this._setupTouchControls();
+    }
+
+    console.log(`🎮 EntityController создан: ${this.id} (${this.inputType} система)`);
   }
 
   /**
@@ -160,9 +172,10 @@ export class EntityController extends Controller {
    * Обновление контроллера (вызывается каждый кадр)
    *
    * Система движения через velocity:
-   * 1. WASD меняет velocity (с ускорением)
-   * 2. Трение уменьшает velocity когда клавиши отпущены
-   * 3. Velocity применяется к позиции
+   * - keyboard: WASD меняет velocity (с ускорением)
+   * - touch: виртуальный джостик напрямую управляет скоростью
+   * - Трение уменьшает velocity когда нет ввода
+   * - Velocity применяется к позиции
    *
    * dt масштабируется через глобальную TimeSystem (timeScale + paused)
    */
@@ -191,43 +204,65 @@ export class EntityController extends Controller {
     }
     const velocity = entity.velocity;
 
-    // Ввод от WASD → ускорение velocity
-    const accel = movement.acceleration * dt;
+    if (this.inputType === 'keyboard') {
+      // Клавиатурный ввод: WASD → ускорение velocity
+      const accel = movement.acceleration * dt;
 
-    if (this.isActionActive(EntityController.ACTIONS.MOVE_UP)) {
-      velocity.y -= accel;
-    }
-    if (this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
-      velocity.y += accel;
-    }
-    if (this.isActionActive(EntityController.ACTIONS.MOVE_LEFT)) {
-      velocity.x -= accel;
-    }
-    if (this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
-      velocity.x += accel;
-    }
+      if (this.isActionActive(EntityController.ACTIONS.MOVE_UP)) {
+        velocity.y -= accel;
+      }
+      if (this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
+        velocity.y += accel;
+      }
+      if (this.isActionActive(EntityController.ACTIONS.MOVE_LEFT)) {
+        velocity.x -= accel;
+      }
+      if (this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
+        velocity.x += accel;
+      }
 
-    // Ограничиваем максимальную скорость
-    const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-    if (speed > movement.maxSpeed) {
-      const scale = movement.maxSpeed / speed;
-      velocity.x *= scale;
-      velocity.y *= scale;
-    }
+      // Ограничиваем максимальную скорость
+      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+      if (speed > movement.maxSpeed) {
+        const scale = movement.maxSpeed / speed;
+        velocity.x *= scale;
+        velocity.y *= scale;
+      }
 
-    // Трение (уменьшаем velocity когда нет ввода)
-    if (!this.isActionActive(EntityController.ACTIONS.MOVE_UP) &&
-        !this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
-      velocity.y *= (1 - movement.friction * dt);
-    }
-    if (!this.isActionActive(EntityController.ACTIONS.MOVE_LEFT) &&
-        !this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
-      velocity.x *= (1 - movement.friction * dt);
-    }
+      // Трение (уменьшаем velocity когда нет ввода)
+      if (!this.isActionActive(EntityController.ACTIONS.MOVE_UP) &&
+          !this.isActionActive(EntityController.ACTIONS.MOVE_DOWN)) {
+        velocity.y *= (1 - movement.friction * dt);
+      }
+      if (!this.isActionActive(EntityController.ACTIONS.MOVE_LEFT) &&
+          !this.isActionActive(EntityController.ACTIONS.MOVE_RIGHT)) {
+        velocity.x *= (1 - movement.friction * dt);
+      }
 
-    // Останавливаем очень маленькую скорость
-    if (Math.abs(velocity.x) < 0.1) velocity.x = 0;
-    if (Math.abs(velocity.y) < 0.1) velocity.y = 0;
+      // Останавливаем очень маленькую скорость
+      if (Math.abs(velocity.x) < 0.1) velocity.x = 0;
+      if (Math.abs(velocity.y) < 0.1) velocity.y = 0;
+
+    } else if (this.inputType === 'touch') {
+      // Touch ввод: джостик напрямую управляет скоростью
+      const axis = inputSystem.getAxis('move');
+
+      // Устанавливаем скорость на основе позиции джостика
+      velocity.x = axis.x * movement.maxSpeed;
+      velocity.y = axis.y * movement.maxSpeed;
+
+      // Добавляем небольшое трение для плавности
+      if (Math.abs(axis.x) < 0.1) {
+        velocity.x *= (1 - movement.friction * dt * 2);
+      }
+      if (Math.abs(axis.y) < 0.1) {
+        velocity.y *= (1 - movement.friction * dt * 2);
+      }
+
+      // Останавливаем очень маленькую скорость
+      if (Math.abs(velocity.x) < 0.1) velocity.x = 0;
+      if (Math.abs(velocity.y) < 0.1) velocity.y = 0;
+    }
 
     // Применяем velocity к позиции
     position.x += velocity.x * dt;
@@ -252,10 +287,72 @@ export class EntityController extends Controller {
     // Override для обработки движения
   }
 
+  /**
+   * Настроить виртуальные джостики для touch управления
+   */
+  _setupTouchControls() {
+    if (!this.touchConfig) return;
+
+    // Создаем левый джостик для движения
+    if (this.touchConfig.leftStick?.enabled) {
+      const leftConfig = this.touchConfig.leftStick;
+      inputSystem.addJoystick({
+        id: 'move',
+        outerRadius: leftConfig.outerRadius,
+        innerRadius: leftConfig.innerRadius,
+        deadzone: leftConfig.deadzone,
+        type: leftConfig.type,
+        position: leftConfig.position,
+        zone: leftConfig.zone
+      });
+    }
+
+    // Создаем правый джостик (задел на будущее)
+    if (this.touchConfig.rightStick?.enabled) {
+      const rightConfig = this.touchConfig.rightStick;
+      inputSystem.addJoystick({
+        id: 'aim',
+        outerRadius: rightConfig.outerRadius,
+        innerRadius: rightConfig.innerRadius,
+        deadzone: rightConfig.deadzone,
+        type: rightConfig.type,
+        position: rightConfig.position,
+        zone: rightConfig.zone
+      });
+    }
+
+    console.log(`🕹️ Touch контроллеры настроены для ${this.id}`);
+  }
+
+  /**
+   * Очистить виртуальные джостики
+   */
+  _clearTouchControls() {
+    if (!this.touchConfig) return;
+
+    if (this.touchConfig.leftStick?.enabled) {
+      inputSystem.removeJoystick('move');
+    }
+
+    if (this.touchConfig.rightStick?.enabled) {
+      inputSystem.removeJoystick('aim');
+    }
+  }
+
+  /**
+   * Уничтожить контроллер
+   */
+  destroy() {
+    this._clearTouchControls();
+    super.destroy();
+  }
+
   getInfo() {
     return {
       ...super.getInfo(),
-      bindings: this.bindings,
+      inputType: this.inputType,
+      bindings: this.inputType === 'keyboard' ? this.bindings : undefined,
+      touchConfig: this.touchConfig,
       activeEntityId: this.target?.id,
       entityMovement: this.target?.movement || null,
       currentVelocity: this.target?.velocity || { x: 0, y: 0 }

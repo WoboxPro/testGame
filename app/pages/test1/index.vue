@@ -1031,12 +1031,121 @@
               </div>
             </template>
 
-            <label class="field field--row">
+            <!-- Input Type Selection -->
+            <label class="field">
+              <span class="field__label">Input Type</span>
+              <select class="field__input" v-model="controllerForm.inputType">
+                <option value="keyboard">⌨️ Keyboard + Mouse</option>
+                <option value="touch">📱 Touch (Virtual Joystick)</option>
+              </select>
+            </label>
+
+            <!-- Touch Settings (only for entity controllers with touch input) -->
+            <template v-if="controllerForm.type === 'entity' && controllerForm.inputType === 'touch'">
+              <div class="info-box">
+                <strong>🕹️ Touch Joystick Settings</strong>
+              </div>
+
+              <!-- Left Stick -->
+              <label class="field field--row">
+                <input type="checkbox" v-model="controllerForm.touchLeftStickEnabled" />
+                <span class="field__label">Left Joystick (Movement)</span>
+              </label>
+
+              <template v-if="controllerForm.touchLeftStickEnabled">
+                <label class="field">
+                  <span class="field__label">Type</span>
+                  <select class="field__input" v-model="controllerForm.touchLeftStickType">
+                    <option value="static">Static (фиксированный)</option>
+                    <option value="dynamic">Dynamic (в месте тача)</option>
+                  </select>
+                </label>
+
+                <div class="grid2">
+                  <label class="field">
+                    <span class="field__label">Outer Radius (px)</span>
+                    <input class="field__input" type="number" v-model.number="controllerForm.touchLeftStickOuterRadius" min="30" max="150" />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Inner Radius (px)</span>
+                    <input class="field__input" type="number" v-model.number="controllerForm.touchLeftStickInnerRadius" min="10" max="100" />
+                  </label>
+                </div>
+
+                <div class="grid2">
+                  <label class="field">
+                    <span class="field__label">Deadzone (%)</span>
+                    <input class="field__input" type="number" v-model.number="controllerForm.touchLeftStickDeadzone" min="0" max="50" />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Position X (px)</span>
+                    <input class="field__input" type="number" v-model.number="controllerForm.touchLeftStickX" />
+                  </label>
+                </div>
+              </template>
+
+              <!-- Right Stick (optional) -->
+              <label class="field field--row">
+                <input type="checkbox" v-model="controllerForm.touchRightStickEnabled" />
+                <span class="field__label">Right Joystick (Aim/Action - Optional)</span>
+              </label>
+
+              <template v-if="controllerForm.touchRightStickEnabled">
+                <label class="field">
+                  <span class="field__label">Type</span>
+                  <select class="field__input" v-model="controllerForm.touchRightStickType">
+                    <option value="joystick">Joystick</option>
+                    <option value="buttons">Buttons (задел)</option>
+                  </select>
+                </label>
+
+                <template v-if="controllerForm.touchRightStickType === 'joystick'">
+                  <label class="field">
+                    <span class="field__label">Position Type</span>
+                    <select class="field__input" v-model="controllerForm.touchRightStickPositionType">
+                      <option value="static">Static (фиксированный)</option>
+                      <option value="dynamic">Dynamic (в месте тача)</option>
+                    </select>
+                  </label>
+
+                  <div class="grid2">
+                    <label class="field">
+                      <span class="field__label">Outer Radius (px)</span>
+                      <input class="field__input" type="number" v-model.number="controllerForm.touchRightStickOuterRadius" min="30" max="150" />
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Inner Radius (px)</span>
+                      <input class="field__input" type="number" v-model.number="controllerForm.touchRightStickInnerRadius" min="10" max="100" />
+                    </label>
+                  </div>
+
+                  <div class="grid2">
+                    <label class="field">
+                      <span class="field__label">Deadzone (%)</span>
+                      <input class="field__input" type="number" v-model.number="controllerForm.touchRightStickDeadzone" min="0" max="50" />
+                    </label>
+                    <label class="field" v-if="controllerForm.touchRightStickPositionType === 'static'">
+                      <span class="field__label">Position X</span>
+                      <select class="field__input" v-model="controllerForm.touchRightStickX">
+                        <option value="right-80">Right (80px from edge)</option>
+                        <option value="right-100">Right (100px from edge)</option>
+                        <option value="right-120">Right (120px from edge)</option>
+                      </select>
+                    </label>
+                    <div v-else class="field__label" style="color: #888;">
+                      Appears on right side of screen
+                    </div>
+                  </div>
+                </template>
+              </template>
+            </template>
+
+            <label class="field field--row" v-if="controllerForm.inputType === 'keyboard'">
               <input type="checkbox" v-model="controllerForm.customBindings" />
               <span class="field__label">Custom key bindings</span>
             </label>
 
-            <div v-if="controllerForm.customBindings" class="bindings-editor">
+            <div v-if="controllerForm.customBindings && controllerForm.inputType === 'keyboard'" class="bindings-editor">
               <div class="info-box" style="margin-bottom: 12px;">
                 <strong>⌨️ Click field and press key to record</strong>
               </div>
@@ -1082,11 +1191,16 @@
               </div>
             </div>
 
-            <div v-else class="info-box">
+            <div v-else-if="controllerForm.inputType === 'keyboard'" class="info-box">
               <strong>🎮 Default controls:</strong><br>
-              Movement: 5213 (Numpad)<br>
+              Movement: WASD (entity) or Numpad 5213 (camera)<br>
               Zoom: Numpad +/–<br>
-              Switch camera: Tab or Numpad 0
+              Switch: Tab or Numpad 0
+            </div>
+
+            <div v-else class="info-box">
+              <strong>🕹️ Touch controls:</strong><br>
+              Virtual joysticks will appear on canvas when touched
             </div>
           </div>
 
@@ -1208,6 +1322,7 @@ import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/e
 import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
 import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
 import { timeSystem } from '../../../pixi_game2/pixigame/src/TimeSystem.js';
+import { inputSystem } from '../../../pixi_game2/pixigame/src/input/InputSystem.js';
 
 // ---------------------------
 // State
@@ -1408,6 +1523,7 @@ const gameEntityForm = reactive({
 const controllerForm = reactive({
   id: '',
   type: 'camera', // camera | entity
+  inputType: 'keyboard', // keyboard | touch
   cameraId: '', // For camera controllers
   entityId: '', // For entity controllers
   moveSpeed: 500,
@@ -1424,7 +1540,23 @@ const controllerForm = reactive({
     zoom_in: { primary: '', secondary: '' },
     zoom_out: { primary: '', secondary: '' },
     switch_target: { primary: '', secondary: '' }
-  }
+  },
+  // Touch configuration
+  touchLeftStickEnabled: true,
+  touchLeftStickType: 'static', // static | dynamic
+  touchLeftStickOuterRadius: 60,
+  touchLeftStickInnerRadius: 25,
+  touchLeftStickDeadzone: 10, // percent
+  touchLeftStickX: 80,
+  touchLeftStickY: null, // null = center
+  touchRightStickEnabled: false,
+  touchRightStickType: 'joystick', // joystick | buttons | none
+  touchRightStickPositionType: 'static', // static | dynamic (для joystick)
+  touchRightStickOuterRadius: 50,
+  touchRightStickInnerRadius: 20,
+  touchRightStickDeadzone: 10,
+  touchRightStickX: 'right-80',
+  touchRightStickY: null
 });
 
 // Key recording state for custom bindings
@@ -2620,10 +2752,43 @@ function createControllerFromForm() {
       return;
     }
 
+    // Формируем touchConfig если inputType === 'touch'
+    let touchConfig = null;
+    if (controllerForm.inputType === 'touch') {
+      touchConfig = {
+        leftStick: controllerForm.touchLeftStickEnabled ? {
+          enabled: true,
+          type: controllerForm.touchLeftStickType,
+          outerRadius: Number(controllerForm.touchLeftStickOuterRadius) || 60,
+          innerRadius: Number(controllerForm.touchLeftStickInnerRadius) || 25,
+          deadzone: (Number(controllerForm.touchLeftStickDeadzone) || 10) / 100,
+          position: {
+            x: Number(controllerForm.touchLeftStickX) || 80,
+            y: controllerForm.touchLeftStickY
+          },
+          zone: 'left-half' // Для первого джостика
+        } : null,
+        rightStick: controllerForm.touchRightStickEnabled && controllerForm.touchRightStickType === 'joystick' ? {
+          enabled: true,
+          type: controllerForm.touchRightStickPositionType, // static или dynamic
+          outerRadius: Number(controllerForm.touchRightStickOuterRadius) || 50,
+          innerRadius: Number(controllerForm.touchRightStickInnerRadius) || 20,
+          deadzone: (Number(controllerForm.touchRightStickDeadzone) || 10) / 100,
+          position: controllerForm.touchRightStickPositionType === 'static' ? {
+            x: controllerForm.touchRightStickX,
+            y: controllerForm.touchRightStickY
+          } : undefined,
+          zone: 'right-half' // Для второго джостика
+        } : null
+      };
+    }
+
     const instance = markRaw(new EntityController({
       id,
       target: entityModel.instance,
       targetId: entityModel.id,
+      inputType: controllerForm.inputType,
+      touchConfig: touchConfig,
       bindings: bindings // Pass custom bindings or undefined (uses defaults)
     }));
 

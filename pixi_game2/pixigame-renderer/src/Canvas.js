@@ -5,6 +5,7 @@
 import * as PIXI from 'pixi.js';
 import { Camera } from './Camera.js';
 import { EntityRenderer } from './EntityRenderer.js';
+import { inputSystem } from '../../pixigame/src/input/InputSystem.js';
 
 export class Canvas {
   constructor(options = {}) {
@@ -32,10 +33,11 @@ export class Canvas {
     this.containerId = options.containerId || null;
     
     this.entityRenderer = null;
-    
+
     this._canvasBackgroundLayer = null;
     this._cameraBordersLayer = null;
-    
+    this._virtualInputLayer = null; // Слой для виртуальных элементов управления
+
     console.log(`🖼️ Canvas создан: ${this.id}, mode=${this.sizeMode}`);
   }
   
@@ -75,9 +77,15 @@ export class Canvas {
     }
     
     targetContainer.appendChild(this.app.canvas);
-    
+
     this._initLayers();
     this.entityRenderer = new EntityRenderer(this);
+
+    // Настраиваем InputSystem с PIXI контейнером для виртуальных элементов
+    inputSystem.setPixiContainer(this._virtualInputLayer);
+
+    // Добавляем touch event listeners на canvas
+    this._setupTouchEvents();
 
     // Initialize any cameras that were added before the canvas started
     for (const camera of this.cameras.values()) {
@@ -95,14 +103,20 @@ export class Canvas {
     this._canvasBackgroundLayer = new PIXI.Container();
     this._canvasBackgroundLayer.zIndex = 1;
     this.app.stage.addChild(this._canvasBackgroundLayer);
-    
+
     if (this.canvasBackgroundColor) {
       this.setCanvasBackground(this.canvasBackgroundColor);
     }
-    
+
     this._cameraBordersLayer = new PIXI.Container();
     this._cameraBordersLayer.zIndex = 999;
     this.app.stage.addChild(this._cameraBordersLayer);
+
+    // Слой для виртуальных элементов управления (поверх всего)
+    this._virtualInputLayer = new PIXI.Container();
+    this._virtualInputLayer.zIndex = 1000;
+    this._virtualInputLayer.eventMode = 'none'; // Пропускаем события через этот слой
+    this.app.stage.addChild(this._virtualInputLayer);
   }
   
   setCanvasBackground(color) {
@@ -513,7 +527,103 @@ export class Canvas {
       this._cameraBordersLayer.addChild(border);
     }
   }
-  
+
+  /**
+   * Настроить touch event listeners для виртуальных джостиков
+   */
+  _setupTouchEvents() {
+    const canvasElement = this.app.canvas;
+    console.log(`🔧 Настраиваю события для canvas ${this.id}, element:`, canvasElement);
+
+    // Touch start
+    canvasElement.addEventListener('touchstart', (e) => {
+      console.log(`👆 touchstart на canvas!`);
+      e.preventDefault();
+      inputSystem.handleTouchStart(e, this.width, this.height);
+    }, { passive: false });
+
+    // Touch move
+    canvasElement.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      inputSystem.handleTouchMove(e);
+    }, { passive: false });
+
+    // Touch end
+    canvasElement.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      inputSystem.handleTouchEnd(e);
+    }, { passive: false });
+
+    // Touch cancel
+    canvasElement.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      inputSystem.handleTouchEnd(e);
+    }, { passive: false });
+
+    // Mouse support для тестирования на десктопе
+    let mouseDown = false;
+    let mouseTouchId = 'mouse-0';
+
+    canvasElement.addEventListener('mousedown', (e) => {
+      const rect = canvasElement.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      console.log(`🖱️ mousedown на canvas! (${x}, ${y})`);
+
+      // Эмулируем touch event
+      const mockEvent = {
+        changedTouches: [{
+          identifier: mouseTouchId,
+          clientX: x,
+          clientY: y
+        }]
+      };
+      inputSystem.handleTouchStart(mockEvent, this.width, this.height);
+      mouseDown = true;
+    });
+
+    canvasElement.addEventListener('mousemove', (e) => {
+      if (!mouseDown) return;
+      const rect = canvasElement.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const mockEvent = {
+        changedTouches: [{
+          identifier: mouseTouchId,
+          clientX: x,
+          clientY: y
+        }]
+      };
+      inputSystem.handleTouchMove(mockEvent);
+    });
+
+    canvasElement.addEventListener('mouseup', (e) => {
+      if (!mouseDown) return;
+      const mockEvent = {
+        changedTouches: [{
+          identifier: mouseTouchId
+        }]
+      };
+      inputSystem.handleTouchEnd(mockEvent);
+      mouseDown = false;
+    });
+
+    canvasElement.addEventListener('mouseleave', () => {
+      if (mouseDown) {
+        const mockEvent = {
+          changedTouches: [{
+            identifier: mouseTouchId
+          }]
+        };
+        inputSystem.handleTouchEnd(mockEvent);
+        mouseDown = false;
+      }
+    });
+
+    console.log(`📱 Touch/Mouse события настроены для canvas ${this.id}`);
+  }
+
   destroy() {
     if (this.app) {
       this.app.destroy(true, true);

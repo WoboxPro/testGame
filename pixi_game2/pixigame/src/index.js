@@ -11,6 +11,10 @@ export { EntityController } from './EntityController.js';
 export { CollisionSystem } from './CollisionSystem.js';
 export { TimeSystem, timeSystem } from './TimeSystem.js';
 
+// Input
+export { InputSystem, inputSystem } from './input/InputSystem.js';
+export { VirtualJoystick } from './input/VirtualJoystick.js';
+
 // Entities
 export { GameEntity, UnitEntity, BuildEntity, PropEntity } from './entities/GameEntity.js';
 export { UITextEntity } from './entities/UIEntities.js';
