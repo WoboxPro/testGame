@@ -4,17 +4,22 @@
     <header class="toolbar">
       <div class="toolbar__left">
         <div class="brand">GoVue • Test1</div>
-        <div class="toolbar__buttons">
-          <button class="btn btn--primary" @click="openCreate('world')">➕ World</button>
-          <button class="btn btn--primary" @click="openCreate('canvas')">➕ Canvas</button>
-          <button class="btn btn--primary" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">➕ Camera</button>
-          <div class="toolbar__divider" />
-          <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">➕ UI Text</button>
-          <button class="btn btn--primary" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">➕ UI Button</button>
-          <div class="toolbar__divider" />
-          <button class="btn btn--primary" :disabled="worlds.length === 0" @click="openCreate('game_entity')">➕ Game Entity</button>
-          <div class="toolbar__divider" />
-          <button class="btn btn--primary" :disabled="worlds.length === 0" @click="openCreate('region')">➕ Region</button>
+        <div class="toolbar__divider" />
+        <div class="toolbar__group">
+          <button
+            class="btn"
+            :class="{ 'btn--primary': leftPanelMode === 'hierarchy' }"
+            @click="leftPanelMode = 'hierarchy'"
+          >
+            🎮 Game
+          </button>
+          <button
+            class="btn"
+            :class="{ 'btn--primary': leftPanelMode === 'general' }"
+            @click="leftPanelMode = 'general'"
+          >
+            ⚙️ General
+          </button>
         </div>
       </div>
       <div class="toolbar__right">
@@ -24,241 +29,244 @@
     </header>
 
     <div class="layout">
-      <!-- Hierarchy -->
+      <!-- Left Panel: Hierarchy or General Settings -->
       <aside class="panel hierarchy">
-        <div class="panel__header">
-          <span class="panel__title">Hierarchy</span>
-          <button class="panel__json-btn" @click="openJsonModal('all')" title="Export All JSON">{ } All</button>
-        </div>
-
-        <div class="tree">
-          <div class="tree__section">
-            <div class="tree__title">Worlds</div>
-            <div class="tree__actions">
-              <button class="tree__add" @click="openCreate('world')">+ Add</button>
-              <button class="tree__json" @click="openJsonModal('world')" title="Export JSON">{ }</button>
-            </div>
-          </div>
-          <div v-if="worlds.length === 0" class="tree__empty">No worlds</div>
-          <div
-            v-for="w in worlds"
-            :key="w.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'world' && selected?.id === w.id }"
-            @click="select({ type: 'world', id: w.id })"
-          >
-            <span class="tree__name">{{ w.id }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeWorld(w.id)">×</button>
+        <!-- Game Settings Mode (Hierarchy) -->
+        <template v-if="leftPanelMode === 'hierarchy'">
+          <div class="panel__header">
+            <span class="panel__title">Hierarchy</span>
+            <button class="panel__json-btn" @click="openJsonModal('all')" title="Export All JSON">{ } All</button>
           </div>
 
-          <div class="tree__section">
-            <div class="tree__title">Canvases</div>
-            <div class="tree__actions">
-              <button class="tree__add" @click="openCreate('canvas')">+ Add</button>
-              <button class="tree__json" @click="openJsonModal('canvas')" title="Export JSON">{ }</button>
-            </div>
-          </div>
-          <div v-if="canvases.length === 0" class="tree__empty">No canvases</div>
-          <div
-            v-for="c in canvases"
-            :key="c.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'canvas' && selected?.id === c.id }"
-            @click="select({ type: 'canvas', id: c.id })"
-          >
-            <span class="tree__name">{{ c.id }}</span>
-            <span class="tree__meta">{{ c.width }}×{{ c.height }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeCanvas(c.id)">×</button>
-          </div>
-
-          <div class="tree__section">
-            <div class="tree__title">Cameras</div>
-            <div class="tree__actions">
-              <button class="tree__add" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">+ Add</button>
-              <button class="tree__json" @click="openJsonModal('camera')" title="Export JSON">{ }</button>
-            </div>
-          </div>
-          <div v-if="cameras.length === 0" class="tree__empty">No cameras</div>
-          <div
-            v-for="cam in cameras"
-            :key="cam.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'camera' && selected?.id === cam.id }"
-            @click="select({ type: 'camera', id: cam.id })"
-          >
-            <span class="tree__name">{{ cam.id }}</span>
-            <span class="tree__meta">{{ cam.canvasId }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeCamera(cam.id)">×</button>
-          </div>
-
-          <div class="tree__section">
-            <div class="tree__title">UI</div>
-            <div class="tree__actions">
-              <div class="tree__add-group">
-                <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">+ Text</button>
-                <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">+ Button</button>
+          <div class="tree">
+            <div class="tree__section">
+              <div class="tree__title">Worlds</div>
+              <div class="tree__actions">
+                <button class="tree__add" @click="openCreate('world')">+ Add</button>
+                <button class="tree__json" @click="openJsonModal('world')" title="Export JSON">{ }</button>
               </div>
-              <button class="tree__json" @click="openJsonModal('ui')" title="Export JSON">{ }</button>
             </div>
-          </div>
-          <div v-if="uiEntities.length === 0" class="tree__empty">No UI</div>
-          <div
-            v-for="u in uiEntities"
-            :key="u.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'ui' && selected?.id === u.id }"
-            @click="select({ type: 'ui', id: u.id })"
-          >
-            <span class="tree__name">{{ u.id }}</span>
-            <span class="tree__meta">{{ u.subtype }} • {{ u.bindingLabel }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeUI(u.id)">×</button>
-          </div>
+            <div v-if="worlds.length === 0" class="tree__empty">No worlds</div>
+            <div
+              v-for="w in worlds"
+              :key="w.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'world' && selected?.id === w.id }"
+              @click="select({ type: 'world', id: w.id })"
+            >
+              <span class="tree__name">{{ w.id }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeWorld(w.id)">×</button>
+            </div>
 
-          <div class="tree__section">
-            <div class="tree__title">Entities</div>
-            <div class="tree__actions">
-              <div class="tree__add-group">
-                <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Unit</button>
-                <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Build</button>
+            <div class="tree__section">
+              <div class="tree__title">Canvases</div>
+              <div class="tree__actions">
+                <button class="tree__add" @click="openCreate('canvas')">+ Add</button>
+                <button class="tree__json" @click="openJsonModal('canvas')" title="Export JSON">{ }</button>
               </div>
-              <button class="tree__json" @click="openJsonModal('game_entity')" title="Export JSON">{ }</button>
             </div>
-          </div>
-          <div v-if="gameEntities.length === 0" class="tree__empty">No entities</div>
-          <div
-            v-for="e in gameEntities"
-            :key="e.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id }"
-            @click="select({ type: 'game_entity', id: e.id })"
-          >
-            <span class="tree__name">{{ e.id }}</span>
-            <span class="tree__meta">{{ e.subtype }} • {{ e.appearance.shape }} • {{ e.worldId }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeGameEntity(e.id)">×</button>
-          </div>
-
-          <div class="tree__section">
-            <div class="tree__title">Regions</div>
-            <div class="tree__actions">
-              <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('region')">+ Add</button>
-              <button class="tree__json" @click="openJsonModal('region')" title="Export JSON">{ }</button>
-            </div>
-          </div>
-          <div v-if="regions.length === 0" class="tree__empty">No regions</div>
-          <div
-            v-for="r in regions"
-            :key="r.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'region' && selected?.id === r.id }"
-            @click="select({ type: 'region', id: r.id })"
-          >
-            <span class="tree__name">{{ r.displayName }}</span>
-            <span class="tree__meta">{{ r.bounds.width }}×{{ r.bounds.height }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeRegion(r.id)">×</button>
-          </div>
-
-          <div class="tree__section">
-            <div class="tree__title">Controllers</div>
-            <div class="tree__actions">
-              <button class="tree__add" :disabled="cameras.length === 0" @click="openCreate('controller')">+ Add</button>
-              <button class="tree__json" @click="openJsonModal('controller')" title="Export JSON">{ }</button>
-            </div>
-          </div>
-          <div v-if="controllers.length === 0" class="tree__empty">No controllers</div>
-          <div
-            v-for="c in controllers"
-            :key="c.id"
-            class="tree__item"
-            :class="{ 'is-selected': selected?.type === 'controller' && selected?.id === c.id }"
-            @click="select({ type: 'controller', id: c.id })"
-          >
-            <span class="tree__name">{{ c.id }}</span>
-            <span class="tree__meta">{{ c.type }} → {{ c.targetId || 'none' }}</span>
-            <button class="tree__delete" title="Delete" @click.stop="removeController(c.id)">×</button>
-          </div>
-
-          <div class="tree__section">
-            <div class="tree__title">Collisions</div>
-            <div class="tree__actions">
-              <button class="tree__add" @click="openCreate('collision_type')">+ Type</button>
-              <button class="tree__add" @click="openCreate('collision_relation')">+ Relation</button>
-            </div>
-          </div>
-          <div class="tree__subsection">
-            <div class="tree__subtitle">Types</div>
-            <div v-if="getCollisionTypes().length === 0" class="tree__empty">No types</div>
+            <div v-if="canvases.length === 0" class="tree__empty">No canvases</div>
             <div
-              v-for="type in getCollisionTypes()"
-              :key="type.id"
-              class="tree__item tree__item--small"
+              v-for="c in canvases"
+              :key="c.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'canvas' && selected?.id === c.id }"
+              @click="select({ type: 'canvas', id: c.id })"
             >
-              <span class="tree__name">{{ type.id }}</span>
-              <span class="tree__meta">{{ type.defaultShape }}</span>
-              <button class="tree__delete" @click.stop="removeCollisionType(type.id)">×</button>
+              <span class="tree__name">{{ c.id }}</span>
+              <span class="tree__meta">{{ c.width }}×{{ c.height }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeCanvas(c.id)">×</button>
             </div>
-          </div>
-          <div class="tree__subsection">
-            <div class="tree__subtitle">Relations</div>
-            <div v-if="getCollisionRelations().length === 0" class="tree__empty">No relations</div>
+
+            <div class="tree__section">
+              <div class="tree__title">Cameras</div>
+              <div class="tree__actions">
+                <button class="tree__add" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">+ Add</button>
+                <button class="tree__json" @click="openJsonModal('camera')" title="Export JSON">{ }</button>
+              </div>
+            </div>
+            <div v-if="cameras.length === 0" class="tree__empty">No cameras</div>
             <div
-              v-for="rel in getCollisionRelations()"
-              :key="rel.key"
-              class="tree__item tree__item--small"
+              v-for="cam in cameras"
+              :key="cam.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'camera' && selected?.id === cam.id }"
+              @click="select({ type: 'camera', id: cam.id })"
             >
-              <span class="tree__name">{{ rel.typeA }} ↔ {{ rel.typeB }}</span>
-              <span class="tree__meta">{{ rel.modes }}</span>
+              <span class="tree__name">{{ cam.id }}</span>
+              <span class="tree__meta">{{ cam.canvasId }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeCamera(cam.id)">×</button>
             </div>
-          </div>
-        </div>
-      </aside>
 
-      <!-- General Settings -->
-      <aside class="panel general-settings">
-        <div class="panel__header">
-          <span class="panel__title">General</span>
-        </div>
-        <div class="inspector__content">
-          <div class="inspector__title">Game Settings</div>
-
-          <!-- Time Scale -->
-          <div class="inspector__group">
-            <div class="inspector__label">Time Scale: {{ gameSettingsUi.timeScale.toFixed(2) }}x</div>
-            <input
-              type="range"
-              v-model.number="gameSettingsUi.timeScale"
-              min="0.1"
-              max="3.0"
-              step="0.1"
-            />
-            <div class="inspector__value">
-              {{ gameSettingsUi.timeScale < 0.5 ? '🐢 Slow' : gameSettingsUi.timeScale > 1.5 ? '🐇 Fast' : '⏱️ Normal' }}
+            <div class="tree__section">
+              <div class="tree__title">UI</div>
+              <div class="tree__actions">
+                <div class="tree__add-group">
+                  <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">+ Text</button>
+                  <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">+ Button</button>
+                </div>
+                <button class="tree__json" @click="openJsonModal('ui')" title="Export JSON">{ }</button>
+              </div>
             </div>
-          </div>
-
-          <!-- Pause -->
-          <div class="inspector__group">
-            <div class="inspector__label">Game State</div>
-            <button
-              class="btn"
-              :class="{ 'btn--danger': gameSettingsUi.paused, 'btn--success': !gameSettingsUi.paused }"
-              @click="gameSettingsUi.paused = !gameSettingsUi.paused"
+            <div v-if="uiEntities.length === 0" class="tree__empty">No UI</div>
+            <div
+              v-for="u in uiEntities"
+              :key="u.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'ui' && selected?.id === u.id }"
+              @click="select({ type: 'ui', id: u.id })"
             >
-              {{ gameSettingsUi.paused ? '▶️ Resume' : '⏸️ Pause' }}
-            </button>
-            <div class="inspector__value" style="margin-top: 8px;">
-              {{ gameSettingsUi.paused ? 'Game Paused' : 'Game Running' }}
+              <span class="tree__name">{{ u.id }}</span>
+              <span class="tree__meta">{{ u.subtype }} • {{ u.bindingLabel }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeUI(u.id)">×</button>
+            </div>
+
+            <div class="tree__section">
+              <div class="tree__title">Entities</div>
+              <div class="tree__actions">
+                <div class="tree__add-group">
+                  <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Unit</button>
+                  <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Build</button>
+                </div>
+                <button class="tree__json" @click="openJsonModal('game_entity')" title="Export JSON">{ }</button>
+              </div>
+            </div>
+            <div v-if="gameEntities.length === 0" class="tree__empty">No entities</div>
+            <div
+              v-for="e in gameEntities"
+              :key="e.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id }"
+              @click="select({ type: 'game_entity', id: e.id })"
+            >
+              <span class="tree__name">{{ e.id }}</span>
+              <span class="tree__meta">{{ e.subtype }} • {{ e.appearance.shape }} • {{ e.worldId }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeGameEntity(e.id)">×</button>
+            </div>
+
+            <div class="tree__section">
+              <div class="tree__title">Regions</div>
+              <div class="tree__actions">
+                <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('region')">+ Add</button>
+                <button class="tree__json" @click="openJsonModal('region')" title="Export JSON">{ }</button>
+              </div>
+            </div>
+            <div v-if="regions.length === 0" class="tree__empty">No regions</div>
+            <div
+              v-for="r in regions"
+              :key="r.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'region' && selected?.id === r.id }"
+              @click="select({ type: 'region', id: r.id })"
+            >
+              <span class="tree__name">{{ r.displayName }}</span>
+              <span class="tree__meta">{{ r.bounds.width }}×{{ r.bounds.height }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeRegion(r.id)">×</button>
+            </div>
+
+            <div class="tree__section">
+              <div class="tree__title">Controllers</div>
+              <div class="tree__actions">
+                <button class="tree__add" :disabled="cameras.length === 0" @click="openCreate('controller')">+ Add</button>
+                <button class="tree__json" @click="openJsonModal('controller')" title="Export JSON">{ }</button>
+              </div>
+            </div>
+            <div v-if="controllers.length === 0" class="tree__empty">No controllers</div>
+            <div
+              v-for="c in controllers"
+              :key="c.id"
+              class="tree__item"
+              :class="{ 'is-selected': selected?.type === 'controller' && selected?.id === c.id }"
+              @click="select({ type: 'controller', id: c.id })"
+            >
+              <span class="tree__name">{{ c.id }}</span>
+              <span class="tree__meta">{{ c.type }} → {{ c.targetId || 'none' }}</span>
+              <button class="tree__delete" title="Delete" @click.stop="removeController(c.id)">×</button>
+            </div>
+
+            <div class="tree__section">
+              <div class="tree__title">Collisions</div>
+              <div class="tree__actions">
+                <button class="tree__add" @click="openCreate('collision_type')">+ Type</button>
+                <button class="tree__add" @click="openCreate('collision_relation')">+ Relation</button>
+              </div>
+            </div>
+            <div class="tree__subsection">
+              <div class="tree__subtitle">Types</div>
+              <div v-if="getCollisionTypes().length === 0" class="tree__empty">No types</div>
+              <div
+                v-for="type in getCollisionTypes()"
+                :key="type.id"
+                class="tree__item tree__item--small"
+              >
+                <span class="tree__name">{{ type.id }}</span>
+                <span class="tree__meta">{{ type.defaultShape }}</span>
+                <button class="tree__delete" @click.stop="removeCollisionType(type.id)">×</button>
+              </div>
+            </div>
+            <div class="tree__subsection">
+              <div class="tree__subtitle">Relations</div>
+              <div v-if="getCollisionRelations().length === 0" class="tree__empty">No relations</div>
+              <div
+                v-for="rel in getCollisionRelations()"
+                :key="rel.key"
+                class="tree__item tree__item--small"
+              >
+                <span class="tree__name">{{ rel.typeA }} ↔ {{ rel.typeB }}</span>
+                <span class="tree__meta">{{ rel.modes }}</span>
+              </div>
             </div>
           </div>
+        </template>
 
-          <!-- Reset -->
-          <div class="inspector__group">
-            <button class="btn btn--secondary" @click="gameSettingsUi.timeScale = 1.0; gameSettingsUi.paused = false;">
-              ↺ Reset to Defaults
-            </button>
+        <!-- General Mode (Time Settings) -->
+        <template v-else>
+          <div class="panel__header">
+            <span class="panel__title">General</span>
           </div>
-        </div>
-        <!-- Триггер реактивности для обновления UI при изменениях из TimeSystem -->
-        <span style="display: none">{{ gameSettingsTrigger }}</span>
+          <div class="inspector__content">
+            <div class="inspector__title">Game Settings</div>
+
+            <!-- Time Scale -->
+            <div class="inspector__group">
+              <div class="inspector__label">Time Scale: {{ gameSettingsUi.timeScale.toFixed(2) }}x</div>
+              <input
+                type="range"
+                v-model.number="gameSettingsUi.timeScale"
+                min="0.1"
+                max="3.0"
+                step="0.1"
+              />
+              <div class="inspector__value">
+                {{ gameSettingsUi.timeScale < 0.5 ? '🐢 Slow' : gameSettingsUi.timeScale > 1.5 ? '🐇 Fast' : '⏱️ Normal' }}
+              </div>
+            </div>
+
+            <!-- Pause -->
+            <div class="inspector__group">
+              <div class="inspector__label">Game State</div>
+              <button
+                class="btn"
+                :class="{ 'btn--danger': gameSettingsUi.paused, 'btn--success': !gameSettingsUi.paused }"
+                @click="gameSettingsUi.paused = !gameSettingsUi.paused"
+              >
+                {{ gameSettingsUi.paused ? '▶️ Resume' : '⏸️ Pause' }}
+              </button>
+              <div class="inspector__value" style="margin-top: 8px;">
+                {{ gameSettingsUi.paused ? 'Game Paused' : 'Game Running' }}
+              </div>
+            </div>
+
+            <!-- Reset -->
+            <div class="inspector__group">
+              <button class="btn btn--secondary" @click="gameSettingsUi.timeScale = 1.0; gameSettingsUi.paused = false;">
+                ↺ Reset to Defaults
+              </button>
+            </div>
+          </div>
+          <!-- Триггер реактивности для обновления UI при изменениях из TimeSystem -->
+          <span style="display: none">{{ gameSettingsTrigger }}</span>
+        </template>
       </aside>
 
       <!-- Viewport Area -->
@@ -1243,6 +1251,9 @@ const controllers = reactive([]); // { id, type, targetId, instance }
 const collisionTypes = reactive([]); // { id, name, defaultShape, worldId }
 
 const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', id }
+
+// Режим левой панели: 'hierarchy' (Game Settings) или 'general' (General Settings)
+const leftPanelMode = ref('hierarchy');
 
 const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0 });
 
@@ -2928,6 +2939,10 @@ async function preloadPublicAssetsToCache() {
   background: rgba(255, 255, 255, 0.10);
   margin: 0 6px;
 }
+.toolbar__group {
+  display: flex;
+  gap: 6px;
+}
 .toolbar__right {
   display: flex;
   gap: 8px;
@@ -2984,7 +2999,7 @@ async function preloadPublicAssetsToCache() {
 
 .layout {
   display: grid;
-  grid-template-columns: 280px 220px 1fr 340px;
+  grid-template-columns: 280px 1fr 340px;
   gap: 12px;
   padding: 12px;
 }
