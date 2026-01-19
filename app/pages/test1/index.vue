@@ -334,6 +334,9 @@
             <div class="kv__row" v-else><div class="kv__k">Size</div><div class="kv__v">{{ selectedGameEntity.appearance.width }}×{{ selectedGameEntity.appearance.height }}</div></div>
             <div class="kv__row"><div class="kv__k">Position</div><div class="kv__v">{{ selectedGameEntity.instance.position.x }}, {{ selectedGameEntity.instance.position.y }}</div></div>
             <div class="kv__row"><div class="kv__k">Collision</div><div class="kv__v">{{ selectedGameEntity.instance.hasCollision ? 'enabled' : 'disabled' }}</div></div>
+            <div class="kv__row"><div class="kv__k">Max Speed</div><div class="kv__v">{{ selectedGameEntity.instance.movement.maxSpeed }}</div></div>
+            <div class="kv__row"><div class="kv__k">Acceleration</div><div class="kv__v">{{ selectedGameEntity.instance.movement.acceleration }}</div></div>
+            <div class="kv__row"><div class="kv__k">Friction</div><div class="kv__v">{{ selectedGameEntity.instance.movement.friction }}</div></div>
           </div>
         </div>
 
@@ -359,10 +362,17 @@
           <div class="kv">
             <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedController.type }}</div></div>
             <div class="kv__row"><div class="kv__k">Target</div><div class="kv__v">{{ selectedController.targetId || 'none' }}</div></div>
-            <div class="kv__row"><div class="kv__k">Move Speed</div><div class="kv__v">{{ selectedController.instance.moveSpeed }}</div></div>
-            <div class="kv__row" v-if="selectedController.type === 'camera'"><div class="kv__k">Zoom Speed</div><div class="kv__v">{{ selectedController.instance.zoomSpeed }}</div></div>
-            <div class="kv__row" v-if="selectedController.type === 'camera'"><div class="kv__k">Min Zoom</div><div class="kv__v">{{ selectedController.instance.minZoom }}</div></div>
-            <div class="kv__row" v-if="selectedController.type === 'camera'"><div class="kv__k">Max Zoom</div><div class="kv__v">{{ selectedController.instance.maxZoom }}</div></div>
+            <template v-if="selectedController.type === 'entity'">
+              <div class="kv__row"><div class="kv__k">Max Speed</div><div class="kv__v">{{ selectedController.instance.target?.movement?.maxSpeed || 'N/A' }}</div></div>
+              <div class="kv__row"><div class="kv__k">Acceleration</div><div class="kv__v">{{ selectedController.instance.target?.movement?.acceleration || 'N/A' }}</div></div>
+              <div class="kv__row"><div class="kv__k">Friction</div><div class="kv__v">{{ selectedController.instance.target?.movement?.friction || 'N/A' }}</div></div>
+            </template>
+            <template v-if="selectedController.type === 'camera'">
+              <div class="kv__row"><div class="kv__k">Move Speed</div><div class="kv__v">{{ selectedController.instance.moveSpeed }}</div></div>
+              <div class="kv__row"><div class="kv__k">Zoom Speed</div><div class="kv__v">{{ selectedController.instance.zoomSpeed }}</div></div>
+              <div class="kv__row"><div class="kv__k">Min Zoom</div><div class="kv__v">{{ selectedController.instance.minZoom }}</div></div>
+              <div class="kv__row"><div class="kv__k">Max Zoom</div><div class="kv__v">{{ selectedController.instance.maxZoom }}</div></div>
+            </template>
           </div>
         </div>
       </aside>
@@ -807,6 +817,24 @@
               <span class="field__label">Collision Scale (1.0 = 100%)</span>
               <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="gameEntityForm.collisionScale" />
             </label>
+
+            <div class="form__section">
+              <div class="form__section-title">Movement</div>
+              <div class="grid2">
+                <label class="field">
+                  <span class="field__label">Max Speed</span>
+                  <input class="field__input" type="number" v-model.number="gameEntityForm.maxSpeed" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Acceleration</span>
+                  <input class="field__input" type="number" v-model.number="gameEntityForm.acceleration" />
+                </label>
+              </div>
+              <label class="field">
+                <span class="field__label">Friction</span>
+                <input class="field__input" type="number" v-model.number="gameEntityForm.friction" />
+              </label>
+            </div>
           </div>
 
           <!-- Region Form -->
@@ -1286,7 +1314,10 @@ const gameEntityForm = reactive({
   width: 40, // для rect
   height: 40, // для rect
   hasCollision: false,
-  collisionScale: 1.0 // масштаб коллизии (1.0 = 100%)
+  collisionScale: 1.0, // масштаб коллизии (1.0 = 100%)
+  maxSpeed: 200,
+  acceleration: 1000,
+  friction: 5
 });
 
 const controllerForm = reactive({
@@ -1398,6 +1429,9 @@ function openCreate(type) {
     gameEntityForm.height = 40;
     gameEntityForm.hasCollision = false;
     gameEntityForm.collisionScale = 1.0;
+    gameEntityForm.maxSpeed = 200;
+    gameEntityForm.acceleration = 1000;
+    gameEntityForm.friction = 5;
   } else if (type === 'region') {
     regionForm.id = suggestId('region', regions);
     regionForm.name = `region_${regions.length + 1}`;
@@ -2315,9 +2349,14 @@ function createGameEntityFromForm() {
     subtype: gameEntityForm.subtype || 'unit',
     collisionType: gameEntityForm.subtype || 'unit',  // collision type = subtype
     position: { x: Number(gameEntityForm.x) || 0, y: Number(gameEntityForm.y) || 0 },
-    velocity: { x: 0, y: 0 }, // 🚀 Velocity компонент для движения
+    velocity: { x: 0, y: 0 },
     rotation: 0,
     scale: { x: 1, y: 1 },
+    movement: {
+      maxSpeed: Number(gameEntityForm.maxSpeed) || 200,
+      acceleration: Number(gameEntityForm.acceleration) || 1000,
+      friction: Number(gameEntityForm.friction) || 5
+    },
     appearance: {
       shape: gameEntityForm.shape || 'circle',
       color: colorNum,
@@ -2331,9 +2370,10 @@ function createGameEntityFromForm() {
 
   // Add entity to world using ECS format (plain object with components)
   const entityId = worldModel.instance.createEntity({
-    _entityRef: instance, // Ссылка на GameEntity для инспекции
+    _entityRef: instance,
     position: instance.position,
-    velocity: instance.velocity, // 🚀 Velocity компонент в ECS
+    velocity: instance.velocity,
+    movement: instance.movement,
     appearance: instance.appearance,
     subtype: instance.subtype,
     collision: instance.hasCollision ? instance.collision : undefined
