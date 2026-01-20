@@ -17,185 +17,23 @@
             <button class="panel__json-btn" @click="openJsonModal('all')" title="Export All JSON">{ } All</button>
           </div>
 
-          <div class="tree">
-            <div class="tree__section">
-              <div class="tree__title">Worlds</div>
-              <div class="tree__actions">
-                <button class="tree__add" @click="openCreate('world')">+ Add</button>
-                <button class="tree__json" @click="openJsonModal('world')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="worlds.length === 0" class="tree__empty">No worlds</div>
-            <div
-              v-for="w in worlds"
-              :key="w.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'world' && selected?.id === w.id }"
-              @click="select({ type: 'world', id: w.id })"
-            >
-              <span class="tree__name">{{ w.id }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeWorld(w.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">Canvases</div>
-              <div class="tree__actions">
-                <button class="tree__add" @click="openCreate('canvas')">+ Add</button>
-                <button class="tree__json" @click="openJsonModal('canvas')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="canvases.length === 0" class="tree__empty">No canvases</div>
-            <div
-              v-for="c in canvases"
-              :key="c.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'canvas' && selected?.id === c.id }"
-              @click="select({ type: 'canvas', id: c.id })"
-            >
-              <span class="tree__name">{{ c.id }}</span>
-              <span class="tree__meta">{{ c.width }}×{{ c.height }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeCanvas(c.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">Cameras</div>
-              <div class="tree__actions">
-                <button class="tree__add" :disabled="worlds.length === 0 || canvases.length === 0" @click="openCreate('camera')">+ Add</button>
-                <button class="tree__json" @click="openJsonModal('camera')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="cameras.length === 0" class="tree__empty">No cameras</div>
-            <div
-              v-for="cam in cameras"
-              :key="cam.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'camera' && selected?.id === cam.id }"
-              @click="select({ type: 'camera', id: cam.id })"
-            >
-              <span class="tree__name">{{ cam.id }}</span>
-              <span class="tree__meta">{{ cam.canvasId }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeCamera(cam.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">UI</div>
-              <div class="tree__actions">
-                <div class="tree__add-group">
-                  <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_text')">+ Text</button>
-                  <button class="tree__add" :disabled="canvases.length === 0 && cameras.length === 0 && worlds.length === 0" @click="openCreate('ui_button')">+ Button</button>
-                </div>
-                <button class="tree__json" @click="openJsonModal('ui')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="uiEntities.length === 0" class="tree__empty">No UI</div>
-            <div
-              v-for="u in uiEntities"
-              :key="u.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'ui' && selected?.id === u.id }"
-              @click="select({ type: 'ui', id: u.id })"
-            >
-              <span class="tree__name">{{ u.id }}</span>
-              <span class="tree__meta">{{ u.subtype }} • {{ u.bindingLabel }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeUI(u.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">Entities</div>
-              <div class="tree__actions">
-                <div class="tree__add-group">
-                  <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Unit</button>
-                  <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('game_entity')">+ Build</button>
-                </div>
-                <button class="tree__json" @click="openJsonModal('game_entity')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="gameEntities.length === 0" class="tree__empty">No entities</div>
-            <div
-              v-for="e in gameEntities"
-              :key="e.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id }"
-              @click="select({ type: 'game_entity', id: e.id })"
-            >
-              <span class="tree__name">{{ e.id }}</span>
-              <span class="tree__meta">{{ e.subtype }} • {{ e.appearance.shape }} • {{ e.worldId }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeGameEntity(e.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">Regions</div>
-              <div class="tree__actions">
-                <button class="tree__add" :disabled="worlds.length === 0" @click="openCreate('region')">+ Add</button>
-                <button class="tree__json" @click="openJsonModal('region')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="regions.length === 0" class="tree__empty">No regions</div>
-            <div
-              v-for="r in regions"
-              :key="r.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'region' && selected?.id === r.id }"
-              @click="select({ type: 'region', id: r.id })"
-            >
-              <span class="tree__name">{{ r.displayName }}</span>
-              <span class="tree__meta">{{ r.bounds.width }}×{{ r.bounds.height }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeRegion(r.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">Controllers</div>
-              <div class="tree__actions">
-                <button class="tree__add" :disabled="cameras.length === 0" @click="openCreate('controller')">+ Add</button>
-                <button class="tree__json" @click="openJsonModal('controller')" title="Export JSON">{ }</button>
-              </div>
-            </div>
-            <div v-if="controllers.length === 0" class="tree__empty">No controllers</div>
-            <div
-              v-for="c in controllers"
-              :key="c.id"
-              class="tree__item"
-              :class="{ 'is-selected': selected?.type === 'controller' && selected?.id === c.id }"
-              @click="select({ type: 'controller', id: c.id })"
-            >
-              <span class="tree__name">{{ c.id }}</span>
-              <span class="tree__meta">{{ c.type }} → {{ c.targetId || 'none' }}</span>
-              <button class="tree__delete" title="Delete" @click.stop="removeController(c.id)">×</button>
-            </div>
-
-            <div class="tree__section">
-              <div class="tree__title">Collisions</div>
-              <div class="tree__actions">
-                <button class="tree__add" @click="openCreate('collision_type')">+ Type</button>
-                <button class="tree__add" @click="openCreate('collision_relation')">+ Relation</button>
-              </div>
-            </div>
-            <div class="tree__subsection">
-              <div class="tree__subtitle">Types</div>
-              <div v-if="getCollisionTypes().length === 0" class="tree__empty">No types</div>
-              <div
-                v-for="type in getCollisionTypes()"
-                :key="type.id"
-                class="tree__item tree__item--small"
-              >
-                <span class="tree__name">{{ type.id }}</span>
-                <span class="tree__meta">{{ type.defaultShape }}</span>
-                <button class="tree__delete" @click.stop="removeCollisionType(type.id)">×</button>
-              </div>
-            </div>
-            <div class="tree__subsection">
-              <div class="tree__subtitle">Relations</div>
-              <div v-if="getCollisionRelations().length === 0" class="tree__empty">No relations</div>
-              <div
-                v-for="rel in getCollisionRelations()"
-                :key="rel.key"
-                class="tree__item tree__item--small"
-              >
-                <span class="tree__name">{{ rel.typeA }} ↔ {{ rel.typeB }}</span>
-                <span class="tree__meta">{{ rel.modes }}</span>
-              </div>
-            </div>
-          </div>
+          <HierarchyTree
+            :worlds="worlds"
+            :canvases="canvases"
+            :cameras="cameras"
+            :ui-entities="uiEntities"
+            :game-entities="gameEntities"
+            :regions="regions"
+            :controllers="controllers"
+            :collision-types="getCollisionTypes()"
+            :collision-relations="getCollisionRelations()"
+            :selected="selected"
+            @select="select"
+            @add="openCreate"
+            @delete="handleTreeDelete"
+            @json="openJsonModal"
+            @delete-collision-type="removeCollisionType"
+          />
         </template>
 
         <!-- General Mode (Time Settings) -->
@@ -1285,8 +1123,9 @@
  import { timeSystem } from '../../../pixi_game2/pixigame/src/TimeSystem.js';
  import { inputSystem } from '../../../pixi_game2/pixigame/src/input/InputSystem.js';
 
- import Toolbar from './components/Toolbar.vue';
- import Viewport from './components/Viewport.vue';
+  import Toolbar from './components/Toolbar.vue';
+  import Viewport from './components/Viewport.vue';
+  import HierarchyTree from './components/HierarchyTree.vue';
 
 // ---------------------------
 // State
@@ -2183,6 +2022,16 @@ function removeSelected() {
   else if (type === 'camera') removeCamera(id);
   else if (type === 'ui') removeUI(id);
   else if (type === 'region') removeRegion(id);
+}
+
+function handleTreeDelete(type, id) {
+  if (type === 'world') removeWorld(id);
+  else if (type === 'canvas') removeCanvas(id);
+  else if (type === 'camera') removeCamera(id);
+  else if (type === 'ui') removeUI(id);
+  else if (type === 'game_entity') removeGameEntity(id);
+  else if (type === 'region') removeRegion(id);
+  else if (type === 'controller') removeController(id);
 }
 
 function resetAll() {
@@ -3130,72 +2979,6 @@ async function preloadPublicAssetsToCache() {
 }
 .panel__json-btn:hover { background: rgba(79, 195, 247, 0.25); }
 
-.tree {
-  padding: 10px;
-}
-.tree__section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 10px 0 6px;
-}
-.tree__title {
-  font-weight: 700;
-  color: #bdbdbd;
-}
-.tree__add {
-  border: none;
-  background: transparent;
-  color: #7bd3ff;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-}
-.tree__add-group { display: flex; gap: 6px; }
-.tree__add:hover:not(:disabled) { background: rgba(123, 211, 255, 0.10); }
-.tree__add:disabled { opacity: 0.35; cursor: not-allowed; }
-.tree__empty {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
-  padding: 6px 8px;
-}
-.tree__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.tree__item:hover { background: rgba(255, 255, 255, 0.05); }
-.tree__item.is-selected {
-  background: rgba(79, 195, 247, 0.15);
-  outline: 1px solid rgba(79, 195, 247, 0.25);
-}
-.tree__name {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-.tree__meta {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
-}
-.tree__delete {
-  height: 22px;
-  width: 22px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.75);
-  cursor: pointer;
-}
-.tree__delete:hover { background: rgba(255, 90, 90, 0.18); border-color: rgba(255, 90, 90, 0.25); }
-
-
-
 .inspector__empty {
   padding: 12px;
   color: rgba(255, 255, 255, 0.65);
@@ -3374,26 +3157,6 @@ async function preloadPublicAssetsToCache() {
   background: rgba(255, 100, 100, 0.2);
   color: rgba(255, 100, 100, 0.9);
 }
-
-/* Tree Actions */
-.tree__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.tree__add-group { display: flex; gap: 6px; }
-.tree__json {
-  border: none;
-  background: transparent;
-  color: #7bd3ff;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
-  font-weight: 600;
-}
-.tree__json:hover { background: rgba(123, 211, 255, 0.10); }
 
 /* JSON Modal */
 .modal--json {
