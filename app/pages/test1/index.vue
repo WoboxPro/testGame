@@ -1,32 +1,11 @@
 <template>
   <div class="editor">
-    <!-- Top Toolbar -->
-    <header class="toolbar">
-      <div class="toolbar__left">
-        <div class="brand">GoVue • Test1</div>
-        <div class="toolbar__divider" />
-        <div class="toolbar__group">
-          <button
-            class="btn"
-            :class="{ 'btn--primary': leftPanelMode === 'hierarchy' }"
-            @click="leftPanelMode = 'hierarchy'"
-          >
-            🎮 Game
-          </button>
-          <button
-            class="btn"
-            :class="{ 'btn--primary': leftPanelMode === 'general' }"
-            @click="leftPanelMode = 'general'"
-          >
-            ⚙️ General
-          </button>
-        </div>
-      </div>
-      <div class="toolbar__right">
-        <button class="btn" :disabled="!selected" @click="removeSelected">🗑️ Delete Selected</button>
-        <button class="btn" @click="resetAll">♻️ Reset</button>
-      </div>
-    </header>
+    <Toolbar
+      v-model="leftPanelMode"
+      :has-selection="!!selected"
+      @delete-selected="removeSelected"
+      @reset="resetAll"
+    />
 
     <div class="layout">
       <!-- Left Panel: Hierarchy or General Settings -->
@@ -270,28 +249,10 @@
       </aside>
 
       <!-- Viewport Area -->
-      <main class="viewport">
-        <div class="viewport__header">
-          <div class="viewport__title">Viewport</div>
-          <div class="viewport__hint">Wheel = Zoom (selected camera) • WASD = Pan (selected camera)</div>
-        </div>
-
-        <div v-if="canvases.length === 0" class="viewport__empty">
-          Add a Canvas to start rendering.
-        </div>
-
-        <div class="canvas-grid">
-          <div v-for="c in canvases" :key="c.id" class="canvas-card">
-            <div class="canvas-card__header">
-              <div class="canvas-card__title">{{ c.id }}</div>
-              <div class="canvas-card__meta">{{ c.width }}×{{ c.height }}</div>
-            </div>
-            <div class="canvas-card__body">
-              <div :ref="(el) => setCanvasHost(c.id, el)" class="canvas-host" />
-            </div>
-          </div>
-        </div>
-      </main>
+      <Viewport
+        :canvases="canvases"
+        @canvas-host="setCanvasHost"
+      />
 
       <!-- Inspector -->
       <aside class="panel inspector">
@@ -1311,18 +1272,21 @@
 </template>
 
 <script setup>
-import { computed, markRaw, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { World } from '../../../pixi_game2/pixigame/src/World.js';
-import { Region } from '../../../pixi_game2/pixigame/src/Region.js';
-import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
-import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
-import * as PIXI from 'pixi.js';
-import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
-import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
-import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
-import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
-import { timeSystem } from '../../../pixi_game2/pixigame/src/TimeSystem.js';
-import { inputSystem } from '../../../pixi_game2/pixigame/src/input/InputSystem.js';
+ import { computed, markRaw, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+ import { World } from '../../../pixi_game2/pixigame/src/World.js';
+ import { Region } from '../../../pixi_game2/pixigame/src/Region.js';
+ import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
+ import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
+ import * as PIXI from 'pixi.js';
+ import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
+ import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
+ import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
+ import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
+ import { timeSystem } from '../../../pixi_game2/pixigame/src/TimeSystem.js';
+ import { inputSystem } from '../../../pixi_game2/pixigame/src/input/InputSystem.js';
+
+ import Toolbar from './components/Toolbar.vue';
+ import Viewport from './components/Viewport.vue';
 
 // ---------------------------
 // State
@@ -3072,47 +3036,6 @@ async function preloadPublicAssetsToCache() {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-.toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  background: linear-gradient(180deg, #2b2b2b, #242424);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.toolbar__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.brand {
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  color: #bfe7ff;
-}
-.toolbar__buttons {
-  display: flex;
-  gap: 8px;
-}
-.toolbar__divider {
-  width: 1px;
-  height: 22px;
-  background: rgba(255, 255, 255, 0.10);
-  margin: 0 6px;
-}
-.toolbar__group {
-  display: flex;
-  gap: 6px;
-}
-.toolbar__right {
-  display: flex;
-  gap: 8px;
-}
-
 .btn {
   height: 34px;
   padding: 0 12px;
@@ -3137,6 +3060,8 @@ async function preloadPublicAssetsToCache() {
 .btn--primary:hover:not(:disabled) {
   background: rgba(79, 195, 247, 0.30);
 }
+
+
 .btn--success {
   background: rgba(52, 211, 153, 0.22);
   border-color: rgba(52, 211, 153, 0.35);
@@ -3269,59 +3194,7 @@ async function preloadPublicAssetsToCache() {
 }
 .tree__delete:hover { background: rgba(255, 90, 90, 0.18); border-color: rgba(255, 90, 90, 0.25); }
 
-.viewport {
-  background: #242424;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  overflow: hidden;
-  min-height: calc(100vh - 52px - 24px);
-  display: flex;
-  flex-direction: column;
-}
-.viewport__header {
-  padding: 10px 12px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.viewport__title { font-weight: 800; color: #d9f4ff; }
-.viewport__hint { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
-.viewport__empty {
-  padding: 20px;
-  color: rgba(255, 255, 255, 0.65);
-}
 
-.canvas-grid {
-  padding: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 12px;
-}
-.canvas-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-}
-.canvas-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.canvas-card__title { font-weight: 700; }
-.canvas-card__meta { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
-.canvas-card__body { padding: 10px; }
-.canvas-host {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 8px;
-  overflow: hidden;
-  display: inline-block;
-}
 
 .inspector__empty {
   padding: 12px;
