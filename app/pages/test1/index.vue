@@ -1128,6 +1128,7 @@
   import HierarchyTree from './components/HierarchyTree.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
+  import { cleanupCacheByPrefix, destroyDisplayObject, getBindingLabel, suggestId } from './utils/editorUtils.js';
 
 // ---------------------------
 // State
@@ -1510,13 +1511,6 @@ async function confirmCreate() {
   }
 }
 
-function suggestId(prefix, list) {
-  const existing = new Set(list.map((x) => x.id));
-  let i = 1;
-  while (existing.has(`${prefix}_${i}`)) i++;
-  return `${prefix}_${i}`;
-}
-
 function formatActionName(actionKey) {
   const names = {
     move_up: '⬆️ Move Up',
@@ -1845,13 +1839,6 @@ function focusCameraOnWorldCenter(cameraId) {
 // ---------------------------
 const uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
 
-function getBindingLabel(entity) {
-  if (entity.canvasId) return `canvas:${entity.canvasId}`;
-  if (entity.cameraId) return `camera:${entity.cameraId}`;
-  if (entity.worldId) return `world:${entity.worldId}`;
-  return 'unbound';
-}
-
 function ensureCanvasUILayer(canvasModel) {
   if (!canvasModel?.instance?.app) return;
   if (canvasModel.uiOverlay) return;
@@ -1885,15 +1872,6 @@ function ensureCameraUILayers(camModel) {
   }
 }
 
-function destroyDisplayObject(obj) {
-  if (!obj) return;
-  try {
-    if (obj.parent) obj.parent.removeChild(obj);
-  } catch (_) {}
-  try {
-    obj.destroy?.({ children: true });
-  } catch (_) {}
-}
 
 function removeUI(uiId) {
   const idx = uiEntities.findIndex((u) => u.id === uiId);
@@ -1982,7 +1960,7 @@ function updateUITransforms() {
       const canvasModel = canvases.find((c) => c.id === ent.canvasId);
       if (!canvasModel) {
         // cleanup orphaned
-        cleanupCacheByPrefix(`ui:${u.id}::canvas:`);
+        cleanupCacheByPrefix(uiDisplayCache, `ui:${u.id}::canvas:`);
         continue;
       }
       ensureCanvasUILayer(canvasModel);
@@ -1991,7 +1969,7 @@ function updateUITransforms() {
     } else if (ent.cameraId) {
       const camModel = cameras.find((c) => c.id === ent.cameraId);
       if (!camModel) {
-        cleanupCacheByPrefix(`ui:${u.id}::camera:`);
+        cleanupCacheByPrefix(uiDisplayCache, `ui:${u.id}::camera:`);
         continue;
       }
       ensureCameraUILayers(camModel);
@@ -2018,15 +1996,6 @@ function updateUITransforms() {
           uiDisplayCache.delete(key);
         }
       }
-    }
-  }
-}
-
-function cleanupCacheByPrefix(prefix) {
-  for (const [key, obj] of uiDisplayCache) {
-    if (key.startsWith(prefix)) {
-      destroyDisplayObject(obj);
-      uiDisplayCache.delete(key);
     }
   }
 }
