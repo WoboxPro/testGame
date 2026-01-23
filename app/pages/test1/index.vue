@@ -289,158 +289,22 @@
           />
 
           <!-- UI Text Form -->
-          <div v-else-if="createModal.type === 'ui_text'" class="form">
-            <label class="field">
-              <span class="field__label">ID</span>
-              <input class="field__input" v-model.trim="uiTextForm.id" placeholder="ui_text_1" />
-            </label>
-            <label class="field">
-              <span class="field__label">Bind to</span>
-              <select class="field__input" v-model="uiTextForm.bindTo">
-                <option value="canvas">canvas</option>
-                <option value="camera">camera</option>
-                <option value="world">world</option>
-              </select>
-            </label>
-            <label v-if="uiTextForm.bindTo === 'canvas'" class="field">
-              <span class="field__label">Canvas</span>
-              <select class="field__input" v-model="uiTextForm.canvasId">
-                <option v-for="c in canvases" :key="c.id" :value="c.id">{{ c.id }}</option>
-              </select>
-            </label>
-            <label v-else-if="uiTextForm.bindTo === 'camera'" class="field">
-              <span class="field__label">Camera</span>
-              <select class="field__input" v-model="uiTextForm.cameraId">
-                <option v-for="cam in cameras" :key="cam.id" :value="cam.id">{{ cam.id }}</option>
-              </select>
-            </label>
-            <label v-else class="field">
-              <span class="field__label">World</span>
-              <select class="field__input" v-model="uiTextForm.worldId">
-                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
-              </select>
-            </label>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">X</span>
-                <input class="field__input" type="number" v-model.number="uiTextForm.x" />
-              </label>
-              <label class="field">
-                <span class="field__label">Y</span>
-                <input class="field__input" type="number" v-model.number="uiTextForm.y" />
-              </label>
-            </div>
-            <label class="field field--row">
-              <input type="checkbox" v-model="uiTextForm.screenSpace" />
-              <span class="field__label">ScreenSpace</span>
-            </label>
-            <label class="field">
-              <span class="field__label">Content</span>
-              <input class="field__input" v-model.trim="uiTextForm.content" placeholder="Hello UI" />
-            </label>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Font Size</span>
-                <input class="field__input" type="number" v-model.number="uiTextForm.fontSize" />
-              </label>
-              <label class="field">
-                <span class="field__label">Color</span>
-                <input class="field__input" v-model.trim="uiTextForm.color" placeholder="#ffffff" />
-              </label>
-            </div>
-          </div>
+          <UITextForm
+            v-else-if="createModal.type === 'ui_text'"
+            v-model="uiTextForm"
+            :canvases="canvases"
+            :cameras="cameras"
+            :worlds="worlds"
+          />
 
           <!-- UI Button Form -->
-          <div v-else-if="createModal.type === 'ui_button'" class="form">
-            <label class="field">
-              <span class="field__label">ID</span>
-              <input class="field__input" v-model.trim="uiButtonForm.id" placeholder="ui_button_1" />
-            </label>
-            <label class="field">
-              <span class="field__label">Bind to</span>
-              <select class="field__input" v-model="uiButtonForm.bindTo">
-                <option value="canvas">canvas</option>
-                <option value="camera">camera</option>
-                <option value="world">world</option>
-              </select>
-            </label>
-            <label v-if="uiButtonForm.bindTo === 'canvas'" class="field">
-              <span class="field__label">Canvas</span>
-              <select class="field__input" v-model="uiButtonForm.canvasId">
-                <option v-for="c in canvases" :key="c.id" :value="c.id">{{ c.id }}</option>
-              </select>
-            </label>
-            <label v-else-if="uiButtonForm.bindTo === 'camera'" class="field">
-              <span class="field__label">Camera</span>
-              <select class="field__input" v-model="uiButtonForm.cameraId">
-                <option v-for="cam in cameras" :key="cam.id" :value="cam.id">{{ cam.id }}</option>
-              </select>
-            </label>
-            <label v-else class="field">
-              <span class="field__label">World</span>
-              <select class="field__input" v-model="uiButtonForm.worldId">
-                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
-              </select>
-            </label>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">X</span>
-                <input class="field__input" type="number" v-model.number="uiButtonForm.x" />
-              </label>
-              <label class="field">
-                <span class="field__label">Y</span>
-                <input class="field__input" type="number" v-model.number="uiButtonForm.y" />
-              </label>
-            </div>
-            <label class="field field--row">
-              <input type="checkbox" v-model="uiButtonForm.screenSpace" />
-              <span class="field__label">ScreenSpace</span>
-            </label>
-            <label class="field">
-              <span class="field__label">Label</span>
-              <input class="field__input" v-model.trim="uiButtonForm.label" placeholder="Click me" />
-            </label>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Width</span>
-                <input class="field__input" type="number" v-model.number="uiButtonForm.width" />
-              </label>
-              <label class="field">
-                <span class="field__label">Height</span>
-                <input class="field__input" type="number" v-model.number="uiButtonForm.height" />
-              </label>
-            </div>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">BG</span>
-                <input class="field__input" v-model.trim="uiButtonForm.bg" placeholder="#4fc3f7" />
-              </label>
-              <label class="field">
-                <span class="field__label">BG Hover</span>
-                <input class="field__input" v-model.trim="uiButtonForm.bgHover" placeholder="#29b6f6" />
-              </label>
-            </div>
-
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Texture URL (optional)</span>
-                <input class="field__input" v-model.trim="uiButtonForm.textureUrl" placeholder="/person.png" />
-              </label>
-              <label class="field">
-                <span class="field__label">Texture Hover URL (optional)</span>
-                <input class="field__input" v-model.trim="uiButtonForm.textureUrlHover" placeholder="/spritesheet.png" />
-              </label>
-            </div>
-            <label class="field">
-              <span class="field__label">Scale Mode</span>
-              <select class="field__input" v-model="uiButtonForm.scaleMode">
-                <option value="stretch">stretch (растянуть)</option>
-                <option value="contain">contain (вписать)</option>
-                <option value="cover">cover (покрыть)</option>
-                <option value="center">center (центр)</option>
-              </select>
-            </label>
-          </div>
+          <UIButtonForm
+            v-else-if="createModal.type === 'ui_button'"
+            v-model="uiButtonForm"
+            :canvases="canvases"
+            :cameras="cameras"
+            :worlds="worlds"
+          />
 
           <!-- Game Entity Form -->
           <div v-else-if="createModal.type === 'game_entity'" class="form">
@@ -964,6 +828,8 @@
   import WorldForm from './components/forms/WorldForm.vue';
   import CanvasForm from './components/forms/CanvasForm.vue';
   import CameraForm from './components/forms/CameraForm.vue';
+  import UITextForm from './components/forms/UITextForm.vue';
+  import UIButtonForm from './components/forms/UIButtonForm.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
