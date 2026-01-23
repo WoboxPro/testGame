@@ -329,59 +329,19 @@
           />
 
           <!-- Collision Type Form -->
-          <div v-else-if="createModal.type === 'collision_type'" class="form">
-            <label class="field">
-              <span class="field__label">World</span>
-              <select class="field__input" v-model="collisionTypeForm.worldId">
-                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Type ID</span>
-              <input class="field__input" v-model.trim="collisionTypeForm.id" placeholder="projectile" />
-            </label>
-            <label class="field">
-              <span class="field__label">Display Name</span>
-              <input class="field__input" v-model.trim="collisionTypeForm.name" placeholder="Projectile" />
-            </label>
-            <label class="field">
-              <span class="field__label">Default Shape</span>
-              <select class="field__input" v-model="collisionTypeForm.defaultShape">
-                <option value="circle">Circle (круг)</option>
-                <option value="rect">Rectangle (прямоугольник)</option>
-              </select>
-            </label>
-          </div>
+          <CollisionTypeForm
+            v-else-if="createModal.type === 'collision_type'"
+            v-model="collisionTypeForm"
+            :worlds="worlds"
+          />
 
           <!-- Collision Relation Form -->
-          <div v-else-if="createModal.type === 'collision_relation'" class="form">
-            <label class="field">
-              <span class="field__label">World</span>
-              <select class="field__input" v-model="collisionRelationForm.worldId">
-                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Type A</span>
-              <select class="field__input" v-model="collisionRelationForm.typeA">
-                <option v-for="type in getCollisionTypesForWorld(collisionRelationForm.worldId)" :key="type.id" :value="type.id">{{ type.id }} ({{ type.name }})</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Type B</span>
-              <select class="field__input" v-model="collisionRelationForm.typeB">
-                <option v-for="type in getCollisionTypesForWorld(collisionRelationForm.worldId)" :key="type.id" :value="type.id">{{ type.id }} ({{ type.name }})</option>
-              </select>
-            </label>
-            <label class="field field--row">
-              <input type="checkbox" v-model="collisionRelationForm.block" />
-              <span class="field__label">Block (блокировать движение)</span>
-            </label>
-            <label class="field field--row">
-              <input type="checkbox" v-model="collisionRelationForm.trigger" />
-              <span class="field__label">Trigger (вызывать событие)</span>
-            </label>
-          </div>
+          <CollisionRelationForm
+            v-else-if="createModal.type === 'collision_relation'"
+            v-model="collisionRelationForm"
+            :worlds="worlds"
+            :get-collision-types-for-world="getCollisionTypesForWorld"
+          />
         </div>
 
         <div class="modal__footer">
@@ -459,6 +419,8 @@
   import RegionForm from './components/forms/RegionForm.vue';
   import ControllerForm from './components/forms/ControllerForm.vue';
   import GameEntityForm from './components/forms/GameEntityForm.vue';
+  import CollisionTypeForm from './components/forms/CollisionTypeForm.vue';
+  import CollisionRelationForm from './components/forms/CollisionRelationForm.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
