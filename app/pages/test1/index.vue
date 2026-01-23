@@ -307,90 +307,11 @@
           />
 
           <!-- Game Entity Form -->
-          <div v-else-if="createModal.type === 'game_entity'" class="form">
-            <label class="field">
-              <span class="field__label">ID</span>
-              <input class="field__input" v-model.trim="gameEntityForm.id" placeholder="unit_1" />
-            </label>
-            <label class="field">
-              <span class="field__label">World</span>
-              <select class="field__input" v-model="gameEntityForm.worldId">
-                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Type</span>
-              <select class="field__input" v-model="gameEntityForm.subtype">
-                <option value="unit">Unit (юнит)</option>
-                <option value="build">Build (здание)</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Shape</span>
-              <select class="field__input" v-model="gameEntityForm.shape">
-                <option value="circle">Circle (круг)</option>
-                <option value="rect">Rectangle (квадрат)</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Color</span>
-              <input class="field__input" v-model.trim="gameEntityForm.color" placeholder="#4fc3f7" />
-            </label>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">X</span>
-                <input class="field__input" type="number" v-model.number="gameEntityForm.x" />
-              </label>
-              <label class="field">
-                <span class="field__label">Y</span>
-                <input class="field__input" type="number" v-model.number="gameEntityForm.y" />
-              </label>
-            </div>
-            <div v-if="gameEntityForm.shape === 'circle'">
-              <label class="field">
-                <span class="field__label">Size (radius × 2)</span>
-                <input class="field__input" type="number" v-model.number="gameEntityForm.size" />
-              </label>
-            </div>
-            <div v-else>
-              <div class="grid2">
-                <label class="field">
-                  <span class="field__label">Width</span>
-                  <input class="field__input" type="number" v-model.number="gameEntityForm.width" />
-                </label>
-                <label class="field">
-                  <span class="field__label">Height</span>
-                  <input class="field__input" type="number" v-model.number="gameEntityForm.height" />
-                </label>
-              </div>
-            </div>
-            <label class="field field--row">
-              <input type="checkbox" v-model="gameEntityForm.hasCollision" />
-              <span class="field__label">Has Collision</span>
-            </label>
-            <label class="field" v-if="gameEntityForm.hasCollision">
-              <span class="field__label">Collision Scale (1.0 = 100%)</span>
-              <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="gameEntityForm.collisionScale" />
-            </label>
-
-            <div class="form__section">
-              <div class="form__section-title">Movement</div>
-              <div class="grid2">
-                <label class="field">
-                  <span class="field__label">Max Speed</span>
-                  <input class="field__input" type="number" v-model.number="gameEntityForm.maxSpeed" />
-                </label>
-                <label class="field">
-                  <span class="field__label">Acceleration</span>
-                  <input class="field__input" type="number" v-model.number="gameEntityForm.acceleration" />
-                </label>
-              </div>
-              <label class="field">
-                <span class="field__label">Friction</span>
-                <input class="field__input" type="number" v-model.number="gameEntityForm.friction" />
-              </label>
-            </div>
-          </div>
+          <GameEntityForm
+            v-else-if="createModal.type === 'game_entity'"
+            v-model="gameEntityForm"
+            :worlds="worlds"
+          />
 
           <!-- Region Form -->
           <RegionForm
@@ -537,6 +458,7 @@
   import UIButtonForm from './components/forms/UIButtonForm.vue';
   import RegionForm from './components/forms/RegionForm.vue';
   import ControllerForm from './components/forms/ControllerForm.vue';
+  import GameEntityForm from './components/forms/GameEntityForm.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
