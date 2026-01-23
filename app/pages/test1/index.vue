@@ -274,244 +274,19 @@
 
         <div class="modal__body">
           <!-- World Form -->
-          <div v-if="createModal.type === 'world'" class="form">
-            <label class="field">
-              <span class="field__label">ID</span>
-              <input class="field__input" v-model.trim="worldForm.id" placeholder="world_1" />
-            </label>
-            <label class="field">
-              <span class="field__label">Type</span>
-              <select class="field__input" v-model="worldForm.type">
-                <option value="bounded">bounded</option>
-                <option value="infinite">infinite</option>
-              </select>
-            </label>
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Width</span>
-                <input class="field__input" type="number" v-model.number="worldForm.width" />
-              </label>
-              <label class="field">
-                <span class="field__label">Height</span>
-                <input class="field__input" type="number" v-model.number="worldForm.height" />
-              </label>
-            </div>
-            <label class="field">
-              <span class="field__label">Background</span>
-              <input class="field__input" v-model.trim="worldForm.backgroundColor" placeholder="#000000" />
-            </label>
-            <label class="field">
-              <span class="field__label">Texture URL (optional)</span>
-              <input class="field__input" v-model.trim="worldForm.textureUrl" placeholder="/assets/spritesheet.png" />
-            </label>
-            <div class="grid2" v-if="worldForm.textureUrl">
-              <label class="field">
-                <span class="field__label">Texture Scale Mode</span>
-                <select class="field__input" v-model="worldForm.textureScaleMode">
-                  <option value="tile">tile (замостить)</option>
-                  <option value="stretch">stretch (растянуть)</option>
-                  <option value="center">center (центрировать)</option>
-                </select>
-              </label>
-              <label class="field">
-                <span class="field__label">Tint (optional)</span>
-                <input class="field__input" v-model.trim="worldForm.tint" placeholder="#ffffff" />
-              </label>
-            </div>
-            <label class="field field--row">
-              <input type="checkbox" v-model="worldForm.showBounds" />
-              <span class="field__label">Show world bounds</span>
-            </label>
-            <label class="field" v-if="worldForm.showBounds">
-              <span class="field__label">Bounds Color</span>
-              <input class="field__input" v-model.trim="worldForm.boundsColor" placeholder="#FF4444" />
-            </label>
-          </div>
+          <WorldForm v-if="createModal.type === 'world'" v-model="worldForm" />
 
           <!-- Canvas Form -->
-          <div v-else-if="createModal.type === 'canvas'" class="form">
-            <label class="field">
-              <span class="field__label">ID</span>
-              <input class="field__input" v-model.trim="canvasForm.id" placeholder="canvas_1" />
-            </label>
-            <label class="field">
-              <span class="field__label">Size Mode</span>
-              <select class="field__input" v-model="canvasForm.sizeMode">
-                <option value="fixed">fixed</option>
-                <option value="responsive">responsive</option>
-              </select>
-            </label>
-            <div v-if="canvasForm.sizeMode === 'fixed'" class="grid2">
-              <label class="field">
-                <span class="field__label">Width</span>
-                <input class="field__input" type="number" v-model.number="canvasForm.width" />
-              </label>
-              <label class="field">
-                <span class="field__label">Height</span>
-                <input class="field__input" type="number" v-model.number="canvasForm.height" />
-              </label>
-            </div>
-            <div v-else class="grid2">
-              <label class="field">
-                <span class="field__label">Width %</span>
-                <input class="field__input" type="number" v-model.number="canvasForm.widthPercent" />
-              </label>
-              <label class="field">
-                <span class="field__label">Height %</span>
-                <input class="field__input" type="number" v-model.number="canvasForm.heightPercent" />
-              </label>
-            </div>
-            <label class="field">
-              <span class="field__label">Background</span>
-              <input class="field__input" v-model.trim="canvasForm.backgroundColor" placeholder="#1a1a1a" />
-            </label>
-            <div class="grid2">
-              <label class="field field--row">
-                <input type="checkbox" v-model="canvasForm.antialias" />
-                <span class="field__label">Antialias</span>
-              </label>
-              <label class="field">
-                <span class="field__label">Resolution</span>
-                <input class="field__input" type="number" step="1" min="1" max="4" v-model.number="canvasForm.resolution" />
-              </label>
-            </div>
-          </div>
+          <CanvasForm v-else-if="createModal.type === 'canvas'" v-model="canvasForm" />
 
           <!-- Camera Form -->
-          <div v-else-if="createModal.type === 'camera'" class="form">
-            <label class="field">
-              <span class="field__label">ID</span>
-              <input class="field__input" v-model.trim="cameraForm.id" placeholder="camera_1" />
-            </label>
-
-            <label class="field">
-              <span class="field__label">Attach to Canvas</span>
-              <select class="field__input" v-model="cameraForm.canvasId">
-                <option v-for="c in canvases" :key="c.id" :value="c.id">{{ c.id }}</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span class="field__label">Attach to World</span>
-              <select class="field__input" v-model="cameraForm.worldId">
-                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span class="field__label">Follow Entity (optional)</span>
-              <select class="field__input" v-model="cameraForm.followEntityId">
-                <option value="">None</option>
-                <option v-for="e in gameEntities" :key="e.id" :value="e.entityId">{{ e.id }} ({{ e.subtype }})</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span class="field__label">Anchor</span>
-              <select class="field__input" v-model="cameraForm.anchor">
-                <option value="center">center</option>
-                <option value="topleft">topleft</option>
-                <option value="topright">topright</option>
-                <option value="bottomleft">bottomleft</option>
-                <option value="bottomright">bottomright</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span class="field__label">World Background Color</span>
-              <input class="field__input" v-model.trim="cameraForm.worldBackgroundColor" placeholder="#2a2a2a" />
-            </label>
-
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Viewport Width</span>
-                <input class="field__input" type="number" v-model.number="cameraForm.width" />
-              </label>
-              <label class="field">
-                <span class="field__label">Viewport Height</span>
-                <input class="field__input" type="number" v-model.number="cameraForm.height" />
-              </label>
-            </div>
-
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">X (in canvas)</span>
-                <input class="field__input" type="number" v-model.number="cameraForm.x" />
-              </label>
-              <label class="field">
-                <span class="field__label">Y (in canvas)</span>
-                <input class="field__input" type="number" v-model.number="cameraForm.y" />
-              </label>
-            </div>
-
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Focus X</span>
-                <input class="field__input" type="number" v-model.number="cameraForm.focusX" />
-              </label>
-              <label class="field">
-                <span class="field__label">Focus Y</span>
-                <input class="field__input" type="number" v-model.number="cameraForm.focusY" />
-              </label>
-            </div>
-
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Zoom</span>
-                <input class="field__input" type="number" step="0.1" v-model.number="cameraForm.zoom" />
-              </label>
-              <label class="field">
-                <span class="field__label">Priority</span>
-                <input class="field__input" type="number" step="1" v-model.number="cameraForm.priority" />
-              </label>
-            </div>
-
-            <div class="grid2">
-              <label class="field">
-                <span class="field__label">Min Zoom</span>
-                <input class="field__input" type="number" step="0.1" v-model.number="cameraForm.minZoom" />
-              </label>
-              <label class="field">
-                <span class="field__label">Max Zoom</span>
-                <input class="field__input" type="number" step="0.1" v-model.number="cameraForm.maxZoom" />
-              </label>
-            </div>
-
-            <div class="form__section">
-              <div class="form__section-title">Visibility (what to show)</div>
-              <label class="field">
-                <span class="field__label">Mode</span>
-                <select class="field__input" v-model="cameraForm.showMode">
-                  <option value="all">Show All</option>
-                  <option value="selected">Show Only Selected</option>
-                </select>
-              </label>
-
-              <template v-if="cameraForm.showMode === 'selected'">
-                <label class="field field--row">
-                  <input type="checkbox" v-model="cameraForm.showRegions" />
-                  <span class="field__label">Show Regions</span>
-                </label>
-                <label class="field field--row">
-                  <input type="checkbox" v-model="cameraForm.showRegionBorders" />
-                  <span class="field__label">Show Region Borders</span>
-                </label>
-                <label class="field field--row">
-                  <input type="checkbox" v-model="cameraForm.showGameEntities" />
-                  <span class="field__label">Show Game Entities</span>
-                </label>
-                <label class="field field--row">
-                  <input type="checkbox" v-model="cameraForm.showUIEntities" />
-                  <span class="field__label">Show UI Entities</span>
-                </label>
-              </template>
-            </div>
-
-            <label class="field field--row">
-              <input type="checkbox" v-model="cameraForm.createDefaultController" />
-              <span class="field__label">Create default controller (5213 movement, Numpad +/- zoom, Tab to switch)</span>
-            </label>
-          </div>
+          <CameraForm
+            v-else-if="createModal.type === 'camera'"
+            v-model="cameraForm"
+            :canvases="canvases"
+            :worlds="worlds"
+            :gameEntities="gameEntities"
+          />
 
           <!-- UI Text Form -->
           <div v-else-if="createModal.type === 'ui_text'" class="form">
@@ -1186,6 +961,9 @@
   import Toolbar from './components/Toolbar.vue';
   import Viewport from './components/Viewport.vue';
   import HierarchyTree from './components/HierarchyTree.vue';
+  import WorldForm from './components/forms/WorldForm.vue';
+  import CanvasForm from './components/forms/CanvasForm.vue';
+  import CameraForm from './components/forms/CameraForm.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
