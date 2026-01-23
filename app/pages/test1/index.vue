@@ -425,7 +425,8 @@
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
   import { useCreateFlow } from './composables/useCreateFlow.js';
-  import { cleanupCacheByPrefix, destroyDisplayObject, getBindingLabel, suggestId } from './utils/editorUtils.js';
+  import { useUIEntityBinding } from './composables/useUIEntityBinding.js';
+  import { getBindingLabel, suggestId } from './utils/editorUtils.js';
 
 // ---------------------------
 // State
@@ -654,12 +655,6 @@ const controllerForm = reactive({
   touchRightStickY: null
 });
 
-// Key recording state for custom bindings
-const keyRecording = reactive({
-  action: null,
-  field: null // 'primary' or 'secondary'
-});
-
 const collisionTypeForm = reactive({
   id: '',      // Type ID (e.g., 'unit', 'build', 'projectile')
   name: '',    // Display name (e.g., 'Unit', 'Building')
@@ -674,32 +669,6 @@ const collisionRelationForm = reactive({
   trigger: false,
   worldId: ''  // Which world to add to
 });
-
-function startKeyRecording(action, field) {
-  keyRecording.action = action;
-  keyRecording.field = field;
-}
-
-function stopKeyRecording() {
-  keyRecording.action = null;
-  keyRecording.field = null;
-}
-
-function handleKeyRecording(e) {
-  if (!keyRecording.action) return;
-
-  e.preventDefault();
-
-  // Record the key code
-  const keyCode = e.code;
-  controllerForm.bindings[keyRecording.action][keyRecording.field] = keyCode;
-
-  // Stop recording after capturing
-  stopKeyRecording();
-
-  // Remove focus from input
-  e.target.blur();
-}
 
 const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   createModal,
@@ -734,34 +703,19 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   }
 });
 
-function formatActionName(actionKey) {
-  const names = {
-    move_up: '⬆️ Move Up',
-    move_down: '⬇️ Move Down',
-    move_left: '⬅️ Move Left',
-    move_right: '➡️ Move Right',
-    zoom_in: '🔍 Zoom In',
-    zoom_out: '🔍 Zoom Out',
-    switch_target: '🔄 Switch Target'
-  };
-  return names[actionKey] || actionKey;
-}
-
-function getControllerActions(type) {
-  if (type === 'entity') {
-    return ['move_up', 'move_down', 'move_left', 'move_right', 'switch_target'];
-  } else {
-    // Camera has all actions including zoom
-    return ['move_up', 'move_down', 'move_left', 'move_right', 'zoom_in', 'zoom_out', 'switch_target'];
-  }
-}
-
 function getEntityLabelById(entityId) {
   if (!entityId) return '';
   const entity = gameEntities.find(e => e.entityId === entityId);
   if (!entity) return entityId;
   return `${entity.id} (${entity.subtype})`;
 }
+
+const { createBindingFromForm, createUIEntity } = useUIEntityBinding({
+  canvases,
+  cameras,
+  uiEntities,
+  select
+});
 
 // ---------------------------
 // Create / Remove
@@ -1023,132 +977,9 @@ function applySelectedCameraUi() {
   // updateUITransforms();
 }
 
-function focusCameraOnWorldCenter(cameraId) {
-  const camModel = cameras.find((c) => c.id === cameraId);
-  if (!camModel) return;
-  const worldModel = worlds.find((w) => w.id === camModel.worldId);
-  if (!worldModel) return;
-  camModel.instance.setFocus?.(0, 0);
-  syncCameraUiFromSelected();
-}
-
 // ---------------------------
 // UI Entities (Entity + UI)
 // ---------------------------
-// UI rendering now handled by engine - no local cache needed
-// const uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
-
-// UI rendering now handled by engine
-/*
-function ensureCanvasUILayer(canvasModel) {
-  if (!canvasModel?.instance?.app) return;
-  if (canvasModel.uiOverlay) return;
-  const layer = markRaw(new PIXI.Container());
-  try { layer.sortableChildren = true; } catch (_) {}
-  layer.zIndex = 50000;
-  canvasModel.instance.app.stage.addChild(layer);
-  canvasModel.uiOverlay = layer;
-}
-
-*/
-
-// UI rendering now handled by engine
-/*
-function ensureCameraUILayers(camModel) {
-  const cam = camModel?.instance;
-  if (!cam?.container) return;
-
-  // UI in camera viewport coords (not affected by world focus)
-  if (!camModel.uiLayer) {
-    const layer = markRaw(new PIXI.Container());
-    try { layer.sortableChildren = true; } catch (_) {}
-    layer.zIndex = 50000;
-    cam.container.addChild(layer);
-    camModel.uiLayer = layer;
-  }
-
-  // UI in world coords but drawn above entities (affected by focus/zoom)
-  if (cam.worldLayer && !camModel.worldUiLayer) {
-    const layer = markRaw(new PIXI.Container());
-    try { layer.sortableChildren = true; } catch (_) {}
-    layer.zIndex = 9000;
-    cam.worldLayer.addChild(layer);
-    camModel.worldUiLayer = layer;
-  }
-}
-
-*/
-
-// UI rendering now handled by engine
-/*
-function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
-  let obj = uiDisplayCache.get(cacheKey);
-
-  if (!obj) {
-    const instance = uiModel.instance;
-    obj = createPixiDisplayObjectForUI(instance, { onAction: handleUIAction });
-    if (!obj) return;
-    uiDisplayCache.set(cacheKey, obj);
-  }
-
-  if (obj.parent !== container) {
-    container.addChild(obj);
-  }
-
-  const e = uiModel.instance;
-  const position = e.position || { x: 0, y: 0 };
-  obj.position.set(position.x, position.y);
-
-  if (e.rotation) obj.rotation = e.rotation;
-
-  let sx = 1, sy = 1;
-  if (e.scale) {
-    sx = Number.isFinite(e.scale.x) ? e.scale.x : 1;
-    sy = Number.isFinite(e.scale.y) ? e.scale.y : 1;
-  }
-
-  // Apply camera scale if needed
-  if (ctx?.type === 'camera') {
-    const z = ctx.camera?.zoom || 1;
-    sx *= z;
-    sy *= z;
-  }
-
-  if (obj.scale?.set) obj.scale.set(sx, sy);
-  else obj.scale = { x: sx, y: sy };
-
-  obj.alpha = Number.isFinite(e.opacity) ? e.opacity : 1;
-  obj.visible = e.visible !== false;
-  obj.zIndex = Number.isFinite(e.z_index) ? e.z_index : 9999;
-}
-
-*/
-// UI rendering now handled by engine
-/*
-function ensureCameraUILayers(camModel) {
-  const cam = camModel?.instance;
-  if (!cam?.container) return;
-
-  // UI in camera viewport coords (not affected by world focus)
-  if (!camModel.uiLayer) {
-    const layer = markRaw(new PIXI.Container());
-    try { layer.sortableChildren = true; } catch (_) {}
-    layer.zIndex = 50000;
-    cam.container.addChild(layer);
-    camModel.uiLayer = layer;
-  }
-
-  // UI in world coords but drawn above entities (affected by focus/zoom)
-  if (cam.worldLayer && !camModel.worldUiLayer) {
-    const layer = markRaw(new PIXI.Container());
-    try { layer.sortableChildren = true; } catch (_) {}
-    layer.zIndex = 9000;
-    cam.worldLayer.addChild(layer);
-    camModel.worldUiLayer = layer;
-  }
-}
-
-*/
 
 function removeUI(uiId) {
   const idx = uiEntities.findIndex((u) => u.id === uiId);
@@ -1227,92 +1058,9 @@ function handleUIAction(actionId, payload, entity) {
   console.log('[UI ACTION]', { actionId, payload, entity });
 }
 
-// UI rendering now handled by engine - updateUITransforms no longer needed
-/*
-function updateUITransforms() {
-  // Attach/update UI in correct layers
-  for (const u of uiEntities) {
-    const ent = u.instance;
-    if (ent.canvasId) {
-      const canvasModel = canvases.find((c) => c.id === ent.canvasId);
-      if (!canvasModel) {
-        // cleanup orphaned
-        cleanupCacheByPrefix(uiDisplayCache, `ui:${u.id}::canvas:`);
-        continue;
-      }
-      ensureCanvasUILayer(canvasModel);
-      const key = `ui:${u.id}::canvas:${ent.canvasId}`;
-      ensureUIInstanceInContainer(u, canvasModel.uiOverlay, key);
-    } else if (ent.cameraId) {
-      const camModel = cameras.find((c) => c.id === ent.cameraId);
-      if (!camModel) {
-        cleanupCacheByPrefix(uiDisplayCache, `ui:${u.id}::camera:`);
-        continue;
-      }
-
-      // Skip rendering if UI entities are hidden for this camera
-      if (!camModel.instance.isTypeVisible('uiEntities')) {
-        if (camModel.uiLayer) {
-          const key = `ui:${u.id}::camera:${ent.cameraId}`;
-          const obj = uiDisplayCache.get(key);
-          if (obj && obj.parent === camModel.uiLayer) {
-            camModel.uiLayer.removeChild(obj);
-          }
-        }
-        continue;
-      }
-
-      ensureCameraUILayers(camModel);
-      const key = `ui:${u.id}::camera:${ent.cameraId}`;
-      ensureUIInstanceInContainer(u, camModel.uiLayer, key, { type: 'camera', camera: camModel.instance });
-    } else if (ent.worldId) {
-      // render world-ui into every camera that watches that world
-      const allCams = cameras.filter((c) => c.worldId === ent.worldId);
-      const activeCams = allCams.filter((c) => c.instance.isTypeVisible('uiEntities'));
-      const activeIds = new Set(activeCams.map((c) => c.id));
-
-      for (const camModel of allCams) {
-        const key = `ui:${u.id}::world:${ent.worldId}::camera:${camModel.id}`;
-
-        if (!camModel.instance.isTypeVisible('uiEntities')) {
-          if (camModel.worldUiLayer) {
-            const obj = uiDisplayCache.get(key);
-            if (obj && obj.parent === camModel.worldUiLayer) {
-              camModel.worldUiLayer.removeChild(obj);
-            }
-          }
-          continue;
-        }
-
-        ensureCameraUILayers(camModel);
-        ensureUIInstanceInContainer(u, camModel.worldUiLayer, key);
-      }
-
-      // cleanup cached objects for cameras that no longer exist / no longer match
-      const prefix = `ui:${u.id}::world:${ent.worldId}::camera:`;
-      for (const [key, obj] of uiDisplayCache) {
-        if (!key.startsWith(prefix)) continue;
-        const camId = key.substring(prefix.length);
-        if (!activeIds.has(camId)) {
-          destroyDisplayObject(obj);
-          uiDisplayCache.delete(key);
-        }
-      }
-    }
-  }
-}
-*/
-
 function createUITextFromForm() {
   const id = uiTextForm.id?.trim() || suggestId('ui_text', uiEntities);
-  if (uiEntities.some((u) => u.id === id)) return;
-
-  const bindTo = uiTextForm.bindTo;
-  const binding = bindTo === 'canvas'
-    ? { canvasId: uiTextForm.canvasId }
-    : bindTo === 'camera'
-      ? { cameraId: uiTextForm.cameraId }
-      : { worldId: uiTextForm.worldId };
+  const binding = createBindingFromForm(uiTextForm.bindTo, uiTextForm.canvasId, uiTextForm.cameraId, uiTextForm.worldId);
 
   const instance = markRaw(new UITextEntity({
     id,
@@ -1330,52 +1078,12 @@ function createUITextFromForm() {
     }
   }));
 
-  const model = {
-    id,
-    subtype: 'text',
-    bindingLabel: getBindingLabel(instance),
-    instance
-  };
-  uiEntities.push(model);
-
-  // Add UI entity to appropriate canvas
-  if (binding.canvasId) {
-    const canvasModel = canvases.find((c) => c.id === binding.canvasId);
-    if (canvasModel) {
-      canvasModel.instance.addUIEntity(model);
-    }
-  } else if (binding.cameraId) {
-    const camModel = cameras.find((c) => c.id === binding.cameraId);
-    if (camModel && camModel.canvasId) {
-      const canvasModel = canvases.find((c) => c.id === camModel.canvasId);
-      if (canvasModel) {
-        canvasModel.instance.addUIEntity(model);
-      }
-    }
-  } else if (binding.worldId) {
-    // Add to all canvases that have cameras watching this world
-    for (const canvasModel of canvases) {
-      const hasWorldCamera = Array.from(canvasModel.instance.cameras.values())
-        .some(cam => cam.worldId === binding.worldId);
-      if (hasWorldCamera) {
-        canvasModel.instance.addUIEntity(model);
-      }
-    }
-  }
-
-  select({ type: 'ui', id });
+  return createUIEntity({ id, subtype: 'text', instance, binding });
 }
 
 function createUIButtonFromForm() {
   const id = uiButtonForm.id?.trim() || suggestId('ui_button', uiEntities);
-  if (uiEntities.some((u) => u.id === id)) return;
-
-  const bindTo = uiButtonForm.bindTo;
-  const binding = bindTo === 'canvas'
-    ? { canvasId: uiButtonForm.canvasId }
-    : bindTo === 'camera'
-      ? { cameraId: uiButtonForm.cameraId }
-      : { worldId: uiButtonForm.worldId };
+  const binding = createBindingFromForm(uiButtonForm.bindTo, uiButtonForm.canvasId, uiButtonForm.cameraId, uiButtonForm.worldId);
 
   const instance = markRaw(new UIButtonEntity({
     id,
@@ -1405,40 +1113,7 @@ function createUIButtonFromForm() {
     }
   }));
 
-  const model = {
-    id,
-    subtype: 'button',
-    bindingLabel: getBindingLabel(instance),
-    instance
-  };
-  uiEntities.push(model);
-
-  // Add UI entity to appropriate canvas
-  if (binding.canvasId) {
-    const canvasModel = canvases.find((c) => c.id === binding.canvasId);
-    if (canvasModel) {
-      canvasModel.instance.addUIEntity(model);
-    }
-  } else if (binding.cameraId) {
-    const camModel = cameras.find((c) => c.id === binding.cameraId);
-    if (camModel && camModel.canvasId) {
-      const canvasModel = canvases.find((c) => c.id === camModel.canvasId);
-      if (canvasModel) {
-        canvasModel.instance.addUIEntity(model);
-      }
-    }
-  } else if (binding.worldId) {
-    // Add to all canvases that have cameras watching this world
-    for (const canvasModel of canvases) {
-      const hasWorldCamera = Array.from(canvasModel.instance.cameras.values())
-        .some(cam => cam.worldId === binding.worldId);
-      if (hasWorldCamera) {
-        canvasModel.instance.addUIEntity(model);
-      }
-    }
-  }
-
-  select({ type: 'ui', id });
+  return createUIEntity({ id, subtype: 'button', instance, binding });
 }
 
 function createGameEntityFromForm() {
