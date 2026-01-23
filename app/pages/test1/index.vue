@@ -1665,6 +1665,8 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 .inspector__group { margin: 10px 0; }
 .inspector__label { font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.75); margin-bottom: 6px; }
 .inspector__value { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #7bd3ff; margin-top: 6px; font-size: 12px; }
+.inspector__section { padding: 10px; border-radius: 8px; background: rgba(79, 195, 247, 0.05); border: 1px solid rgba(79, 195, 247, 0.15); }
+.inspector__section-title { font-weight: 700; font-size: 13px; color: #bfe7ff; margin-bottom: 8px; }
 .actions { display: grid; gap: 8px; margin-top: 12px; }
 
 .modal-backdrop {
@@ -1712,8 +1714,6 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.form { display: grid; gap: 10px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .field { display: grid; gap: 6px; }
 .field--row { grid-auto-flow: column; align-items: center; justify-content: start; gap: 10px; }
 .field__label { font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.75); }
@@ -1726,97 +1726,6 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
   color: rgba(255, 255, 255, 0.92);
 }
 .field__input:focus { outline: 2px solid rgba(79, 195, 247, 0.25); border-color: rgba(79, 195, 247, 0.30); }
-
-/* Info Box */
-.info-box {
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(79, 195, 247, 0.08);
-  border: 1px solid rgba(79, 195, 247, 0.20);
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.85);
-}
-.info-box strong {
-  color: #bfe7ff;
-}
-
-/* Bindings Editor */
-.bindings-editor {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.binding-row {
-  display: grid;
-  grid-template-columns: 140px 1fr 1fr;
-  gap: 8px;
-  align-items: center;
-}
-.binding-action {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-}
-.binding-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-}
-.binding-input {
-  flex: 1;
-  height: 32px;
-  padding: 0 8px;
-  padding-right: 28px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(0, 0, 0, 0.25);
-  color: rgba(255, 255, 255, 0.9);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-}
-.binding-input:focus {
-  outline: 2px solid rgba(79, 195, 247, 0.25);
-  border-color: rgba(79, 195, 247, 0.30);
-}
-.binding-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-.binding-input.is-recording {
-  border-color: #4ade80;
-  background: rgba(74, 222, 128, 0.1);
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
-  animation: pulse 1s infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
-}
-.binding-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, color 0.15s;
-}
-.binding-clear:hover {
-  background: rgba(255, 100, 100, 0.2);
-  color: rgba(255, 100, 100, 0.9);
-}
 
 /* JSON Modal */
 .modal--json {
