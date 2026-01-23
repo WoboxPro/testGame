@@ -6,38 +6,30 @@
  */
 
 export class Entity {
-  /**
-   * @param {Partial<Entity> & {
-   *  id?: string,
-   *  type?: 'effect'|'ui'|'grid'|'game'|'trigger',
-   *  subtype?: string,
-   *  parentId?: string,
-   *  position?: {x:number,y:number},
-   *  rotation?: number,
-   *  scale?: {x:number,y:number},
-   *  visible?: boolean,
-   *  z_index?: number,
-   *  opacity?: number,
-   *  blendMode?: string,
-   *  canvasId?: string,
-   *  cameraId?: string,
-   *  worldId?: string,
-   *  collision?: Array<any>,
-   *  components?: Map<string, any>
-   * }} options
-   */
+   /**
+    * @param {Partial<Entity> & {
+    *  id?: string,
+    *  type?: 'effect'|'ui'|'grid'|'game'|'trigger',
+    *  subtype?: string,
+    *  position?: {x:number,y:number},
+    *  rotation?: number,
+    *  scale?: {x:number,y:number},
+    *  visible?: boolean,
+    *  z_index?: number,
+    *  opacity?: number,
+    *  blendMode?: string,
+    *  canvasId?: string,
+    *  cameraId?: string,
+    *  worldId?: string,
+    *  collision?: Array<any>,
+    *  components?: Map<string, any>
+    * }} options
+    */
   constructor(options = {}) {
     // Identification
     this.id = options.id || `entity_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     this.type = options.type || 'game';
     this.subtype = options.subtype;
-
-    // Hierarchy
-    this.parentId = options.parentId;
-    /** @type {Entity | undefined} */
-    this.parent = options.parent;
-    this.children = options.children instanceof Set ? options.children : new Set();
-    this.slots = options.slots;
 
     // Transform
     this.position = options.position ? { x: Number(options.position.x) || 0, y: Number(options.position.y) || 0 } : { x: 0, y: 0 };
@@ -90,24 +82,6 @@ export class Entity {
     this.cameraId = cameraId;
     this.worldId = worldId;
     this._enforceSingleBinding();
-  }
-
-  setParent(parent) {
-    if (parent && !(parent instanceof Entity)) {
-      throw new Error('setParent expects Entity or null');
-    }
-    this.parent = parent || undefined;
-    this.parentId = parent ? parent.id : undefined;
-  }
-
-  addChild(childId) {
-    if (!childId) return;
-    this.children.add(childId);
-  }
-
-  removeChild(childId) {
-    if (!childId) return;
-    this.children.delete(childId);
   }
 
   setComponent(key, value) {
