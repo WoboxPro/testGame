@@ -5,6 +5,7 @@
 import * as PIXI from 'pixi.js';
 import { Camera } from './Camera.js';
 import { EntityRenderer } from './EntityRenderer.js';
+import { createPixiDisplayObjectForUI } from './UIRenderer.js';
 import { inputSystem } from '../../pixigame/src/input/InputSystem.js';
 
 export class Canvas {
@@ -37,6 +38,11 @@ export class Canvas {
     this._canvasBackgroundLayer = null;
     this._cameraBordersLayer = null;
     this._virtualInputLayer = null; // Слой для виртуальных элементов управления
+
+    // UI entities management
+    this.uiEntities = new Map(); // id -> uiEntity
+    this.uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
+    this._uiOverlay = null; // Canvas-level UI layer
 
     console.log(`🖼️ Canvas создан: ${this.id}, mode=${this.sizeMode}`);
   }
@@ -112,6 +118,11 @@ export class Canvas {
     this._cameraBordersLayer.zIndex = 999;
     this.app.stage.addChild(this._cameraBordersLayer);
 
+    // Слой для canvas-level UI
+    this._uiOverlay = new PIXI.Container();
+    this._uiOverlay.zIndex = 50000;
+    this.app.stage.addChild(this._uiOverlay);
+
     // Слой для виртуальных элементов управления (поверх всего)
     this._virtualInputLayer = new PIXI.Container();
     this._virtualInputLayer.zIndex = 1000;
@@ -150,10 +161,19 @@ export class Canvas {
   removeCamera(cameraId) {
     const camera = this.cameras.get(cameraId);
     if (!camera) return false;
-    
+
     camera._cleanupFromCanvas();
     this.entityRenderer.clearCameraCache(cameraId);
-    
+
+    // Clean up UI cache for this camera
+    const cameraPrefix = `::camera:${cameraId}`;
+    for (const [key, obj] of this.uiDisplayCache) {
+      if (key.includes(cameraPrefix)) {
+        obj.destroy({ children: true });
+        this.uiDisplayCache.delete(key);
+      }
+    }
+
     const removed = this.cameras.delete(cameraId);
     if (removed) {
       console.log(`📷 Камера ${cameraId} удалена из canvas ${this.id}`);
@@ -189,15 +209,24 @@ export class Canvas {
         this._renderCameraBackground(camera);
       }
 
-      this.entityRenderer.renderEntities(
-        camera,
-        camera.world,
-        camera.entitiesContainer
-      );
+      // Рендерим игровые сущности
+      if (camera.entitiesContainer) {
+        camera.entitiesContainer.visible = camera.isTypeVisible('gameEntities');
+        if (camera.entitiesContainer.visible) {
+          this.entityRenderer.renderEntities(
+            camera,
+            camera.world,
+            camera.entitiesContainer
+          );
+        }
+      }
 
       // Рендерим границы мира после сущностей (поверх всего)
       this._renderWorldBounds(camera);
     }
+
+    // Рендерим все UI сущности
+    this._renderAllUIEntities();
 
     this._updateCameraBorders();
 
@@ -300,7 +329,12 @@ export class Canvas {
     const regionSystem = camera.world.regionSystem;
     if (!regionSystem || regionSystem.regions.size === 0) return;
 
-    console.log(`🗺️ _renderRegions: ${regionSystem.regions.size} regions`);
+    const showRegions = camera.isTypeVisible('regions');
+    const showRegionBorders = camera.isTypeVisible('regionBorders');
+
+    if (!showRegions && !showRegionBorders) return;
+
+    console.log(`🗺️ _renderRegions: ${regionSystem.regions.size} regions (showRegions=${showRegions}, showBorders=${showRegionBorders})`);
 
     // Рендерим регионы по приоритету
     const sortedRegions = Array.from(regionSystem.regions.values())
@@ -310,15 +344,13 @@ export class Canvas {
       const regionType = region.regionType;
       const bounds = region.bounds;
 
-      console.log(`🗺️ Region: ${regionType.displayName}, texture=${regionType.groundTexture?.textureUrl || 'none'}, borders=${regionType.borders?.enabled}`);
-
       // 🎨 Рендерим текстуру региона если есть
-      if (regionType.groundTexture?.textureUrl) {
+      if (showRegions && regionType.groundTexture?.textureUrl) {
         this._renderRegionTexture(camera, regionType, bounds);
       }
 
       // 🔲 Рендерим границы региона если включены
-      if (regionType.borders?.enabled) {
+      if (showRegionBorders && regionType.borders?.enabled) {
         this._renderRegionBorders(camera, regionType, bounds);
       }
     }
@@ -487,15 +519,225 @@ export class Canvas {
   
   _renderCameraBackground(camera) {
     if (!camera.cameraBackgroundLayer) return;
-    
+
     camera.cameraBackgroundLayer.removeChildren();
-    
+
     if (camera.cameraBackgroundColor && camera.cameraBackgroundColor !== 'transparent') {
       const graphics = new PIXI.Graphics();
       graphics.rect(0, 0, camera.width, camera.height).fill(camera.cameraBackgroundColor);
       camera.cameraBackgroundLayer.addChild(graphics);
     }
   }
+
+  // ---------------------------
+  // UI Entities Management
+  // ---------------------------
+
+  /**
+   * Add UI entity to canvas
+   * @param {Object} uiEntity - { id, subtype, bindingLabel, instance: { canvasId, cameraId, worldId, position, rotation, scale, visible, opacity, z_index, text, button } }
+   */
+  addUIEntity(uiEntity) {
+    this.uiEntities.set(uiEntity.id, uiEntity);
+  }
+
+  /**
+   * Remove UI entity from canvas
+   * @param {string} uiEntityId
+   */
+  removeUIEntity(uiEntityId) {
+    // Destroy all PIXI objects for this UI entity
+    const prefix = `ui:${uiEntityId}::`;
+    for (const [key, obj] of this.uiDisplayCache) {
+      if (key.startsWith(prefix)) {
+        obj.destroy({ children: true });
+        this.uiDisplayCache.delete(key);
+      }
+    }
+
+    this.uiEntities.delete(uiEntityId);
+  }
+
+  /**
+   * Update UI entity
+   * @param {Object} uiEntity - updated uiEntity
+   */
+  updateUIEntity(uiEntity) {
+    this.uiEntities.set(uiEntity.id, uiEntity);
+  }
+
+  /**
+   * Render UI entities for all cameras
+   */
+  _renderAllUIEntities() {
+    for (const uiEntity of this.uiEntities.values()) {
+      this._renderUIEntity(uiEntity);
+    }
+  }
+
+  /**
+   * Render a single UI entity to appropriate layers
+   * @param {Object} uiEntity
+   */
+  _renderUIEntity(uiEntity) {
+    const ent = uiEntity.instance;
+
+    if (ent.canvasId) {
+      this._renderUIToCanvasLayer(uiEntity);
+    } else if (ent.cameraId) {
+      this._renderUIToCameraLayer(uiEntity);
+    } else if (ent.worldId) {
+      this._renderUIToWorldLayer(uiEntity);
+    }
+  }
+
+  /**
+   * Render UI to canvas layer (screen-space)
+   */
+  _renderUIToCanvasLayer(uiEntity) {
+    const canvasId = uiEntity.instance.canvasId;
+    if (canvasId !== this.id) return;
+
+    const key = `ui:${uiEntity.id}::canvas:${canvasId}`;
+    let displayObj = this.uiDisplayCache.get(key);
+
+    if (!displayObj) {
+      displayObj = this._createUIDisplayObject(uiEntity);
+      this.uiDisplayCache.set(key, displayObj);
+    }
+
+    this._updateUIDisplayObject(displayObj, uiEntity);
+
+    if (displayObj.parent !== this._uiOverlay) {
+      this._uiOverlay.addChild(displayObj);
+    }
+  }
+
+  /**
+   * Render UI to camera layer (camera viewport coords)
+   */
+  _renderUIToCameraLayer(uiEntity) {
+    const cameraId = uiEntity.instance.cameraId;
+    const camera = this.cameras.get(cameraId);
+    if (!camera) return;
+
+    // Skip if UI entities hidden for this camera
+    if (!camera.isTypeVisible('uiEntities')) {
+      const key = `ui:${uiEntity.id}::camera:${cameraId}`;
+      const displayObj = this.uiDisplayCache.get(key);
+      if (displayObj && displayObj.parent === camera.cameraUILayer) {
+        camera.cameraUILayer.removeChild(displayObj);
+      }
+      return;
+    }
+
+    const key = `ui:${uiEntity.id}::camera:${cameraId}`;
+    let displayObj = this.uiDisplayCache.get(key);
+
+    if (!displayObj) {
+      displayObj = this._createUIDisplayObject(uiEntity, { type: 'camera', camera });
+      this.uiDisplayCache.set(key, displayObj);
+    }
+
+    this._updateUIDisplayObject(displayObj, uiEntity);
+
+    if (displayObj.parent !== camera.cameraUILayer) {
+      camera.cameraUILayer.addChild(displayObj);
+    }
+  }
+
+  /**
+   * Render UI to world layer (world coords, affected by focus/zoom)
+   */
+  _renderUIToWorldLayer(uiEntity) {
+    const worldId = uiEntity.instance.worldId;
+
+    // Render to all cameras that watch this world and have UI enabled
+    for (const camera of this.cameras.values()) {
+      if (camera.worldId !== worldId) continue;
+
+      const key = `ui:${uiEntity.id}::world:${worldId}::camera:${camera.id}`;
+
+      // Skip if UI entities hidden for this camera
+      if (!camera.isTypeVisible('uiEntities')) {
+        const displayObj = this.uiDisplayCache.get(key);
+        if (displayObj && displayObj.parent === camera.worldUILayer) {
+          camera.worldUILayer.removeChild(displayObj);
+        }
+        continue;
+      }
+
+      let displayObj = this.uiDisplayCache.get(key);
+
+      if (!displayObj) {
+        displayObj = this._createUIDisplayObject(uiEntity);
+        this.uiDisplayCache.set(key, displayObj);
+      }
+
+      this._updateUIDisplayObject(displayObj, uiEntity);
+
+      if (displayObj.parent !== camera.worldUILayer) {
+        camera.worldUILayer.addChild(displayObj);
+      }
+    }
+
+    // Cleanup orphaned UI objects for removed cameras
+    const prefix = `ui:${uiEntity.id}::world:${worldId}::camera:`;
+    const activeCameraIds = new Set(
+      Array.from(this.cameras.values())
+        .filter(c => c.worldId === worldId && c.isTypeVisible('uiEntities'))
+        .map(c => c.id)
+    );
+
+    for (const [key, obj] of this.uiDisplayCache) {
+      if (!key.startsWith(prefix)) continue;
+      const cameraId = key.substring(prefix.length);
+      if (!activeCameraIds.has(cameraId)) {
+        obj.destroy({ children: true });
+        this.uiDisplayCache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Create PIXI display object for UI entity
+   */
+  _createUIDisplayObject(uiEntity, ctx = {}) {
+    return createPixiDisplayObjectForUI(uiEntity.instance, {
+      onAction: this._handleUIAction.bind(this)
+    });
+  }
+
+  /**
+   * Update UI display object properties
+   */
+  _updateUIDisplayObject(displayObj, uiEntity) {
+    const ent = uiEntity.instance;
+    const position = ent.position || { x: 0, y: 0 };
+
+    displayObj.position.set(position.x, position.y);
+
+    if (ent.rotation) displayObj.rotation = ent.rotation;
+
+    const scale = ent.scale || { x: 1, y: 1 };
+    if (displayObj.scale?.set) {
+      displayObj.scale.set(scale.x, scale.y);
+    } else {
+      displayObj.scale = scale;
+    }
+
+    displayObj.alpha = Number.isFinite(ent.opacity) ? ent.opacity : 1;
+    displayObj.visible = ent.visible !== false;
+    displayObj.zIndex = Number.isFinite(ent.z_index) ? ent.z_index : 9999;
+  }
+
+  /**
+   * Handle UI action
+   */
+  _handleUIAction(actionId, payload, entity) {
+    console.log('[UI ACTION]', { actionId, payload, entity });
+  }
+
   
   _updateCameraBorders() {
     if (!this._cameraBordersLayer) return;
@@ -629,12 +871,19 @@ export class Canvas {
       this.app.destroy(true, true);
       this.app = null;
     }
-    
+
+    // Clean up all UI cache
+    for (const [key, obj] of this.uiDisplayCache) {
+      obj.destroy({ children: true });
+    }
+    this.uiDisplayCache.clear();
+    this.uiEntities.clear();
+
     if (this.entityRenderer) {
       this.entityRenderer._clearAllCache();
       this.entityRenderer = null;
     }
-    
+
     this.cameras.clear();
     this.isStarted = false;
     console.log(`🖼️ Canvas ${this.id} уничтожен`);
@@ -648,7 +897,8 @@ export class Canvas {
       height: this.height,
       backgroundColor: this.backgroundColor,
       isStarted: this.isStarted,
-      cameraCount: this.cameras.size
+      cameraCount: this.cameras.size,
+      uiEntityCount: this.uiEntities.size
     };
   }
 }

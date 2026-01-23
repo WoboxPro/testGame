@@ -155,6 +155,26 @@
             <div class="inspector__value">{{ cameraUi.focusY }}</div>
           </div>
 
+          <div class="inspector__section">
+            <div class="inspector__section-title">Visibility</div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="cameraUi.showRegions" @change="applySelectedCameraUi" />
+              <span class="field__label">Show Regions</span>
+            </label>
+            <label class="field field--row">
+              <input type="checkbox" v-model="cameraUi.showRegionBorders" @change="applySelectedCameraUi" />
+              <span class="field__label">Show Region Borders</span>
+            </label>
+            <label class="field field--row">
+              <input type="checkbox" v-model="cameraUi.showGameEntities" @change="applySelectedCameraUi" />
+              <span class="field__label">Show Game Entities</span>
+            </label>
+            <label class="field field--row">
+              <input type="checkbox" v-model="cameraUi.showUIEntities" @change="applySelectedCameraUi" />
+              <span class="field__label">Show UI Entities</span>
+            </label>
+          </div>
+
           <div class="actions">
             <button class="btn" @click="focusCameraOnWorldCenter(selectedCamera.id)">🎯 Focus center</button>
           </div>
@@ -444,6 +464,26 @@
               <label class="field">
                 <span class="field__label">Max Zoom</span>
                 <input class="field__input" type="number" step="0.1" v-model.number="cameraForm.maxZoom" />
+              </label>
+            </div>
+
+            <div class="form__section">
+              <div class="form__section-title">Visibility (what to show)</div>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraForm.showRegions" />
+                <span class="field__label">Show Regions</span>
+              </label>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraForm.showRegionBorders" />
+                <span class="field__label">Show Region Borders</span>
+              </label>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraForm.showGameEntities" />
+                <span class="field__label">Show Game Entities</span>
+              </label>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraForm.showUIEntities" />
+                <span class="field__label">Show UI Entities</span>
               </label>
             </div>
 
@@ -1178,7 +1218,7 @@ const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', 
 // Режим левой панели: 'hierarchy' (Game Settings) или 'general' (General Settings)
 const leftPanelMode = ref('hierarchy');
 
-const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0 });
+const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showRegions: true, showRegionBorders: true, showGameEntities: true, showUIEntities: true });
 
 // canvasId -> DOM element
 const canvasHosts = new Map();
@@ -1243,7 +1283,11 @@ const cameraForm = reactive({
   maxZoom: 5.0,
   worldBackgroundColor: '#2a2a2a',
   followEntityId: '', // ID сущности за которой следит камера
-  createDefaultController: false
+  createDefaultController: false,
+  showRegions: true,
+  showRegionBorders: true,
+  showGameEntities: true,
+  showUIEntities: true
 });
 
 const uiTextForm = reactive({
@@ -1546,8 +1590,8 @@ async function createCanvasFromForm() {
       instance.app.stage.hitArea = instance.app.screen;
     } catch (_) {}
 
-    // ensure overlay layer for canvas-level UI
-    ensureCanvasUILayer(model);
+    // UI overlay layer now created by engine
+    // ensureCanvasUILayer(model);
   }
 
   select({ type: 'canvas', id });
@@ -1560,6 +1604,12 @@ function createCameraFromForm() {
   const canvasModel = canvases.find((c) => c.id === cameraForm.canvasId);
   const worldModel = worlds.find((w) => w.id === cameraForm.worldId);
   if (!canvasModel || !worldModel) return;
+
+  const visibleTypes = [];
+  if (cameraForm.showRegions) visibleTypes.push('regions');
+  if (cameraForm.showRegionBorders) visibleTypes.push('regionBorders');
+  if (cameraForm.showGameEntities) visibleTypes.push('gameEntities');
+  if (cameraForm.showUIEntities) visibleTypes.push('uiEntities');
 
   const instance = markRaw(new Camera({
     id,
@@ -1577,6 +1627,7 @@ function createCameraFromForm() {
     priority: Number(cameraForm.priority) || 0,
     worldBackgroundColor: cameraForm.worldBackgroundColor || '#2a2a2a',
     followEntityId: cameraForm.followEntityId || null,
+    visibleTypes,
     world: worldModel.instance,
     canvas: canvasModel.instance
   }));
@@ -1604,8 +1655,16 @@ function createCameraFromForm() {
   select({ type: 'camera', id });
   syncCameraUiFromSelected();
 
-  // ensure camera UI/world UI layers
-  ensureCameraUILayers(model);
+  // UI layers now created by engine
+  // ensureCameraUILayers(model);
+
+  // Add UI entities that are bound to this camera
+  for (const uiEntity of uiEntities) {
+    const binding = uiEntity.instance;
+    if (binding.cameraId === id) {
+      canvasModel.instance.addUIEntity(uiEntity);
+    }
+  }
 
   // Create default controller if checkbox is enabled
   if (cameraForm.createDefaultController) {
@@ -1670,6 +1729,12 @@ function syncCameraUiFromSelected() {
   cameraUi.zoom = Number(cam.zoom) || 1;
   cameraUi.focusX = Number(cam.focusX) || 0;
   cameraUi.focusY = Number(cam.focusY) || 0;
+
+  const visibleTypes = cam.visibleTypes || [];
+  cameraUi.showRegions = visibleTypes.includes('regions');
+  cameraUi.showRegionBorders = visibleTypes.includes('regionBorders');
+  cameraUi.showGameEntities = visibleTypes.includes('gameEntities');
+  cameraUi.showUIEntities = visibleTypes.includes('uiEntities');
 }
 
 function applySelectedCameraUi() {
@@ -1677,6 +1742,14 @@ function applySelectedCameraUi() {
   const cam = selectedCamera.value.instance;
   cam.setZoom?.(cameraUi.zoom);
   cam.setFocus?.(cameraUi.focusX, cameraUi.focusY);
+
+  cam.setVisibleType('regions', cameraUi.showRegions);
+  cam.setVisibleType('regionBorders', cameraUi.showRegionBorders);
+  cam.setVisibleType('gameEntities', cameraUi.showGameEntities);
+  cam.setVisibleType('uiEntities', cameraUi.showUIEntities);
+
+  // UI rendering now handled by engine - no need to call updateUITransforms
+  // updateUITransforms();
 }
 
 function focusCameraOnWorldCenter(cameraId) {
@@ -1691,8 +1764,11 @@ function focusCameraOnWorldCenter(cameraId) {
 // ---------------------------
 // UI Entities (Entity + UI)
 // ---------------------------
-const uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
+// UI rendering now handled by engine - no local cache needed
+// const uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
 
+// UI rendering now handled by engine
+/*
 function ensureCanvasUILayer(canvasModel) {
   if (!canvasModel?.instance?.app) return;
   if (canvasModel.uiOverlay) return;
@@ -1703,6 +1779,10 @@ function ensureCanvasUILayer(canvasModel) {
   canvasModel.uiOverlay = layer;
 }
 
+*/
+
+// UI rendering now handled by engine
+/*
 function ensureCameraUILayers(camModel) {
   const cam = camModel?.instance;
   if (!cam?.container) return;
@@ -1726,18 +1806,88 @@ function ensureCameraUILayers(camModel) {
   }
 }
 
+*/
+
+// UI rendering now handled by engine
+/*
+function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
+  let obj = uiDisplayCache.get(cacheKey);
+
+  if (!obj) {
+    const instance = uiModel.instance;
+    obj = createPixiDisplayObjectForUI(instance, { onAction: handleUIAction });
+    if (!obj) return;
+    uiDisplayCache.set(cacheKey, obj);
+  }
+
+  if (obj.parent !== container) {
+    container.addChild(obj);
+  }
+
+  const e = uiModel.instance;
+  const position = e.position || { x: 0, y: 0 };
+  obj.position.set(position.x, position.y);
+
+  if (e.rotation) obj.rotation = e.rotation;
+
+  let sx = 1, sy = 1;
+  if (e.scale) {
+    sx = Number.isFinite(e.scale.x) ? e.scale.x : 1;
+    sy = Number.isFinite(e.scale.y) ? e.scale.y : 1;
+  }
+
+  // Apply camera scale if needed
+  if (ctx?.type === 'camera') {
+    const z = ctx.camera?.zoom || 1;
+    sx *= z;
+    sy *= z;
+  }
+
+  if (obj.scale?.set) obj.scale.set(sx, sy);
+  else obj.scale = { x: sx, y: sy };
+
+  obj.alpha = Number.isFinite(e.opacity) ? e.opacity : 1;
+  obj.visible = e.visible !== false;
+  obj.zIndex = Number.isFinite(e.z_index) ? e.z_index : 9999;
+}
+
+*/
+// UI rendering now handled by engine
+/*
+function ensureCameraUILayers(camModel) {
+  const cam = camModel?.instance;
+  if (!cam?.container) return;
+
+  // UI in camera viewport coords (not affected by world focus)
+  if (!camModel.uiLayer) {
+    const layer = markRaw(new PIXI.Container());
+    try { layer.sortableChildren = true; } catch (_) {}
+    layer.zIndex = 50000;
+    cam.container.addChild(layer);
+    camModel.uiLayer = layer;
+  }
+
+  // UI in world coords but drawn above entities (affected by focus/zoom)
+  if (cam.worldLayer && !camModel.worldUiLayer) {
+    const layer = markRaw(new PIXI.Container());
+    try { layer.sortableChildren = true; } catch (_) {}
+    layer.zIndex = 9000;
+    cam.worldLayer.addChild(layer);
+    camModel.worldUiLayer = layer;
+  }
+}
+
+*/
 
 function removeUI(uiId) {
   const idx = uiEntities.findIndex((u) => u.id === uiId);
   if (idx < 0) return;
 
-  // destroy pixi display objects for this ui entity
-  const prefix = `ui:${uiId}::`;
-  for (const [key, obj] of uiDisplayCache) {
-    if (key.startsWith(prefix)) {
-      destroyDisplayObject(obj);
-      uiDisplayCache.delete(key);
-    }
+  const uiEntity = uiEntities[idx];
+
+  // Remove UI entity from all canvases
+  for (const canvasModel of canvases) {
+    canvasModel.instance.removeUIEntity(uiId);
   }
 
   uiEntities.splice(idx, 1);
@@ -1806,6 +1956,8 @@ function handleUIAction(actionId, payload, entity) {
   console.log('[UI ACTION]', { actionId, payload, entity });
 }
 
+// UI rendering now handled by engine - updateUITransforms no longer needed
+/*
 function updateUITransforms() {
   // Attach/update UI in correct layers
   for (const u of uiEntities) {
@@ -1826,17 +1978,42 @@ function updateUITransforms() {
         cleanupCacheByPrefix(uiDisplayCache, `ui:${u.id}::camera:`);
         continue;
       }
+
+      // Skip rendering if UI entities are hidden for this camera
+      if (!camModel.instance.isTypeVisible('uiEntities')) {
+        if (camModel.uiLayer) {
+          const key = `ui:${u.id}::camera:${ent.cameraId}`;
+          const obj = uiDisplayCache.get(key);
+          if (obj && obj.parent === camModel.uiLayer) {
+            camModel.uiLayer.removeChild(obj);
+          }
+        }
+        continue;
+      }
+
       ensureCameraUILayers(camModel);
       const key = `ui:${u.id}::camera:${ent.cameraId}`;
       ensureUIInstanceInContainer(u, camModel.uiLayer, key, { type: 'camera', camera: camModel.instance });
     } else if (ent.worldId) {
       // render world-ui into every camera that watches that world
-      const activeCams = cameras.filter((c) => c.worldId === ent.worldId);
+      const allCams = cameras.filter((c) => c.worldId === ent.worldId);
+      const activeCams = allCams.filter((c) => c.instance.isTypeVisible('uiEntities'));
       const activeIds = new Set(activeCams.map((c) => c.id));
 
-      for (const camModel of activeCams) {
-        ensureCameraUILayers(camModel);
+      for (const camModel of allCams) {
         const key = `ui:${u.id}::world:${ent.worldId}::camera:${camModel.id}`;
+
+        if (!camModel.instance.isTypeVisible('uiEntities')) {
+          if (camModel.worldUiLayer) {
+            const obj = uiDisplayCache.get(key);
+            if (obj && obj.parent === camModel.worldUiLayer) {
+              camModel.worldUiLayer.removeChild(obj);
+            }
+          }
+          continue;
+        }
+
+        ensureCameraUILayers(camModel);
         ensureUIInstanceInContainer(u, camModel.worldUiLayer, key);
       }
 
@@ -1853,6 +2030,7 @@ function updateUITransforms() {
     }
   }
 }
+*/
 
 function createUITextFromForm() {
   const id = uiTextForm.id?.trim() || suggestId('ui_text', uiEntities);
@@ -1888,6 +2066,32 @@ function createUITextFromForm() {
     instance
   };
   uiEntities.push(model);
+
+  // Add UI entity to appropriate canvas
+  if (binding.canvasId) {
+    const canvasModel = canvases.find((c) => c.id === binding.canvasId);
+    if (canvasModel) {
+      canvasModel.instance.addUIEntity(model);
+    }
+  } else if (binding.cameraId) {
+    const camModel = cameras.find((c) => c.id === binding.cameraId);
+    if (camModel && camModel.canvasId) {
+      const canvasModel = canvases.find((c) => c.id === camModel.canvasId);
+      if (canvasModel) {
+        canvasModel.instance.addUIEntity(model);
+      }
+    }
+  } else if (binding.worldId) {
+    // Add to all canvases that have cameras watching this world
+    for (const canvasModel of canvases) {
+      const hasWorldCamera = Array.from(canvasModel.instance.cameras.values())
+        .some(cam => cam.worldId === binding.worldId);
+      if (hasWorldCamera) {
+        canvasModel.instance.addUIEntity(model);
+      }
+    }
+  }
+
   select({ type: 'ui', id });
 }
 
@@ -1937,6 +2141,32 @@ function createUIButtonFromForm() {
     instance
   };
   uiEntities.push(model);
+
+  // Add UI entity to appropriate canvas
+  if (binding.canvasId) {
+    const canvasModel = canvases.find((c) => c.id === binding.canvasId);
+    if (canvasModel) {
+      canvasModel.instance.addUIEntity(model);
+    }
+  } else if (binding.cameraId) {
+    const camModel = cameras.find((c) => c.id === binding.cameraId);
+    if (camModel && camModel.canvasId) {
+      const canvasModel = canvases.find((c) => c.id === camModel.canvasId);
+      if (canvasModel) {
+        canvasModel.instance.addUIEntity(model);
+      }
+    }
+  } else if (binding.worldId) {
+    // Add to all canvases that have cameras watching this world
+    for (const canvasModel of canvases) {
+      const hasWorldCamera = Array.from(canvasModel.instance.cameras.values())
+        .some(cam => cam.worldId === binding.worldId);
+      if (hasWorldCamera) {
+        canvasModel.instance.addUIEntity(model);
+      }
+    }
+  }
+
   select({ type: 'ui', id });
 }
 
@@ -2351,7 +2581,7 @@ useRenderLoop({
   selectedCamera,
   cameraUi,
   applySelectedCameraUi,
-  updateUITransforms,
+  // updateUITransforms, // UI rendering now handled by engine
   resetAll,
   PIXI
 });

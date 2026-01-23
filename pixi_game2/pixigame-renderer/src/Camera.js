@@ -22,6 +22,8 @@ export class Camera {
     this.world = options.world || null;
     this.canvas = options.canvas || null;
 
+    this.worldId = options.world?.id || null;
+
     this.zoom = options.zoom || 1.0;
     this.maxZoom = options.maxZoom || 5.0;
     this.minZoom = options.minZoom || 0.1;
@@ -33,6 +35,10 @@ export class Camera {
 
     // Following entity
     this.followEntityId = options.followEntityId || null;
+
+    // 📊 Visibility settings - what types of objects to show
+    // Possible values: 'regions', 'regionBorders', 'gameEntities', 'uiEntities'
+    this.visibleTypes = options.visibleTypes || ['regions', 'regionBorders', 'gameEntities', 'uiEntities'];
     
     this._isInitialized = false;
     this.container = null;
@@ -99,7 +105,22 @@ export class Camera {
     this.cameraBackgroundLayer = new PIXI.Container();
     this.cameraBackgroundLayer.zIndex = 3;
     this.container.addChild(this.cameraBackgroundLayer);
-    
+
+    // 🖼️ UI сущности — поверх камеры (не масштабируется)
+    this.uiEntitiesContainer = new PIXI.Container();
+    this.uiEntitiesContainer.zIndex = 4;
+    this.container.addChild(this.uiEntitiesContainer);
+
+    // UI в координатах камеры (viewport coords)
+    this.cameraUILayer = new PIXI.Container();
+    this.cameraUILayer.zIndex = 5;
+    this.container.addChild(this.cameraUILayer);
+
+    // UI в мировых координатах (world coords, affected by focus/zoom)
+    this.worldUILayer = new PIXI.Container();
+    this.worldUILayer.zIndex = 9000;
+    this.worldLayer.addChild(this.worldUILayer);
+
     canvas.app.stage.addChild(this.container);
     
     this._isInitialized = true;
@@ -177,7 +198,27 @@ export class Camera {
   setCameraBackgroundColor(color) {
     this.cameraBackgroundColor = color;
   }
-  
+
+  isTypeVisible(type) {
+    if (!this.visibleTypes || this.visibleTypes.length === 0) {
+      return true;
+    }
+    return this.visibleTypes.includes(type);
+  }
+
+  setVisibleType(type, visible) {
+    if (visible) {
+      if (!this.visibleTypes.includes(type)) {
+        this.visibleTypes.push(type);
+      }
+    } else {
+      const index = this.visibleTypes.indexOf(type);
+      if (index > -1) {
+        this.visibleTypes.splice(index, 1);
+      }
+    }
+  }
+
   _getViewportBounds() {
     let canvasX, canvasY;
     
@@ -325,7 +366,19 @@ export class Camera {
       this.cameraBackgroundLayer.destroy({ children: true });
       this.cameraBackgroundLayer = null;
     }
-    
+    if (this.uiEntitiesContainer) {
+      this.uiEntitiesContainer.destroy({ children: true });
+      this.uiEntitiesContainer = null;
+    }
+    if (this.cameraUILayer) {
+      this.cameraUILayer.destroy({ children: true });
+      this.cameraUILayer = null;
+    }
+    if (this.worldUILayer) {
+      this.worldUILayer.destroy({ children: true });
+      this.worldUILayer = null;
+    }
+
     this._isInitialized = false;
     console.log(`📷 Камера ${this.id} очищена`);
   }
@@ -342,7 +395,8 @@ export class Camera {
       focusX: this.focusX,
       focusY: this.focusY,
       zoom: this.zoom,
-      priority: this.priority
+      priority: this.priority,
+      visibleTypes: this.visibleTypes
     };
   }
 }

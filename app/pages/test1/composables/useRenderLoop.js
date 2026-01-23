@@ -87,8 +87,8 @@ export function useRenderLoop({
       cameraUi.focusY = Number(cam.focusY) || 0;
     }
 
-    // Update UI transforms (camera-bound scaling, etc.)
-    updateUITransforms();
+    // UI rendering now handled by engine - no need to call updateUITransforms
+    // updateUITransforms();
 
     for (const c of canvases) {
       try {

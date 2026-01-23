@@ -183,7 +183,8 @@ export function useJsonExport({
       zoom: c.zoom,
       minZoom: c.minZoom,
       maxZoom: c.maxZoom,
-      priority: cameraModel.priority
+      priority: cameraModel.priority,
+      visibleTypes: c.visibleTypes || []
     };
   }
 
