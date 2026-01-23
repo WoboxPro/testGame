@@ -101,31 +101,10 @@
         <div v-if="!selected" class="inspector__empty">Select an item in the Hierarchy.</div>
 
         <!-- World Inspector -->
-        <div v-else-if="selected.type === 'world' && selectedWorld" class="inspector__content">
-          <div class="inspector__title">World: {{ selectedWorld.id }}</div>
-          <div class="kv">
-            <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedWorld.type }}</div></div>
-            <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedWorld.width }}×{{ selectedWorld.height }}</div></div>
-            <div class="kv__row"><div class="kv__k">Show Bounds</div><div class="kv__v">{{ selectedWorld.instance.showBounds ? 'enabled' : 'disabled' }}</div></div>
-            <div class="kv__row" v-if="selectedWorld.instance.showBounds"><div class="kv__k">Bounds Color</div><div class="kv__v">{{ selectedWorld.instance.boundsColor }}</div></div>
-            <div class="kv__row"><div class="kv__k">Background</div><div class="kv__v">{{ selectedWorld.backgroundColor }}</div></div>
-            <div class="kv__row" v-if="selectedWorld.instance.backgroundTexture?.textureUrl"><div class="kv__k">Texture</div><div class="kv__v">{{ selectedWorld.instance.backgroundTexture.textureUrl }}</div></div>
-            <div class="kv__row" v-if="selectedWorld.instance.backgroundTexture?.textureUrl"><div class="kv__k">Scale Mode</div><div class="kv__v">{{ selectedWorld.instance.backgroundTexture.scaleMode }}</div></div>
-            <div class="kv__row"><div class="kv__k">Entities</div><div class="kv__v">{{ selectedWorld.instance.entities.size }}</div></div>
-          </div>
-
-        </div>
+        <WorldInspector v-else-if="selected.type === 'world' && selectedWorld" :world="selectedWorld" />
 
         <!-- Canvas Inspector -->
-        <div v-else-if="selected.type === 'canvas' && selectedCanvas" class="inspector__content">
-          <div class="inspector__title">Canvas: {{ selectedCanvas.id }}</div>
-          <div class="kv">
-            <div class="kv__row"><div class="kv__k">Mode</div><div class="kv__v">{{ selectedCanvas.sizeMode }}</div></div>
-            <div class="kv__row"><div class="kv__k">Size</div><div class="kv__v">{{ selectedCanvas.width }}×{{ selectedCanvas.height }}</div></div>
-            <div class="kv__row"><div class="kv__k">Background</div><div class="kv__v">{{ selectedCanvas.backgroundColor }}</div></div>
-            <div class="kv__row"><div class="kv__k">Cameras</div><div class="kv__v">{{ cameras.filter(x => x.canvasId === selectedCanvas.id).length }}</div></div>
-          </div>
-        </div>
+        <CanvasInspector v-else-if="selected.type === 'canvas' && selectedCanvas" :canvas="selectedCanvas" :cameras="cameras" />
 
         <!-- Camera Inspector -->
         <div v-else-if="selected.type === 'camera' && selectedCamera" class="inspector__content">
@@ -421,6 +400,8 @@
   import GameEntityForm from './components/forms/GameEntityForm.vue';
   import CollisionTypeForm from './components/forms/CollisionTypeForm.vue';
   import CollisionRelationForm from './components/forms/CollisionRelationForm.vue';
+  import WorldInspector from './components/inspectors/WorldInspector.vue';
+  import CanvasInspector from './components/inspectors/CanvasInspector.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
@@ -1640,13 +1621,9 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 .panel__json-btn:hover { background: rgba(79, 195, 247, 0.25); }
 
 .inspector__empty {
-  padding: 12px;
-  color: rgba(255, 255, 255, 0.65);
-}
-.inspector__content { padding: 12px; }
-.inspector__title {
-  font-weight: 800;
-  margin-bottom: 10px;
+  padding: 24px;
+  text-align: center;
+  color: rgba(255,255, 255, 0.40);
 }
 .kv {
   display: grid;
