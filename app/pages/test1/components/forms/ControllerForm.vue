@@ -61,6 +61,20 @@
       </select>
     </label>
 
+    <template v-if="model.type === 'entity'">
+      <label class="field">
+        <span class="field__label">Auto rotation</span>
+        <select class="field__input" v-model="model.rotationMode">
+          <option value="none">None (manual Q/E)</option>
+          <option value="move">Face movement direction</option>
+          <option v-if="model.inputType === 'keyboard'" value="mouse">Face mouse cursor</option>
+        </select>
+      </label>
+      <div class="info-box" v-if="model.inputType === 'touch' && model.rotationMode === 'mouse'">
+        <strong>ℹ️ Mouse rotation is disabled for Touch input.</strong>
+      </div>
+    </template>
+
     <template v-if="model.type === 'entity' && model.inputType === 'touch'">
       <div class="info-box">
         <strong>🕹️ Touch Joystick Settings</strong>
@@ -212,6 +226,7 @@
     <div v-else-if="model.inputType === 'keyboard'" class="info-box">
       <strong>🎮 Default controls:</strong><br>
       Movement: WASD (entity) or Numpad 5213 (camera)<br>
+      Rotate (entity): Q / E (when Auto rotation = None)<br>
       Zoom: Numpad +/–<br>
       Switch: Tab or Numpad 0
     </div>
@@ -267,6 +282,8 @@ function formatActionName(actionKey) {
     move_down: '⬇️ Move Down',
     move_left: '⬅️ Move Left',
     move_right: '➡️ Move Right',
+    rotate_left: '↺ Rotate Left',
+    rotate_right: '↻ Rotate Right',
     zoom_in: '🔍 Zoom In',
     zoom_out: '🔍 Zoom Out',
     switch_target: '🔄 Switch Target'
@@ -276,7 +293,7 @@ function formatActionName(actionKey) {
 
 function getControllerActions(type) {
   if (type === 'entity') {
-    return ['move_up', 'move_down', 'move_left', 'move_right', 'switch_target'];
+    return ['move_up', 'move_down', 'move_left', 'move_right', 'rotate_left', 'rotate_right', 'switch_target'];
   } else {
     return ['move_up', 'move_down', 'move_left', 'move_right', 'zoom_in', 'zoom_out', 'switch_target'];
   }

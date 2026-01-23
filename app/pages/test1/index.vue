@@ -607,6 +607,7 @@ const controllerForm = reactive({
   zoomSpeed: 2,
   minZoom: 0.1,
   maxZoom: 5.0,
+  rotationMode: 'none', // none | move | mouse (entity only)
   customBindings: false, // Show custom key bindings
   // Custom key bindings for each action
   bindings: {
@@ -614,6 +615,8 @@ const controllerForm = reactive({
     move_down: { primary: '', secondary: '' },
     move_left: { primary: '', secondary: '' },
     move_right: { primary: '', secondary: '' },
+    rotate_left: { primary: '', secondary: '' },
+    rotate_right: { primary: '', secondary: '' },
     zoom_in: { primary: '', secondary: '' },
     zoom_out: { primary: '', secondary: '' },
     switch_target: { primary: '', secondary: '' }
@@ -1338,6 +1341,15 @@ function createControllerFromForm() {
       target: entityModel.instance,
       targetId: entityModel.id,
       inputType: controllerForm.inputType,
+      rotationMode: controllerForm.rotationMode,
+      aimCamera: () => {
+        // Prefer selected camera if it watches the same world as the entity.
+        const sc = selectedCamera.value?.instance;
+        if (sc && sc.worldId && sc.worldId === entityModel.worldId) return sc;
+        // Fallback: first camera that watches this entity's world
+        const camModel = cameras.find((c) => c.worldId === entityModel.worldId);
+        return camModel?.instance || null;
+      },
       touchConfig: touchConfig,
       bindings: bindings // Pass custom bindings or undefined (uses defaults)
     }));

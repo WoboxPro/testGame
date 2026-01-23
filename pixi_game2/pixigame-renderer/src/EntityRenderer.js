@@ -21,8 +21,21 @@ export class EntityRenderer {
     for (const [entityId, components] of world.entities) {
       const position = components.get('position');
       const appearance = components.get('appearance');
+      const rotationComp = components.get('rotation');
+      const entityRef = components.get('_entityRef');
       
       if (!position || !appearance) continue;
+
+      // Rotation can be stored as:
+      // - number (radians)
+      // - { value: number }
+      // - or on a linked _entityRef (e.g. /test1 editor)
+      const rotation =
+        rotationComp != null
+          ? (typeof rotationComp === 'number'
+              ? rotationComp
+              : (Number(rotationComp?.value) || 0))
+          : (Number(entityRef?.rotation) || 0);
       
       const isVisible = this._isEntityVisible(
         { x: position.x, y: position.y },
@@ -49,7 +62,7 @@ export class EntityRenderer {
         this._cache.set(cacheKey, displayObj);
       }
       
-      this._updateDisplayObject(displayObj, position, appearance);
+      this._updateDisplayObject(displayObj, position, appearance, rotation);
       
       if (displayObj.parent !== container) {
         container.addChild(displayObj);
@@ -90,8 +103,9 @@ export class EntityRenderer {
     return graphics;
   }
   
-  _updateDisplayObject(displayObj, position, appearance) {
+  _updateDisplayObject(displayObj, position, appearance, rotation = 0) {
     displayObj.position.set(position.x, position.y);
+    displayObj.rotation = Number(rotation) || 0;
     
     this._updateGraphics(displayObj, appearance);
   }

@@ -28,6 +28,13 @@ export class EntityController extends Controller {
     // Тип ввода: 'keyboard' | 'touch'
     this.inputType = options.inputType || 'keyboard';
 
+    // Rotation behavior override for this controller:
+    // null -> use entity.rotationBehavior (if present), else 'none'
+    // allowed: 'none' | 'move' | 'mouse'
+    this.rotationMode = options.rotationMode ?? null;
+    // Camera (or getter) used only for rotationMode='mouse'
+    this.aimCamera = options.aimCamera ?? null; // Camera | (() => Camera|null) | null
+
     // Привязка клавиш (только для keyboard)
     this.bindings = options.bindings || this._getDefaultBindings();
 
@@ -43,6 +50,13 @@ export class EntityController extends Controller {
     // Если keyboard ввод, настраиваем автоматическую подписку на события
     if (this.inputType === 'keyboard') {
       this._setupKeyboardControls();
+    }
+
+    // Mouse tracking (only useful for keyboard + rotationMode='mouse')
+    this._mouseScreen = { x: 0, y: 0 };
+    this._mouseMoveHandler = null;
+    if (this.inputType === 'keyboard') {
+      this._setupMouseTracking();
     }
 
     // Если touch контроллер, настраиваем виртуальные джостики
@@ -61,6 +75,8 @@ export class EntityController extends Controller {
     MOVE_DOWN: 'move_down',
     MOVE_LEFT: 'move_left',
     MOVE_RIGHT: 'move_right',
+    ROTATE_LEFT: 'rotate_left',
+    ROTATE_RIGHT: 'rotate_right',
     SWITCH_ENTITY: 'switch_target'
   };
 
@@ -80,6 +96,14 @@ export class EntityController extends Controller {
       },
       move_right: {
         primary: 'KeyD',     // D
+        secondary: null
+      },
+      rotate_left: {
+        primary: 'KeyQ',     // Q
+        secondary: null
+      },
+      rotate_right: {
+        primary: 'KeyE',     // E
         secondary: null
       },
       switch_target: {
@@ -182,6 +206,22 @@ export class EntityController extends Controller {
     window.addEventListener('keydown', this._keydownHandler);
     window.addEventListener('keyup', this._keyupHandler);
     console.log(`⌨️ EntityController ${this.id} подписан на keyboard`);
+  }
+
+  _setupMouseTracking() {
+    if (this._mouseMoveHandler) return;
+    this._mouseMoveHandler = (e) => {
+      // clientX/clientY are in viewport/screen coords
+      this._mouseScreen.x = e.clientX;
+      this._mouseScreen.y = e.clientY;
+    };
+    window.addEventListener('mousemove', this._mouseMoveHandler);
+  }
+
+  _clearMouseTracking() {
+    if (!this._mouseMoveHandler) return;
+    window.removeEventListener('mousemove', this._mouseMoveHandler);
+    this._mouseMoveHandler = null;
   }
 
   /**
@@ -302,6 +342,103 @@ export class EntityController extends Controller {
     if ((velocity.x !== 0 || velocity.y !== 0) && this.onEntityMoved) {
       this.onEntityMoved(entity);
     }
+
+    // ---------------------------
+    // Rotation behavior (optional)
+    // - keyboard: none | move | mouse
+    // - touch:    none | move (mouse ignored)
+    // ---------------------------
+    let mode =
+      this.rotationMode ??
+      (typeof entity.rotationBehavior === 'string' ? entity.rotationBehavior : null) ??
+      'none';
+
+    if (mode !== 'none' && mode !== 'move' && mode !== 'mouse') {
+      mode = 'none';
+    }
+
+    if (this.inputType === 'touch' && mode === 'mouse') {
+      mode = 'none';
+    }
+
+    const rotSpeed = Number.isFinite(entity.rotationSpeed) ? Number(entity.rotationSpeed) : 8.0;
+
+    const normalizeAngle = (a) => {
+      let v = a;
+      while (v > Math.PI) v -= 2 * Math.PI;
+      while (v < -Math.PI) v += 2 * Math.PI;
+      return v;
+    };
+
+    const rotateTowards = (current, target, maxStep) => {
+      const cur = normalizeAngle(Number(current) || 0);
+      const tgt = normalizeAngle(Number(target) || 0);
+      let diff = normalizeAngle(tgt - cur); // shortest
+      if (Math.abs(diff) <= maxStep) return tgt;
+      return normalizeAngle(cur + Math.sign(diff) * maxStep);
+    };
+
+    if (mode === 'move') {
+      const vx = Number(velocity.x) || 0;
+      const vy = Number(velocity.y) || 0;
+      const speedSq = vx * vx + vy * vy;
+      if (speedSq > 0.001) {
+        const desired = Math.atan2(vy, vx);
+        entity.rotation = rotateTowards(entity.rotation, desired, rotSpeed * dt);
+        if (this.onEntityRotated) this.onEntityRotated(entity);
+      }
+    } else if (mode === 'mouse') {
+      // Requires keyboard input and a camera to convert screen -> world
+      if (this.inputType === 'keyboard') {
+        const cam = typeof this.aimCamera === 'function' ? this.aimCamera() : this.aimCamera;
+        if (cam && typeof cam.screenToWorld === 'function') {
+          // IMPORTANT:
+          // mousemove gives viewport coords (clientX/Y), but Camera.screenToWorld expects
+          // coordinates in PIXI canvas space. Convert using the canvas DOM rect.
+          let sx = this._mouseScreen.x;
+          let sy = this._mouseScreen.y;
+
+          const canvasEl = cam.canvas?.app?.canvas;
+          if (canvasEl && typeof canvasEl.getBoundingClientRect === 'function') {
+            const rect = canvasEl.getBoundingClientRect();
+            // If cursor is outside this canvas, do not rotate to avoid jumps
+            if (
+              sx < rect.left ||
+              sx > rect.right ||
+              sy < rect.top ||
+              sy > rect.bottom
+            ) {
+              return;
+            }
+            sx = sx - rect.left;
+            sy = sy - rect.top;
+          }
+
+          const wp = cam.screenToWorld(sx, sy);
+          const dx = (Number(wp?.x) || 0) - position.x;
+          const dy = (Number(wp?.y) || 0) - position.y;
+          if (dx * dx + dy * dy > 0.0001) {
+            const desired = Math.atan2(dy, dx);
+            // For mouse aiming we want crisp/accurate facing, not slow turning.
+            entity.rotation = normalizeAngle(desired);
+            if (this.onEntityRotated) this.onEntityRotated(entity);
+          }
+        }
+      }
+    } else {
+      // mode === 'none' => manual rotation by Q/E (keyboard only)
+      if (this.inputType === 'keyboard') {
+        const rotateLeft = this.isActionActive(EntityController.ACTIONS.ROTATE_LEFT);
+        const rotateRight = this.isActionActive(EntityController.ACTIONS.ROTATE_RIGHT);
+
+        if (rotateLeft || rotateRight) {
+          const dir = (rotateRight ? 1 : 0) + (rotateLeft ? -1 : 0); // right=+1, left=-1
+          const before = Number(entity.rotation) || 0;
+          entity.rotation = normalizeAngle(before + dir * rotSpeed * dt);
+          if (this.onEntityRotated) this.onEntityRotated(entity);
+        }
+      }
+    }
   }
 
   /**
@@ -376,6 +513,7 @@ export class EntityController extends Controller {
   destroy() {
     if (this.inputType === 'keyboard') {
       this._clearKeyboardControls();
+      this._clearMouseTracking();
     }
     if (this.inputType === 'touch') {
       this._clearTouchControls();
@@ -387,6 +525,7 @@ export class EntityController extends Controller {
     return {
       ...super.getInfo(),
       inputType: this.inputType,
+      rotationMode: this.rotationMode,
       bindings: this.inputType === 'keyboard' ? this.bindings : undefined,
       touchConfig: this.touchConfig,
       activeEntityId: this.target?.id,
