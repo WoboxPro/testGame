@@ -10,7 +10,9 @@ import { World } from '../../../pixi_game2/pixigame/src/World.js'
 import { Region } from '../../../pixi_game2/pixigame/src/Region.js'
 import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js'
 import { UITextEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js'
+import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js'
 import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js'
+import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js'
 
 const viewportRef = ref(null)
 
@@ -19,6 +21,7 @@ let canvas = null
 let camera1 = null
 let camera2 = null
 let cameraController = null
+let entityController = null
 
 async function init() {
   console.log('🚀 Starting test3...')
@@ -99,24 +102,51 @@ async function init() {
   })
   console.log('✅ Camera 1 created:', camera1.id)
 
-  camera2 = new Camera({
-    id: 'test_camera_2',
-    width: 400,
-    height: 300,
-    x: 0,
-    y: 0,
-    anchor: 'topleft',
-    focusX: 500,
-    focusY: 500,
-    zoom: 1.0,
-    priority: 1,
-    worldBackgroundColor: null,
-    world: world,
-    canvas: canvas
-  })
-  console.log('✅ Camera 2 created:', camera2.id)
 
-  // 6. Create Camera Controller (1235 movement, +- zoom)
+  // 6. Create Game Entity
+  const gameEntity = new GameEntity({
+    id: 'test_entity',
+    worldId: world.id,
+    subtype: 'unit',
+    collisionType: 'unit',
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    rotation: 0,
+    scale: { x: 1, y: 1 },
+    movement: {
+      maxSpeed: 200,
+      acceleration: 1000,
+      friction: 5
+    },
+    appearance: {
+      shape: 'circle',
+      color: 0x4fc3f7,
+      size: 50
+    },
+    hasCollision: false
+  })
+
+  world.createEntity(gameEntity)
+  console.log('✅ Game Entity added:', gameEntity.id)
+
+  // 7. Create Entity Controller (WASD movement)
+  entityController = new EntityController({
+    id: 'test_entity_controller',
+    type: 'entity',
+    enabled: true,
+    inputType: 'keyboard',
+    bindings: {
+      move_up: { primary: 'KeyW', secondary: null },
+      move_down: { primary: 'KeyS', secondary: null },
+      move_left: { primary: 'KeyA', secondary: null },
+      move_right: { primary: 'KeyD', secondary: null }
+    }
+  })
+  entityController.setAllEntities([gameEntity])
+  entityController.attachTo(gameEntity)
+  console.log('✅ Entity Controller created')
+
+  // 8. Create Camera Controller (1235 movement, +- zoom)
   cameraController = new CameraController({
     id: 'test_camera_controller',
     type: 'camera',
@@ -135,11 +165,11 @@ async function init() {
       switch_target: { primary: 'Numpad0', secondary: null }
     }
   })
-  cameraController.setAllCameras([camera1, camera2])
+  cameraController.setAllCameras([camera1])
   cameraController.attachTo(camera1)
   console.log('✅ Camera Controller created')
 
-  // 7. Add UI Entity
+  // 9. Add UI Entity
   const uiText = new UITextEntity({
     id: 'test_ui_text',
     position: { x: 50, y: 50 },
@@ -148,8 +178,8 @@ async function init() {
     screenSpace: true,
     canvasId: canvas.id,
     text: {
-      content: 'Hello from test3!\nControls: 1=left, 2=down, 5=up, 3=right\n+/- to zoom, Scroll to zoom\nNumpad0 to switch camera',
-      fontSize: 20,
+      content: 'Hello from test3!\n2 cameras, 1 game entity\nControls:\nWASD - move entity\nNumpad1235 - move camera\nNumpad +/- zoom, Scroll to zoom\nNumpad0 to switch camera',
+      fontSize: 16,
       fontFamily: 'Arial',
       color: '#ffffff',
       align: 'left'
@@ -164,7 +194,7 @@ async function init() {
   })
   console.log('✅ UI Entity added')
 
-  // 8. Start render loop
+  // 10. Start render loop
   startRenderLoop()
 }
 
@@ -172,6 +202,10 @@ function startRenderLoop() {
   function loop() {
     if (world) {
       world.update()
+    }
+
+    if (entityController) {
+      entityController.update(1 / 60)
     }
 
     if (cameraController) {
@@ -195,11 +229,13 @@ function startRenderLoop() {
 
 function onKeyDown(e) {
   console.log('Key down:', e.code)
+  entityController?.handleKeyDown?.(e.code)
   cameraController?.handleKeyDown?.(e.code)
 }
 
 function onKeyUp(e) {
   console.log('Key up:', e.code)
+  entityController?.handleKeyUp?.(e.code)
   cameraController?.handleKeyUp?.(e.code)
 }
 
@@ -222,6 +258,9 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   window.removeEventListener('wheel', onWheel)
+  if (entityController) {
+    entityController.destroy()
+  }
   if (canvas) {
     canvas.destroy()
   }
