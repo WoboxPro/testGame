@@ -2333,6 +2333,7 @@ function createDefaultCameraController(cameraModel) {
     id: controllerId,
     target: cameraModel.instance,
     targetId: cameraModel.id,
+    inputType: 'keyboard',
     moveSpeed: 500,
     zoomSpeed: 2,
     minZoom: cameraModel.instance.minZoom,

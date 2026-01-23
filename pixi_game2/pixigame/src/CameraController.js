@@ -36,6 +36,9 @@ export class CameraController extends Controller {
     // Ссылка на все камеры (для переключения)
     this.allCameras = options.allCameras || [];
 
+    // Настроить автоматическую подписку на клавиатуру
+    this._setupKeyboardControls();
+
     console.log(`📷 CameraController создан: ${this.id}`);
   }
 
@@ -143,11 +146,11 @@ export class CameraController extends Controller {
   _switchCamera() {
     if (!this.allCameras || this.allCameras.length === 0) return;
 
-    const currentIndex = this.allCameras.findIndex(c => c === this.target);
+    const currentIndex = this.allCameras.findIndex(c => c.id === this.targetId);
     const nextIndex = (currentIndex + 1) % this.allCameras.length;
     const nextCamera = this.allCameras[nextIndex];
 
-    if (nextCamera && nextCamera !== this.target) {
+    if (nextCamera && nextCamera.id !== this.targetId) {
       // Переключаем цель
       const oldTarget = this.target;
       this.attachTo(nextCamera);
@@ -166,6 +169,40 @@ export class CameraController extends Controller {
    */
   setAllCameras(cameras) {
     this.allCameras = cameras;
+  }
+
+  /**
+   * Настроить автоматическую подписку на клавиатуру
+   */
+  _setupKeyboardControls() {
+    this._keydownHandler = (e) => this.handleKeyDown(e.code);
+    this._keyupHandler = (e) => this.handleKeyUp(e.code);
+    window.addEventListener('keydown', this._keydownHandler);
+    window.addEventListener('keyup', this._keyupHandler);
+    console.log(`⌨️ CameraController ${this.id} подписан на keyboard`);
+  }
+
+  /**
+   * Очистить подписку на клавиатуру
+   */
+  _clearKeyboardControls() {
+    if (this._keydownHandler) {
+      window.removeEventListener('keydown', this._keydownHandler);
+      this._keydownHandler = null;
+    }
+    if (this._keyupHandler) {
+      window.removeEventListener('keyup', this._keyupHandler);
+      this._keyupHandler = null;
+    }
+    console.log(`⌨️ CameraController ${this.id} отписан от keyboard`);
+  }
+
+  /**
+   * Уничтожить контроллер
+   */
+  destroy() {
+    this._clearKeyboardControls();
+    super.destroy();
   }
 
   /**
@@ -231,21 +268,21 @@ export class CameraController extends Controller {
    */
   onCameraSwitched(newCamera) {
     // Override для обработки переключения
-  }
+  };
 
   /**
    * Callback при движении камеры
    */
   onCameraMoved(camera) {
     // Override для обработки движения
-  }
+  };
 
   /**
    * Callback при зуме камеры
    */
   onCameraZoomed(camera) {
     // Override для обработки зума
-  }
+  };
 
   getInfo() {
     return {

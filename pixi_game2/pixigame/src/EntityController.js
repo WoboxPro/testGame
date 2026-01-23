@@ -40,6 +40,11 @@ export class EntityController extends Controller {
     // Настройки touch ввода
     this.touchConfig = options.touchConfig || null;
 
+    // Если keyboard ввод, настраиваем автоматическую подписку на события
+    if (this.inputType === 'keyboard') {
+      this._setupKeyboardControls();
+    }
+
     // Если touch контроллер, настраиваем виртуальные джостики
     if (this.inputType === 'touch' && this.touchConfig) {
       this._setupTouchControls();
@@ -166,6 +171,32 @@ export class EntityController extends Controller {
    */
   setAllEntities(entities) {
     this.allEntities = entities;
+  }
+
+  /**
+   * Настроить автоматическую подписку на клавиатуру
+   */
+  _setupKeyboardControls() {
+    this._keydownHandler = (e) => this.handleKeyDown(e.code);
+    this._keyupHandler = (e) => this.handleKeyUp(e.code);
+    window.addEventListener('keydown', this._keydownHandler);
+    window.addEventListener('keyup', this._keyupHandler);
+    console.log(`⌨️ EntityController ${this.id} подписан на keyboard`);
+  }
+
+  /**
+   * Очистить подписку на клавиатуру
+   */
+  _clearKeyboardControls() {
+    if (this._keydownHandler) {
+      window.removeEventListener('keydown', this._keydownHandler);
+      this._keydownHandler = null;
+    }
+    if (this._keyupHandler) {
+      window.removeEventListener('keyup', this._keyupHandler);
+      this._keyupHandler = null;
+    }
+    console.log(`⌨️ EntityController ${this.id} отписан от keyboard`);
   }
 
   /**
@@ -343,7 +374,12 @@ export class EntityController extends Controller {
    * Уничтожить контроллер
    */
   destroy() {
-    this._clearTouchControls();
+    if (this.inputType === 'keyboard') {
+      this._clearKeyboardControls();
+    }
+    if (this.inputType === 'touch') {
+      this._clearTouchControls();
+    }
     super.destroy();
   }
 

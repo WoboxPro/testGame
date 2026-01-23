@@ -151,6 +151,7 @@ async function init() {
     id: 'test_camera_controller',
     type: 'camera',
     enabled: true,
+    inputType: 'keyboard',
     moveSpeed: 500,
     zoomSpeed: 2.0,
     minZoom: 0.1,
@@ -165,7 +166,7 @@ async function init() {
       switch_target: { primary: 'Numpad0', secondary: null }
     }
   })
-  cameraController.setAllCameras([camera1])
+  cameraController.setAllCameras([camera1, camera2])
   cameraController.attachTo(camera1)
   console.log('✅ Camera Controller created')
 
@@ -227,39 +228,16 @@ function startRenderLoop() {
   console.log('✅ Render loop started')
 }
 
-function onKeyDown(e) {
-  console.log('Key down:', e.code)
-  entityController?.handleKeyDown?.(e.code)
-  cameraController?.handleKeyDown?.(e.code)
-}
-
-function onKeyUp(e) {
-  console.log('Key up:', e.code)
-  entityController?.handleKeyUp?.(e.code)
-  cameraController?.handleKeyUp?.(e.code)
-}
-
-function onWheel(e) {
-  const direction = e.deltaY > 0 ? -1 : 1
-  const activeCamera = cameraController?.target || camera1
-  const newZoom = Math.max(0.1, Math.min(5.0, activeCamera.zoom + direction * 0.1))
-  activeCamera.setZoom(newZoom)
-  e.preventDefault()
-}
-
 onMounted(async () => {
-  window.addEventListener('keydown', onKeyDown)
-  window.addEventListener('keyup', onKeyUp)
-  window.addEventListener('wheel', onWheel)
   await init()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', onKeyDown)
-  window.removeEventListener('keyup', onKeyUp)
-  window.removeEventListener('wheel', onWheel)
   if (entityController) {
     entityController.destroy()
+  }
+  if (cameraController) {
+    cameraController.destroy()
   }
   if (canvas) {
     canvas.destroy()

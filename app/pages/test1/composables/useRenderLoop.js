@@ -20,20 +20,6 @@ export function useRenderLoop({
 
   let _assetsPreloadStarted = false;
 
-  function onKeyDown(e) {
-    // Pass key events to all controllers
-    for (const controller of controllers) {
-      controller.instance.handleKeyDown?.(e.code);
-    }
-  }
-
-  function onKeyUp(e) {
-    // Pass key events to all controllers
-    for (const controller of controllers) {
-      controller.instance.handleKeyUp?.(e.code);
-    }
-  }
-
   function onWheel(e) {
     if (!selectedCamera.value) return;
 
@@ -114,9 +100,7 @@ export function useRenderLoop({
   }
 
   onMounted(() => {
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    // Passive false to allow preventDefault for zoom
+    // Pass wheel only, controllers handle their own keyboard events
     window.addEventListener('wheel', onWheel, { passive: false });
 
     // Preload textures from public/assets manifest into PIXI.Assets cache
@@ -126,12 +110,15 @@ export function useRenderLoop({
   });
 
   onUnmounted(() => {
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('wheel', onWheel);
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
     resetAll?.();
+
+    // Destroy all controllers (they handle their own keyboard cleanup)
+    for (const controller of controllers) {
+      controller.instance.destroy?.();
+    }
   });
 
   return {
