@@ -157,22 +157,32 @@
 
           <div class="inspector__section">
             <div class="inspector__section-title">Visibility</div>
-            <label class="field field--row">
-              <input type="checkbox" v-model="cameraUi.showRegions" @change="applySelectedCameraUi" />
-              <span class="field__label">Show Regions</span>
+            <label class="field">
+              <span class="field__label">Mode</span>
+              <select class="field__input" v-model="cameraUi.showMode" @change="applySelectedCameraUi">
+                <option value="all">Show All</option>
+                <option value="selected">Show Only Selected</option>
+              </select>
             </label>
-            <label class="field field--row">
-              <input type="checkbox" v-model="cameraUi.showRegionBorders" @change="applySelectedCameraUi" />
-              <span class="field__label">Show Region Borders</span>
-            </label>
-            <label class="field field--row">
-              <input type="checkbox" v-model="cameraUi.showGameEntities" @change="applySelectedCameraUi" />
-              <span class="field__label">Show Game Entities</span>
-            </label>
-            <label class="field field--row">
-              <input type="checkbox" v-model="cameraUi.showUIEntities" @change="applySelectedCameraUi" />
-              <span class="field__label">Show UI Entities</span>
-            </label>
+
+            <template v-if="cameraUi.showMode === 'selected'">
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraUi.showRegions" @change="applySelectedCameraUi" />
+                <span class="field__label">Show Regions</span>
+              </label>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraUi.showRegionBorders" @change="applySelectedCameraUi" />
+                <span class="field__label">Show Region Borders</span>
+              </label>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraUi.showGameEntities" @change="applySelectedCameraUi" />
+                <span class="field__label">Show Game Entities</span>
+              </label>
+              <label class="field field--row">
+                <input type="checkbox" v-model="cameraUi.showUIEntities" @change="applySelectedCameraUi" />
+                <span class="field__label">Show UI Entities</span>
+              </label>
+            </template>
           </div>
 
           <div class="actions">
@@ -469,22 +479,32 @@
 
             <div class="form__section">
               <div class="form__section-title">Visibility (what to show)</div>
-              <label class="field field--row">
-                <input type="checkbox" v-model="cameraForm.showRegions" />
-                <span class="field__label">Show Regions</span>
+              <label class="field">
+                <span class="field__label">Mode</span>
+                <select class="field__input" v-model="cameraForm.showMode">
+                  <option value="all">Show All</option>
+                  <option value="selected">Show Only Selected</option>
+                </select>
               </label>
-              <label class="field field--row">
-                <input type="checkbox" v-model="cameraForm.showRegionBorders" />
-                <span class="field__label">Show Region Borders</span>
-              </label>
-              <label class="field field--row">
-                <input type="checkbox" v-model="cameraForm.showGameEntities" />
-                <span class="field__label">Show Game Entities</span>
-              </label>
-              <label class="field field--row">
-                <input type="checkbox" v-model="cameraForm.showUIEntities" />
-                <span class="field__label">Show UI Entities</span>
-              </label>
+
+              <template v-if="cameraForm.showMode === 'selected'">
+                <label class="field field--row">
+                  <input type="checkbox" v-model="cameraForm.showRegions" />
+                  <span class="field__label">Show Regions</span>
+                </label>
+                <label class="field field--row">
+                  <input type="checkbox" v-model="cameraForm.showRegionBorders" />
+                  <span class="field__label">Show Region Borders</span>
+                </label>
+                <label class="field field--row">
+                  <input type="checkbox" v-model="cameraForm.showGameEntities" />
+                  <span class="field__label">Show Game Entities</span>
+                </label>
+                <label class="field field--row">
+                  <input type="checkbox" v-model="cameraForm.showUIEntities" />
+                  <span class="field__label">Show UI Entities</span>
+                </label>
+              </template>
             </div>
 
             <label class="field field--row">
@@ -1218,7 +1238,7 @@ const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', 
 // Режим левой панели: 'hierarchy' (Game Settings) или 'general' (General Settings)
 const leftPanelMode = ref('hierarchy');
 
-const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showRegions: true, showRegionBorders: true, showGameEntities: true, showUIEntities: true });
+const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showMode: 'all', showRegions: true, showRegionBorders: true, showGameEntities: true, showUIEntities: true });
 
 // canvasId -> DOM element
 const canvasHosts = new Map();
@@ -1284,6 +1304,7 @@ const cameraForm = reactive({
   worldBackgroundColor: '#2a2a2a',
   followEntityId: '', // ID сущности за которой следит камера
   createDefaultController: false,
+  showMode: 'all',
   showRegions: true,
   showRegionBorders: true,
   showGameEntities: true,
@@ -1605,11 +1626,13 @@ function createCameraFromForm() {
   const worldModel = worlds.find((w) => w.id === cameraForm.worldId);
   if (!canvasModel || !worldModel) return;
 
-  const visibleTypes = [];
-  if (cameraForm.showRegions) visibleTypes.push('regions');
-  if (cameraForm.showRegionBorders) visibleTypes.push('regionBorders');
-  if (cameraForm.showGameEntities) visibleTypes.push('gameEntities');
-  if (cameraForm.showUIEntities) visibleTypes.push('uiEntities');
+  const visibleTypes = cameraForm.showMode === 'all' ? [] : [];
+  if (cameraForm.showMode === 'selected') {
+    if (cameraForm.showRegions) visibleTypes.push('regions');
+    if (cameraForm.showRegionBorders) visibleTypes.push('regionBorders');
+    if (cameraForm.showGameEntities) visibleTypes.push('gameEntities');
+    if (cameraForm.showUIEntities) visibleTypes.push('uiEntities');
+  }
 
   const instance = markRaw(new Camera({
     id,
@@ -1730,11 +1753,17 @@ function syncCameraUiFromSelected() {
   cameraUi.focusX = Number(cam.focusX) || 0;
   cameraUi.focusY = Number(cam.focusY) || 0;
 
+  // Determine show mode based on visibleTypes
   const visibleTypes = cam.visibleTypes || [];
-  cameraUi.showRegions = visibleTypes.includes('regions');
-  cameraUi.showRegionBorders = visibleTypes.includes('regionBorders');
-  cameraUi.showGameEntities = visibleTypes.includes('gameEntities');
-  cameraUi.showUIEntities = visibleTypes.includes('uiEntities');
+  cameraUi.showMode = (!visibleTypes || visibleTypes.length === 0) ? 'all' : 'selected';
+
+  // Sync checkboxes only if in selected mode
+  if (cameraUi.showMode === 'selected') {
+    cameraUi.showRegions = visibleTypes.includes('regions');
+    cameraUi.showRegionBorders = visibleTypes.includes('regionBorders');
+    cameraUi.showGameEntities = visibleTypes.includes('gameEntities');
+    cameraUi.showUIEntities = visibleTypes.includes('uiEntities');
+  }
 }
 
 function applySelectedCameraUi() {
@@ -1743,10 +1772,17 @@ function applySelectedCameraUi() {
   cam.setZoom?.(cameraUi.zoom);
   cam.setFocus?.(cameraUi.focusX, cameraUi.focusY);
 
-  cam.setVisibleType('regions', cameraUi.showRegions);
-  cam.setVisibleType('regionBorders', cameraUi.showRegionBorders);
-  cam.setVisibleType('gameEntities', cameraUi.showGameEntities);
-  cam.setVisibleType('uiEntities', cameraUi.showUIEntities);
+  // Set visibility based on show mode
+  if (cameraUi.showMode === 'all') {
+    cam.visibleTypes = [];
+  } else {
+    const visibleTypes = [];
+    if (cameraUi.showRegions) visibleTypes.push('regions');
+    if (cameraUi.showRegionBorders) visibleTypes.push('regionBorders');
+    if (cameraUi.showGameEntities) visibleTypes.push('gameEntities');
+    if (cameraUi.showUIEntities) visibleTypes.push('uiEntities');
+    cam.visibleTypes = visibleTypes;
+  }
 
   // UI rendering now handled by engine - no need to call updateUITransforms
   // updateUITransforms();
