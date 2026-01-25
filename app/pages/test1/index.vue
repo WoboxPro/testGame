@@ -588,12 +588,15 @@ const gameEntityForm = reactive({
   shape: 'circle', // circle | rect | sprite
   color: '#4fc3f7',
   size: 30, // для circle
-  width: 40, // для rect | sprite
-  height: 40, // для rect | sprite
+  width: 40, // для rect
+  height: 40, // для rect
   textureUrl: '', // для sprite
   hasCollision: false,
   collisionShape: '', // '' | 'circle' | 'rect' - форма коллизии отдельно от визуала
   collisionScale: 1.0, // масштаб коллизии (1.0 = 100%)
+  collisionSize: null, // переопределение размера коллизии для circle
+  collisionWidth: null, // переопределение ширины коллизии для rect
+  collisionHeight: null, // переопределение высоты коллизии для rect
   maxSpeed: 200,
   acceleration: 1000,
   friction: 5
@@ -1144,7 +1147,10 @@ function createGameEntityFromForm() {
     },
     hasCollision: !!gameEntityForm.hasCollision,
     collisionShape: gameEntityForm.collisionShape || null,
-    collisionScale: Number(gameEntityForm.collisionScale) || 1.0
+    collisionScale: Number(gameEntityForm.collisionScale) || 1.0,
+    collisionSize: Number(gameEntityForm.collisionSize) || null,
+    collisionWidth: Number(gameEntityForm.collisionWidth) || null,
+    collisionHeight: Number(gameEntityForm.collisionHeight) || null
   }));
 
   // Add entity to world using ECS format (plain object with components)

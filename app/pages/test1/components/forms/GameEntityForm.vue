@@ -41,7 +41,7 @@
     </div>
     <div v-if="model.shape === 'circle'">
       <label class="field">
-        <span class="field__label">Size (radius × 2)</span>
+        <span class="field__label">Size (diameter)</span>
         <input class="field__input" type="number" v-model.number="model.size" />
       </label>
     </div>
@@ -51,16 +51,6 @@
         <input class="field__input" v-model.trim="model.textureUrl" placeholder="/assets/hero.png" />
         <span class="field__hint">Относительно папки public</span>
       </label>
-      <div class="grid2">
-        <label class="field">
-          <span class="field__label">Width (для коллизии)</span>
-          <input class="field__input" type="number" v-model.number="model.width" />
-        </label>
-        <label class="field">
-          <span class="field__label">Height (для коллизии)</span>
-          <input class="field__input" type="number" v-model.number="model.height" />
-        </label>
-      </div>
     </div>
     <div v-else>
       <div class="grid2">
@@ -90,10 +80,56 @@
       <div v-if="needsCollisionShape && !model.collisionShape" class="field__error">
         ⚠️ Shape {{ model.shape }} requires explicit collision shape
       </div>
+
       <label class="field">
         <span class="field__label">Collision Scale (1.0 = 100%)</span>
         <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="model.collisionScale" />
       </label>
+
+      <div class="form__subsection" v-if="model.collisionShape || model.shape === 'circle' || model.shape === 'rect'">
+        <div class="form__subsection-title">Override Collision Size</div>
+        <div class="field__hint">Optional: override collision size (empty = use appearance size)</div>
+
+        <template v-if="!model.collisionShape && model.shape === 'circle'">
+          <label class="field">
+            <span class="field__label">Size Override</span>
+            <input class="field__input" type="number" v-model.number="model.collisionSize" placeholder="Empty = default" />
+          </label>
+        </template>
+
+        <template v-if="!model.collisionShape && model.shape === 'rect'">
+          <div class="grid2">
+            <label class="field">
+              <span class="field__label">Width Override</span>
+              <input class="field__input" type="number" v-model.number="model.collisionWidth" placeholder="Empty = default" />
+            </label>
+            <label class="field">
+              <span class="field__label">Height Override</span>
+              <input class="field__input" type="number" v-model.number="model.collisionHeight" placeholder="Empty = default" />
+            </label>
+          </div>
+        </template>
+
+        <template v-if="model.collisionShape === 'circle'">
+          <label class="field">
+            <span class="field__label">Size</span>
+            <input class="field__input" type="number" v-model.number="model.collisionSize" placeholder="Empty = use appearance" />
+          </label>
+        </template>
+
+        <template v-if="model.collisionShape === 'rect'">
+          <div class="grid2">
+            <label class="field">
+              <span class="field__label">Width</span>
+              <input class="field__input" type="number" v-model.number="model.collisionWidth" placeholder="Empty = use appearance" />
+            </label>
+            <label class="field">
+              <span class="field__label">Height</span>
+              <input class="field__input" type="number" v-model.number="model.collisionHeight" placeholder="Empty = use appearance" />
+            </label>
+          </div>
+        </template>
+      </div>
     </div>
 
     <div class="form__section">
@@ -150,4 +186,6 @@ const needsCollisionShape = computed(() => {
 .field__error { font-size: 12px; color: #ff6b6b; margin-top: -4px; }
 .form__section { padding: 10px; border-radius: 8px; background: rgba(79, 195, 247, 0.05); border: 1px solid rgba(79, 195, 247, 0.15); }
 .form__section-title { font-weight: 700; font-size: 13px; color: #bfe7ff; margin-bottom: 8px; }
+.form__subsection { padding: 8px; border-radius: 6px; background: rgba(79, 195, 247, 0.08); border: 1px solid rgba(79, 195, 247, 0.12); }
+.form__subsection-title { font-weight: 600; font-size: 12px; color: #bfe7ff; margin-bottom: 6px; }
 </style>
