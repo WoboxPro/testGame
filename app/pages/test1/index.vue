@@ -585,11 +585,12 @@ const gameEntityForm = reactive({
   subtype: 'unit', // unit | build
   x: 0,
   y: 0,
-  shape: 'circle', // circle | rect
+  shape: 'circle', // circle | rect | sprite
   color: '#4fc3f7',
   size: 30, // для circle
-  width: 40, // для rect
-  height: 40, // для rect
+  width: 40, // для rect | sprite
+  height: 40, // для rect | sprite
+  textureUrl: '', // для sprite
   hasCollision: false,
   collisionShape: '', // '' | 'circle' | 'rect' - форма коллизии отдельно от визуала
   collisionScale: 1.0, // масштаб коллизии (1.0 = 100%)
@@ -1108,6 +1109,12 @@ function createGameEntityFromForm() {
   const worldModel = worlds.find((w) => w.id === gameEntityForm.worldId);
   if (!worldModel) return;
 
+  // Validation: если shape не circle/rect и есть коллизия - обязательно выбрать collisionShape
+  if (gameEntityForm.hasCollision && !['circle', 'rect'].includes(gameEntityForm.shape) && !gameEntityForm.collisionShape) {
+    alert(`Shape "${gameEntityForm.shape}" requires explicit collision shape selection for collision.`);
+    return;
+  }
+
   // Convert hex color to number for PIXI
   const colorHex = gameEntityForm.color?.trim() || '#4fc3f7';
   const colorNum = parseInt(colorHex.replace('#', ''), 16);
@@ -1132,7 +1139,8 @@ function createGameEntityFromForm() {
       color: colorNum,
       size: Number(gameEntityForm.size) || 30,
       width: Number(gameEntityForm.width) || 40,
-      height: Number(gameEntityForm.height) || 40
+      height: Number(gameEntityForm.height) || 40,
+      textureUrl: gameEntityForm.textureUrl?.trim() || null
     },
     hasCollision: !!gameEntityForm.hasCollision,
     collisionShape: gameEntityForm.collisionShape || null,

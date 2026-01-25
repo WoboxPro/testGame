@@ -22,6 +22,7 @@
       <select class="field__input" v-model="model.shape">
         <option value="circle">Circle (круг)</option>
         <option value="rect">Rectangle (квадрат)</option>
+        <option value="sprite">Sprite (спрайт)</option>
       </select>
     </label>
     <label class="field">
@@ -44,6 +45,23 @@
         <input class="field__input" type="number" v-model.number="model.size" />
       </label>
     </div>
+    <div v-else-if="model.shape === 'sprite'">
+      <label class="field">
+        <span class="field__label">Texture URL</span>
+        <input class="field__input" v-model.trim="model.textureUrl" placeholder="/assets/hero.png" />
+        <span class="field__hint">Относительно папки public</span>
+      </label>
+      <div class="grid2">
+        <label class="field">
+          <span class="field__label">Width (для коллизии)</span>
+          <input class="field__input" type="number" v-model.number="model.width" />
+        </label>
+        <label class="field">
+          <span class="field__label">Height (для коллизии)</span>
+          <input class="field__input" type="number" v-model.number="model.height" />
+        </label>
+      </div>
+    </div>
     <div v-else>
       <div class="grid2">
         <label class="field">
@@ -63,12 +81,15 @@
     <div v-if="model.hasCollision">
       <label class="field">
         <span class="field__label">Collision Shape</span>
-        <select class="field__input" v-model="model.collisionShape">
-          <option value="">Same as appearance</option>
+        <select class="field__input" v-model="model.collisionShape" :class="{ 'field__input--error': needsCollisionShape && !model.collisionShape }">
+          <option v-if="['circle', 'rect'].includes(model.shape)" value="">Same as appearance</option>
           <option value="circle">Circle (круг)</option>
           <option value="rect">Rectangle (квадрат)</option>
         </select>
       </label>
+      <div v-if="needsCollisionShape && !model.collisionShape" class="field__error">
+        ⚠️ Shape {{ model.shape }} requires explicit collision shape
+      </div>
       <label class="field">
         <span class="field__label">Collision Scale (1.0 = 100%)</span>
         <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="model.collisionScale" />
@@ -96,11 +117,17 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+
 defineProps({
   worlds: Array
 });
 
 const model = defineModel();
+
+const needsCollisionShape = computed(() => {
+  return model.hasCollision && !['circle', 'rect'].includes(model.shape);
+});
 </script>
 
 <style scoped>
@@ -109,6 +136,7 @@ const model = defineModel();
 .field { display: grid; gap: 6px; }
 .field--row { grid-auto-flow: column; align-items: center; justify-content: start; gap: 10px; }
 .field__label { font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.75); }
+.field__hint { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
 .field__input {
   height: 36px;
   padding: 0 10px;
@@ -118,6 +146,8 @@ const model = defineModel();
   color: rgba(255, 255, 255, 0.92);
 }
 .field__input:focus { outline: 2px solid rgba(79, 195, 247, 0.25); border-color: rgba(79, 195, 247, 0.30); }
+.field__input--error { border-color: #ff6b6b !important; }
+.field__error { font-size: 12px; color: #ff6b6b; margin-top: -4px; }
 .form__section { padding: 10px; border-radius: 8px; background: rgba(79, 195, 247, 0.05); border: 1px solid rgba(79, 195, 247, 0.15); }
 .form__section-title { font-weight: 700; font-size: 13px; color: #bfe7ff; margin-bottom: 8px; }
 </style>

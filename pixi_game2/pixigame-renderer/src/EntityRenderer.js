@@ -98,18 +98,28 @@ export class EntityRenderer {
   }
   
   _createDisplayObject(appearance) {
+    const shape = appearance.shape || 'circle';
+
+    if (shape === 'sprite' && appearance.textureUrl) {
+      return new PIXI.Sprite(PIXI.Texture.from(appearance.textureUrl));
+    }
+
     const graphics = new PIXI.Graphics();
     this._updateGraphics(graphics, appearance);
     return graphics;
   }
-  
+
   _updateDisplayObject(displayObj, position, appearance, rotation = 0) {
     displayObj.position.set(position.x, position.y);
     displayObj.rotation = Number(rotation) || 0;
-    
-    this._updateGraphics(displayObj, appearance);
+
+    if (displayObj instanceof PIXI.Sprite) {
+      this._updateSprite(displayObj, appearance);
+    } else {
+      this._updateGraphics(displayObj, appearance);
+    }
   }
-  
+
   _updateGraphics(graphics, appearance) {
     graphics.clear();
 
@@ -124,6 +134,23 @@ export class EntityRenderer {
       const height = appearance.height || appearance.size || 50;
       graphics.rect(-width / 2, -height / 2, width, height).fill(color);
     }
+  }
+
+  _updateSprite(sprite, appearance) {
+    if (appearance.textureUrl && sprite.texture.url !== appearance.textureUrl) {
+      sprite.texture = PIXI.Texture.from(appearance.textureUrl);
+    }
+
+    if (appearance.width) {
+      sprite.width = appearance.width;
+    }
+    if (appearance.height) {
+      sprite.height = appearance.height;
+    }
+    if (appearance.tint) {
+      sprite.tint = appearance.tint;
+    }
+    sprite.anchor.set(0.5);
   }
   
   clearCameraCache(cameraId) {
