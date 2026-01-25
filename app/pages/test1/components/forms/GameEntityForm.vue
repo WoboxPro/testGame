@@ -69,6 +69,10 @@
       <span class="field__label">Has Collision</span>
     </label>
     <div v-if="model.hasCollision">
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.showCollisionBounds" />
+        <span class="field__label">Show Collision Bounds (debug)</span>
+      </label>
       <label class="field">
         <span class="field__label">Collision Shape</span>
         <select class="field__input" v-model="model.collisionShape" :class="{ 'field__input--error': needsCollisionShape && !model.collisionShape }">

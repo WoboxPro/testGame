@@ -592,6 +592,7 @@ const gameEntityForm = reactive({
   height: 40, // для rect
   textureUrl: '', // для sprite
   hasCollision: false,
+  showCollisionBounds: false, // показывать границы коллизии (debug)
   collisionShape: '', // '' | 'circle' | 'rect' - форма коллизии отдельно от визуала
   collisionScale: 1.0, // масштаб коллизии (1.0 = 100%)
   collisionSize: null, // переопределение размера коллизии для circle
@@ -1146,6 +1147,7 @@ function createGameEntityFromForm() {
       textureUrl: gameEntityForm.textureUrl?.trim() || null
     },
     hasCollision: !!gameEntityForm.hasCollision,
+    showCollisionBounds: !!gameEntityForm.showCollisionBounds,
     collisionShape: gameEntityForm.collisionShape || null,
     collisionScale: Number(gameEntityForm.collisionScale) || 1.0,
     collisionSize: Number(gameEntityForm.collisionSize) || null,

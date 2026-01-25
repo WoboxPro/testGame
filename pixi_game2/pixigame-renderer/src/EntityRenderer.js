@@ -8,22 +8,24 @@ export class EntityRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this._cache = new Map();
+    this._collisionBoundsCache = new Map(); // Кеш для границ коллизии
   }
   
   renderEntities(camera, world, container) {
     if (!container || !world) return;
-    
+
     const cachePrefix = `${camera.id}::`;
     const visibleBounds = camera._getWorldBoundsInView();
-    
+
     const activeEntityIds = new Set();
-    
+
     for (const [entityId, components] of world.entities) {
       const position = components.get('position');
       const appearance = components.get('appearance');
       const rotationComp = components.get('rotation');
       const entityRef = components.get('_entityRef');
-      
+      const collision = components.get('collision');
+
       if (!position || !appearance) continue;
 
       // Rotation can be stored as:
@@ -36,39 +38,52 @@ export class EntityRenderer {
               ? rotationComp
               : (Number(rotationComp?.value) || 0))
           : (Number(entityRef?.rotation) || 0);
-      
+
       const isVisible = this._isEntityVisible(
         { x: position.x, y: position.y },
         appearance.size || 0,
         visibleBounds
       );
-      
+
       if (!isVisible) {
         const cacheKey = `${cachePrefix}${entityId}`;
         const displayObj = this._cache.get(cacheKey);
         if (displayObj && displayObj.parent === container) {
           container.removeChild(displayObj);
         }
+
+        // Remove collision bounds graphics
+        const boundsKey = `${cachePrefix}bounds::${entityId}`;
+        const boundsGraphics = this._collisionBoundsCache.get(boundsKey);
+        if (boundsGraphics && boundsGraphics.parent === container) {
+          container.removeChild(boundsGraphics);
+        }
+
         continue;
       }
-      
+
       activeEntityIds.add(entityId);
-      
+
+      // Рендеринг основной сущности
       const cacheKey = `${cachePrefix}${entityId}`;
       let displayObj = this._cache.get(cacheKey);
-      
+
       if (!displayObj) {
         displayObj = this._createDisplayObject(appearance);
         this._cache.set(cacheKey, displayObj);
       }
-      
+
       this._updateDisplayObject(displayObj, position, appearance, rotation);
-      
+
       if (displayObj.parent !== container) {
         container.addChild(displayObj);
       }
+
+      // Рендеринг границ коллизии (если включено)
+      this._renderCollisionBounds(camera, entityId, components, container);
     }
-    
+
+    // Очистка неактивных объектов
     for (const [cacheKey, displayObj] of this._cache) {
       if (cacheKey.startsWith(cachePrefix)) {
         const entityId = cacheKey.substring(cachePrefix.length);
@@ -77,6 +92,19 @@ export class EntityRenderer {
             container.removeChild(displayObj);
           }
           this._cache.delete(cacheKey);
+        }
+      }
+    }
+
+    for (const [boundsKey, boundsGraphics] of this._collisionBoundsCache) {
+      if (boundsKey.startsWith(cachePrefix + 'bounds::')) {
+        const entityId = boundsKey.substring((cachePrefix + 'bounds::').length);
+        if (!activeEntityIds.has(entityId)) {
+          if (boundsGraphics.parent === container) {
+            container.removeChild(boundsGraphics);
+          }
+          boundsGraphics.destroy({ children: true });
+          this._collisionBoundsCache.delete(boundsKey);
         }
       }
     }
@@ -152,7 +180,82 @@ export class EntityRenderer {
     }
     sprite.anchor.set(0.5);
   }
-  
+
+  _renderCollisionBounds(camera, entityId, components, container) {
+    const collision = components.get('collision');
+    const position = components.get('position');
+
+    if (!collision || !position || !collision.showBounds) {
+      // Если нет коллизии или выключено отображение - удаляем bounds если есть
+      const boundsKey = `${camera.id}::bounds::${entityId}`;
+      const boundsGraphics = this._collisionBoundsCache.get(boundsKey);
+      if (boundsGraphics && boundsGraphics.parent === container) {
+        container.removeChild(boundsGraphics);
+      }
+      return;
+    }
+
+    const boundsKey = `${camera.id}::bounds::${entityId}`;
+    let boundsGraphics = this._collisionBoundsCache.get(boundsKey);
+
+    if (!boundsGraphics) {
+      boundsGraphics = new PIXI.Graphics();
+      this._collisionBoundsCache.set(boundsKey, boundsGraphics);
+    }
+
+    // Очистка и перерисовка
+    boundsGraphics.clear();
+
+    const shape = collision.shape || 'circle';
+    const scale = collision.scale || 1.0;
+    const offset = collision.offset || { x: 0, y: 0 };
+
+    // Центр коллизии с учетом offset
+    const centerX = offset.x;
+    const centerY = offset.y;
+
+    // Цвет обводки (обычно зелёный для коллизий)
+    const boundsColor = 0x00FF00;
+    const boundsLineWidth = 2;
+
+    if (shape === 'circle') {
+      const size = (collision.size || 50) * scale;
+      const radius = size / 2;
+
+      boundsGraphics
+        .circle(centerX, centerY, radius)
+        .stroke({
+          width: boundsLineWidth,
+          color: boundsColor,
+          alpha: 0.8
+        });
+    } else if (shape === 'rect') {
+      const width = (collision.width || 50) * scale;
+      const height = (collision.height || 50) * scale;
+
+      boundsGraphics
+        .rect(
+          centerX - width / 2,
+          centerY - height / 2,
+          width,
+          height
+        )
+        .stroke({
+          width: boundsLineWidth,
+          color: boundsColor,
+          alpha: 0.8
+        });
+    }
+
+    // Позиционируем bounds graphics на позицию сущности
+    boundsGraphics.position.set(position.x, position.y);
+
+    // Добавляем в контейнер если еще не добавлен
+    if (boundsGraphics.parent !== container) {
+      container.addChild(boundsGraphics);
+    }
+  }
+
   clearCameraCache(cameraId) {
     const cachePrefix = `${cameraId}::`;
     
@@ -169,6 +272,11 @@ export class EntityRenderer {
       displayObj.destroy({ children: true });
     }
     this._cache.clear();
+
+    for (const boundsGraphics of this._collisionBoundsCache.values()) {
+      boundsGraphics.destroy({ children: true });
+    }
+    this._collisionBoundsCache.clear();
   }
   
   getCacheSize() {

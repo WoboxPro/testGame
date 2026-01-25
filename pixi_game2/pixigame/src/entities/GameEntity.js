@@ -76,6 +76,9 @@ export class GameEntity extends Entity {
     this.collisionOffset = options.collisionOffset || { x: 0, y: 0 };
     this.collisionScale = options.collisionScale !== undefined ? options.collisionScale : 1.0; // масштаб коллизии (1.0 = 100%)
 
+    // Показывать границы коллизии (для debug)
+    this.showCollisionBounds = options.showCollisionBounds !== undefined ? options.showCollisionBounds : false;
+
     // Если есть коллизия - создаём компонент для ECS
     if (this.hasCollision) {
       this.collision = this._createCollisionComponent();
@@ -95,7 +98,8 @@ export class GameEntity extends Entity {
       width: this.collisionWidth || this.appearance.width,
       height: this.collisionHeight || this.appearance.height,
       offset: { ...this.collisionOffset },
-      scale: this.collisionScale  // масштаб коллизии (1.0 = 100%)
+      scale: this.collisionScale,  // масштаб коллизии (1.0 = 100%)
+      showBounds: this.showCollisionBounds  // показывать границы коллизии
     };
   }
 
@@ -120,6 +124,16 @@ export class GameEntity extends Entity {
       this.collision = this._createCollisionComponent();
     } else {
       this.collision = null;
+    }
+  }
+
+  /**
+   * Включить/выключить показ границ коллизии
+   */
+  setShowCollisionBounds(showBounds) {
+    this.showCollisionBounds = showBounds;
+    if (this.hasCollision && this.collision) {
+      this.collision.showBounds = showBounds;
     }
   }
 
