@@ -60,10 +60,20 @@
       <input type="checkbox" v-model="model.hasCollision" />
       <span class="field__label">Has Collision</span>
     </label>
-    <label class="field" v-if="model.hasCollision">
-      <span class="field__label">Collision Scale (1.0 = 100%)</span>
-      <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="model.collisionScale" />
-    </label>
+    <div v-if="model.hasCollision">
+      <label class="field">
+        <span class="field__label">Collision Shape</span>
+        <select class="field__input" v-model="model.collisionShape">
+          <option value="">Same as appearance</option>
+          <option value="circle">Circle (круг)</option>
+          <option value="rect">Rectangle (квадрат)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field__label">Collision Scale (1.0 = 100%)</span>
+        <input class="field__input" type="number" step="0.1" min="0.1" max="3.0" v-model.number="model.collisionScale" />
+      </label>
+    </div>
 
     <div class="form__section">
       <div class="form__section-title">Movement</div>

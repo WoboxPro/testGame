@@ -591,6 +591,7 @@ const gameEntityForm = reactive({
   width: 40, // для rect
   height: 40, // для rect
   hasCollision: false,
+  collisionShape: '', // '' | 'circle' | 'rect' - форма коллизии отдельно от визуала
   collisionScale: 1.0, // масштаб коллизии (1.0 = 100%)
   maxSpeed: 200,
   acceleration: 1000,
@@ -1134,6 +1135,7 @@ function createGameEntityFromForm() {
       height: Number(gameEntityForm.height) || 40
     },
     hasCollision: !!gameEntityForm.hasCollision,
+    collisionShape: gameEntityForm.collisionShape || null,
     collisionScale: Number(gameEntityForm.collisionScale) || 1.0
   }));
 
