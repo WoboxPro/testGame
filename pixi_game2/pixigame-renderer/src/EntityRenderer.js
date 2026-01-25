@@ -25,6 +25,7 @@ export class EntityRenderer {
       const rotationComp = components.get('rotation');
       const entityRef = components.get('_entityRef');
       const collision = components.get('collision');
+      const animations = components.get('animations');
 
       if (!position || !appearance) continue;
 
@@ -69,11 +70,11 @@ export class EntityRenderer {
       let displayObj = this._cache.get(cacheKey);
 
       if (!displayObj) {
-        displayObj = this._createDisplayObject(appearance);
+        displayObj = this._createDisplayObject(appearance, world, animations);
         this._cache.set(cacheKey, displayObj);
       }
 
-      this._updateDisplayObject(displayObj, position, appearance, rotation);
+      this._updateDisplayObject(displayObj, position, appearance, rotation, world, animations);
 
       if (displayObj.parent !== container) {
         container.addChild(displayObj);
@@ -125,11 +126,14 @@ export class EntityRenderer {
            entityPosition.y - radius <= visibleBounds.maxY;
   }
   
-  _createDisplayObject(appearance) {
+  _createDisplayObject(appearance, world, animations) {
     const shape = appearance.shape || 'circle';
 
     if (shape === 'sprite' && appearance.textureUrl) {
-      return new PIXI.Sprite(PIXI.Texture.from(appearance.textureUrl));
+      // Если есть анимации - создаем обычный sprite, текстура будет меняться в update
+      const sprite = new PIXI.Sprite(PIXI.Texture.from(appearance.textureUrl));
+      sprite.anchor.set(0.5);
+      return sprite;
     }
 
     const graphics = new PIXI.Graphics();
@@ -137,12 +141,12 @@ export class EntityRenderer {
     return graphics;
   }
 
-  _updateDisplayObject(displayObj, position, appearance, rotation = 0) {
+  _updateDisplayObject(displayObj, position, appearance, rotation = 0, world, animations) {
     displayObj.position.set(position.x, position.y);
     displayObj.rotation = Number(rotation) || 0;
 
     if (displayObj instanceof PIXI.Sprite) {
-      this._updateSprite(displayObj, appearance);
+      this._updateSprite(displayObj, appearance, world, animations);
     } else {
       this._updateGraphics(displayObj, appearance);
     }
@@ -164,21 +168,72 @@ export class EntityRenderer {
     }
   }
 
-  _updateSprite(sprite, appearance) {
+  _updateSprite(sprite, appearance, world, animations) {
+    // Обновляем текстуру если она изменилась
     if (appearance.textureUrl && sprite.texture.url !== appearance.textureUrl) {
       sprite.texture = PIXI.Texture.from(appearance.textureUrl);
     }
 
+    // Обновляем размеры
     if (appearance.width) {
       sprite.width = appearance.width;
     }
     if (appearance.height) {
       sprite.height = appearance.height;
     }
+    if (appearance.scale) {
+      sprite.scale.set(appearance.scale);
+    }
     if (appearance.tint) {
       sprite.tint = appearance.tint;
     }
+
+    // 🎬 Обновляем анимацию (только если включены и загружен spritesheet)
+    if (animations && animations.enabled && animations.spritesheetUrl && world?.animationSystem) {
+      // Если spritesheet еще не загружен, пропускаем
+      if (world.animationSystem.isLoaded(animations.spritesheetUrl)) {
+        this._updateAnimatedSprite(sprite, animations, world.animationSystem);
+      }
+    } else {
+      // Если анимации выключены, обновляем обычный спрайт
+      if (appearance.textureUrl && sprite.texture.url !== appearance.textureUrl) {
+        sprite.texture = PIXI.Texture.from(appearance.textureUrl);
+      }
+    }
+
     sprite.anchor.set(0.5);
+  }
+
+  /**
+   * 🎬 Обновить текстуру анимированного спрайта
+   */
+  _updateAnimatedSprite(sprite, animations, animationSystem) {
+    // Проверяем, загружен ли spritesheet
+    if (!animationSystem.isLoaded(animations.spritesheetUrl)) {
+      return;
+    }
+
+    // Получаем текущий кадр из AnimationSystem
+    const currentFrameIndex = animations.currentFrameIndex;
+    const currentState = animations.currentState;
+
+    // Получаем конфигурацию анимации
+    const animConfig = animationSystem.getAnimationConfig(animations.spritesheetUrl, currentState);
+
+    if (!animConfig || !animConfig.frames) {
+      return;
+    }
+
+    // Получаем имя текущего кадра
+    const currentFrameName = animConfig.frames[currentFrameIndex];
+
+    // Получаем текстуру кадра
+    const frameTexture = animationSystem.getFrameTexture(animations.spritesheetUrl, currentFrameName);
+
+    // Обновляем текстуру если она изменилась
+    if (frameTexture && sprite.texture !== frameTexture) {
+      sprite.texture = frameTexture;
+    }
   }
 
   _renderCollisionBounds(camera, entityId, components, container) {

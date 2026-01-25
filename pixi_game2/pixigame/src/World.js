@@ -8,6 +8,7 @@
 
 import { RegionSystem } from './RegionSystem.js';
 import { CollisionSystem } from './CollisionSystem.js';
+import { AnimationSystem } from './AnimationSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -42,6 +43,9 @@ export class World {
 
     // 🎯 Система коллизий
     this.collisionSystem = new CollisionSystem(this);
+
+    // 🎬 Система анимаций
+    this.animationSystem = new AnimationSystem(this);
 
     this.entities = new Map();
     this._entityCounter = 1;
@@ -89,7 +93,12 @@ export class World {
   /**
    * 🔄 Обновление мира (вызывается каждый кадр)
    */
-  update() {
+  update(dt) {
+    // Обновляем анимации
+    if (this.animationSystem) {
+      this.animationSystem.update(dt);
+    }
+
     // Проверяем коллизии
     if (this.collisionSystem) {
       this.collisionSystem.checkCollisions();

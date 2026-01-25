@@ -51,6 +51,21 @@
         <input class="field__input" v-model.trim="model.textureUrl" placeholder="/assets/hero.png" />
         <span class="field__hint">Относительно папки public</span>
       </label>
+      <div class="grid2">
+        <label class="field">
+          <span class="field__label">Width</span>
+          <input class="field__input" type="number" v-model.number="model.width" />
+        </label>
+        <label class="field">
+          <span class="field__label">Height</span>
+          <input class="field__input" type="number" v-model.number="model.height" />
+        </label>
+      </div>
+      <label class="field">
+        <span class="field__label">Scale</span>
+        <input class="field__input" type="number" step="0.1" min="0.1" max="5.0" v-model.number="model.scale" />
+        <span class="field__hint">Пропорции спрайта (1.0 = оригинал)</span>
+      </label>
     </div>
     <div v-else>
       <div class="grid2">
@@ -152,6 +167,37 @@
         <span class="field__label">Friction</span>
         <input class="field__input" type="number" v-model.number="model.friction" />
       </label>
+    </div>
+
+    <div class="form__section" v-if="model.shape === 'sprite'">
+      <div class="form__section-title">🎬 Animations</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.animationsEnabled" />
+        <span class="field__label">Enable Animations</span>
+      </label>
+
+      <template v-if="model.animationsEnabled">
+        <label class="field">
+          <span class="field__label">Spritesheet JSON URL</span>
+          <input class="field__input" v-model.trim="model.spritesheetUrl" placeholder="/assets/warrior_animations.json" />
+          <span class="field__hint">JSON with frames and animations config</span>
+        </label>
+        <label class="field">
+          <span class="field__label">Default State</span>
+          <select class="field__input" v-model="model.defaultAnimationState">
+            <option value="idle">Idle (standing)</option>
+            <option value="walk">Walk</option>
+            <option value="run">Run</option>
+            <option value="attack">Attack</option>
+            <option value="attack2">Attack 2</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">Animation Speed Multiplier</span>
+          <input class="field__input" type="number" step="0.1" min="0.1" max="5.0" v-model.number="model.animationSpeedMultiplier" />
+          <span class="field__hint">1.0 = normal, 2.0 = fast, 0.5 = slow</span>
+        </label>
+      </template>
     </div>
   </div>
 </template>

@@ -343,6 +343,13 @@ export class EntityController extends Controller {
       this.onEntityMoved(entity);
     }
 
+    // 🎬 Автоматическое переключение анимаций в зависимости от скорости
+    this._updateAnimationState(entity, velocity, movement);
+
+    if ((velocity.x !== 0 || velocity.y !== 0) && this.onEntityMoved) {
+      this.onEntityMoved(entity);
+    }
+
     // ---------------------------
     // Rotation behavior (optional)
     // - keyboard: none | move | mouse
@@ -438,6 +445,50 @@ export class EntityController extends Controller {
           if (this.onEntityRotated) this.onEntityRotated(entity);
         }
       }
+    }
+  }
+
+  /**
+   * Callback при движении сущности
+   */
+  onEntityMoved(entity) {
+    // Override для обработки движения
+  }
+
+  /**
+   * 🎬 Автоматически переключать анимации в зависимости от скорости
+   */
+  _updateAnimationState(entity, velocity, movement) {
+    // Проверяем есть ли у entity анимации
+    const animations = entity.animations;
+    if (!animations || !animations.enabled) {
+      return;
+    }
+
+    // Вычисляем текущую скорость
+    const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+    const maxSpeed = movement.maxSpeed || 200;
+
+    // Порог для переключения между walk и run (50% от maxSpeed)
+    const runThreshold = maxSpeed * 0.5;
+
+    // Порог для остановки (маленькая скорость)
+    const idleThreshold = maxSpeed * 0.1;
+
+    // Определяем нужное состояние
+    let newState = animations.currentState;
+
+    if (speed < idleThreshold) {
+      newState = 'idle';
+    } else if (speed < runThreshold) {
+      newState = 'walk';
+    } else {
+      newState = 'run';
+    }
+
+    // Переключаем состояние если нужно
+    if (newState !== animations.currentState && entity.setAnimationState) {
+      entity.setAnimationState(newState);
     }
   }
 

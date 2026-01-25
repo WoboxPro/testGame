@@ -30,7 +30,15 @@ export class GameEntity extends Entity {
    *    tint?: number|string
    *  },
    *  hasCollision?: boolean,
-   *  collision?: Array<any>
+   *  collision?: Array<any>,
+   *  animations?: {
+   *    enabled?: boolean,
+   *    spritesheetUrl?: string,
+   *    defaultState?: string,
+   *    speedMultiplier?: number,
+   *    events?: Object,
+   *    states?: Object
+   *  }
    * }} options
    */
   constructor(options = {}) {
@@ -59,6 +67,7 @@ export class GameEntity extends Entity {
       width: Number(options.appearance?.width) || 40,
       height: Number(options.appearance?.height) || 40,
       textureUrl: options.appearance?.textureUrl || null,
+      scale: Number(options.appearance?.scale) || 1.0, // масштаб спрайта
       tint: options.appearance?.tint || null
     };
 
@@ -83,6 +92,9 @@ export class GameEntity extends Entity {
     if (this.hasCollision) {
       this.collision = this._createCollisionComponent();
     }
+
+    // 🎬 Анимации
+    this.animations = this._createAnimationsComponent(options);
   }
 
   /**
@@ -100,6 +112,37 @@ export class GameEntity extends Entity {
       offset: { ...this.collisionOffset },
       scale: this.collisionScale,  // масштаб коллизии (1.0 = 100%)
       showBounds: this.showCollisionBounds  // показывать границы коллизии
+    };
+  }
+
+  /**
+   * Создать animations компонент для ECS
+   */
+  _createAnimationsComponent(options) {
+    const animationsEnabled = options.animations?.enabled !== undefined
+      ? options.animations.enabled
+      : (options.appearance?.shape === 'sprite' && options.appearance?.textureUrl);
+
+    if (!animationsEnabled) {
+      return { enabled: false };
+    }
+
+    return {
+      enabled: true,
+      spritesheetUrl: options.animations?.spritesheetUrl || null,
+      defaultState: options.animations?.defaultState || 'idle',
+      currentState: 'idle',
+      currentFrameIndex: 0,
+      frameTimer: 0,
+      speedMultiplier: options.animations?.speedMultiplier || 1.0,
+      paused: false,
+      started: false,
+      completed: false,
+      onCompleteTriggered: false,
+      loopCount: 0,
+      nextState: null,
+      events: options.animations?.events || {},
+      states: options.animations?.states || {}
     };
   }
 
@@ -137,6 +180,120 @@ export class GameEntity extends Entity {
     }
   }
 
+  /**
+   * 🎬 Переключить состояние анимации
+   */
+  setAnimationState(stateName, nextState = null) {
+    if (!this.animations || !this.animations.enabled) {
+      return;
+    }
+
+    // Событие onStateChange для предыдущего состояния
+    this._triggerAnimationEvent('onStateChange', {
+      from: this.animations.currentState,
+      to: stateName
+    });
+
+    this.animations.currentState = stateName;
+    this.animations.nextState = nextState;
+    this.animations.currentFrameIndex = 0;
+    this.animations.frameTimer = 0;
+    this.animations.started = false;
+    this.animations.completed = false;
+    this.animations.onCompleteTriggered = false;
+    this.animations.loopCount = 0;
+  }
+
+  /**
+   * 🎬 Приостановить анимацию
+   */
+  pauseAnimation() {
+    if (this.animations) {
+      this.animations.paused = true;
+    }
+  }
+
+  /**
+   * 🎬 Продолжить анимацию
+   */
+  playAnimation() {
+    if (this.animations) {
+      this.animations.paused = false;
+    }
+  }
+
+  /**
+   * 🎬 Установить скорость анимации
+   */
+  setAnimationSpeed(speedMultiplier) {
+    if (this.animations) {
+      this.animations.speedMultiplier = Number(speedMultiplier) || 1.0;
+    }
+  }
+
+  /**
+   * 🎬 Получить текущее состояние анимации
+   */
+  getAnimationState() {
+    if (!this.animations || !this.animations.enabled) {
+      return null;
+    }
+
+    return {
+      state: this.animations.currentState,
+      frameIndex: this.animations.currentFrameIndex,
+      frameTimer: this.animations.frameTimer,
+      speedMultiplier: this.animations.speedMultiplier,
+      paused: this.animations.paused
+    };
+  }
+
+  /**
+   * 🎬 Добавить событие для анимации
+   */
+  onAnimationEvent(stateName, eventType, callback) {
+    if (!this.animations) return;
+
+    if (!this.animations.events) {
+      this.animations.events = {};
+    }
+
+    if (!this.animations.events[stateName]) {
+      this.animations.events[stateName] = {};
+    }
+
+    this.animations.events[stateName][eventType] = callback;
+  }
+
+  /**
+   * 🎬 Удалить событие для анимации
+   */
+  removeAnimationEvent(stateName, eventType) {
+    if (!this.animations || !this.animations.events) return;
+
+    if (this.animations.events[stateName]) {
+      delete this.animations.events[stateName][eventType];
+    }
+  }
+
+  /**
+   * 🎬 Вызвать событие анимации
+   */
+  _triggerAnimationEvent(eventType, data = {}) {
+    if (!this.animations || !this.animations.events) return;
+
+    const stateEvents = this.animations.events[this.animations.currentState] || {};
+    const callback = stateEvents[eventType];
+
+    if (typeof callback === 'function') {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`Animation event error: ${eventType}`, error);
+      }
+    }
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -145,7 +302,8 @@ export class GameEntity extends Entity {
       movement: this.movement,
       appearance: this.appearance,
       hasCollision: this.hasCollision,
-      collision: this.collision
+      collision: this.collision,
+      animations: this.animations
     };
   }
 }

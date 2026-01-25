@@ -1,0 +1,32 @@
+{
+  "baseSpritesheet": "warrior.json",
+  "animations": {
+    "idle": {
+      "frames": ["sprite2"],
+      "fps": 1,
+      "loop": true
+    },
+    "walk": {
+      "frames": ["sprite1", "sprite2", "sprite3"],
+      "fps": 6,
+      "loop": true
+    },
+    "run": {
+      "frames": ["sprite1", "sprite2", "sprite3"],
+      "fps": 8,
+      "loop": true
+    },
+    "attack": {
+      "frames": ["sprite1", "sprite2", "sprite3"],
+      "fps": 12,
+      "loop": false,
+      "nextState": "idle"
+    },
+    "attack2": {
+      "frames": ["sprite1", "sprite2", "sprite3"],
+      "fps": 12,
+      "loop": false,
+      "nextState": "idle"
+    }
+  }
+}

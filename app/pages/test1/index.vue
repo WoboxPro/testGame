@@ -434,6 +434,9 @@ const gameSettingsTrigger = ref(0);
 
 // Подписываемся на изменения в глобальной TimeSystem для обновления UI
 onMounted(() => {
+  // Делаем timeSystem доступным глобально для AnimationSystem
+  window.timeSystem = timeSystem;
+
   const unsubscribe = timeSystem.onChange(() => {
     gameSettingsTrigger.value++;
   });
@@ -590,6 +593,7 @@ const gameEntityForm = reactive({
   size: 30, // для circle
   width: 40, // для rect
   height: 40, // для rect
+  scale: 1.0, // масштаб для sprite
   textureUrl: '', // для sprite
   hasCollision: false,
   showCollisionBounds: false, // показывать границы коллизии (debug)
@@ -600,7 +604,11 @@ const gameEntityForm = reactive({
   collisionHeight: null, // переопределение высоты коллизии для rect
   maxSpeed: 200,
   acceleration: 1000,
-  friction: 5
+  friction: 5,
+  animationsEnabled: false, // включить анимации
+  spritesheetUrl: '', // URL к JSON файлу спрайтшита
+  defaultAnimationState: 'idle', // дефолтное состояние
+  animationSpeedMultiplier: 1.0 // множитель скорости анимации
 });
 
 const controllerForm = reactive({
@@ -1144,6 +1152,7 @@ function createGameEntityFromForm() {
       size: Number(gameEntityForm.size) || 30,
       width: Number(gameEntityForm.width) || 40,
       height: Number(gameEntityForm.height) || 40,
+      scale: Number(gameEntityForm.scale) || 1.0,
       textureUrl: gameEntityForm.textureUrl?.trim() || null
     },
     hasCollision: !!gameEntityForm.hasCollision,
@@ -1152,7 +1161,13 @@ function createGameEntityFromForm() {
     collisionScale: Number(gameEntityForm.collisionScale) || 1.0,
     collisionSize: Number(gameEntityForm.collisionSize) || null,
     collisionWidth: Number(gameEntityForm.collisionWidth) || null,
-    collisionHeight: Number(gameEntityForm.collisionHeight) || null
+    collisionHeight: Number(gameEntityForm.collisionHeight) || null,
+    animations: gameEntityForm.animationsEnabled ? {
+      enabled: true,
+      spritesheetUrl: gameEntityForm.spritesheetUrl?.trim() || null,
+      defaultState: gameEntityForm.defaultAnimationState || 'idle',
+      speedMultiplier: Number(gameEntityForm.animationSpeedMultiplier) || 1.0
+    } : undefined
   }));
 
   // Add entity to world using ECS format (plain object with components)
@@ -1163,7 +1178,8 @@ function createGameEntityFromForm() {
     movement: instance.movement,
     appearance: instance.appearance,
     subtype: instance.subtype,
-    collision: instance.hasCollision ? instance.collision : undefined
+    collision: instance.hasCollision ? instance.collision : undefined,
+    animations: instance.animations
   });
 
   const model = {

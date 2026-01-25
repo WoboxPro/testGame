@@ -62,7 +62,7 @@ export function useRenderLoop({
 
     // Update all worlds (collision checks, etc)
     for (const world of worlds) {
-      world.instance.update();
+      world.instance.update(dt * 1000); // Convert to milliseconds
     }
 
     // Sync cameraUi from selected camera if there's an active controller
