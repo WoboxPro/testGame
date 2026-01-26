@@ -1704,11 +1704,14 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 }
 .modal {
   width: min(680px, 96vw);
+  max-height: 90vh;
   background: #2a2a2a;
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
 }
 .modal__header {
   display: flex;
@@ -1717,6 +1720,7 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.04);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 .modal__title { font-weight: 900; }
 .modal__close {
@@ -1728,13 +1732,18 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
   color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
 }
-.modal__body { padding: 12px 14px; }
+.modal__body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  flex: 1;
+}
 .modal__footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   padding: 12px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .field { display: grid; gap: 6px; }
