@@ -79,7 +79,30 @@ export class World {
   removeEntity(entityId) {
     return this.entities.delete(entityId);
   }
-  
+
+  /**
+   * Attach external GameEntity instance to world
+   * @param {GameEntity} gameEntity - The GameEntity instance to attach
+   * @returns {boolean} True if attachment succeeded, false if failed
+   */
+  addEntity(gameEntity) {
+    if (!gameEntity) {
+      console.warn('World.addEntity(): gameEntity is null or undefined');
+      return false;
+    }
+
+    // Set entity's binding to this world
+    gameEntity.worldId = this.id;
+
+    // Store entity reference in world's entities Map
+    // Note: This stores the entity instance, not ECS components (like createEntity)
+    // The entity is referenced by its ID for lookup/management
+    this.entities.set(gameEntity.id, gameEntity);
+
+    console.log(`🔗 Entity attached to world: ${gameEntity.id} -> ${this.id}`);
+    return true;
+  }
+
   getEntity(entityId) {
     const entity = this.entities.get(entityId);
     if (!entity) return null;
