@@ -203,6 +203,28 @@
             <div class="kv__row"><div class="kv__k">Acceleration</div><div class="kv__v">{{ selectedGameEntity.instance.movement.acceleration }}</div></div>
             <div class="kv__row"><div class="kv__k">Friction</div><div class="kv__v">{{ selectedGameEntity.instance.movement.friction }}</div></div>
           </div>
+
+          <!-- Slots Section -->
+          <div class="inspector__section">
+            <div class="inspector__section-title">Slots ({{ selectedGameEntity.instance.getSlots().length }})</div>
+            <button class="btn btn--small" @click="openSlotModal">+ Add Slot</button>
+
+            <div v-if="selectedGameEntity.instance.getSlots().length === 0" class="inspector__empty">No slots</div>
+            <div v-else class="slots-list">
+              <div v-for="slot in selectedGameEntity.instance.getSlots()" :key="slot.id" class="slot-item">
+                <div class="slot-item__info">
+                  <div class="slot-item__name">{{ slot.id }}</div>
+                  <div class="slot-item__meta">
+                    Offset: ({{ slot.offset.x }}, {{ slot.offset.y }})
+                    <span class="slot-item__behavior">
+                      {{ slot.transformBehavior === 'follow_entity' ? '🔄 Follow' : '📌 Static' }}
+                    </span>
+                  </div>
+                </div>
+                <button class="slot-item__delete" @click="removeSlot(slot.id)" title="Delete slot">×</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Region Inspector -->
@@ -367,6 +389,63 @@
         <div class="modal__footer">
           <button class="btn" @click="closeJsonModal">Close</button>
           <button class="btn btn--primary" @click="copyJsonToClipboard">📋 Copy to Clipboard</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot Create Modal -->
+    <div v-if="slotModal.open" class="modal-backdrop" @click.self="closeSlotModal">
+      <div class="modal">
+        <div class="modal__header">
+          <div class="modal__title">Add Slot</div>
+          <button class="modal__close" @click="closeSlotModal">×</button>
+        </div>
+
+        <div class="modal__body">
+          <label class="field">
+            <span class="field__label">Slot ID</span>
+            <input class="field__input" v-model.trim="slotForm.id" placeholder="slot_1" />
+          </label>
+
+          <div class="grid2">
+            <label class="field">
+              <span class="field__label">Offset X</span>
+              <input class="field__input" type="number" v-model.number="slotForm.offsetX" />
+            </label>
+            <label class="field">
+              <span class="field__label">Offset Y</span>
+              <input class="field__input" type="number" v-model.number="slotForm.offsetY" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field__label">Transform Behavior</span>
+            <select class="field__input" v-model="slotForm.transformBehavior">
+              <option value="follow_entity">Follow Entity (🔄 moves with entity)</option>
+              <option value="static">Static (📌 stays in world)</option>
+            </select>
+          </label>
+
+          <label class="field field--row">
+            <input type="checkbox" v-model="slotForm.visualEnabled" />
+            <span class="field__label">Show Visual Dot</span>
+          </label>
+
+          <label class="field" v-if="slotForm.visualEnabled">
+            <span class="field__label">Visual Color</span>
+            <input class="field__input" type="color" v-model="slotForm.color" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Max Attachments (optional)</span>
+            <input class="field__input" type="number" v-model.number="slotForm.maxAttachments" placeholder="Empty = unlimited" min="1" />
+            <span class="field__hint">Leave empty for unlimited attachments</span>
+          </label>
+        </div>
+
+        <div class="modal__footer">
+          <button class="btn" @click="closeSlotModal">Cancel</button>
+          <button class="btn btn--primary" @click="confirmAddSlot">Add Slot</button>
         </div>
       </div>
     </div>
@@ -668,6 +747,19 @@ const collisionRelationForm = reactive({
   trigger: false,
   worldId: ''  // Which world to add to
 });
+
+// Slot form
+const slotForm = reactive({
+  id: '',
+  offsetX: 0,
+  offsetY: 0,
+  transformBehavior: 'follow_entity', // 'follow_entity' | 'static'
+  visualEnabled: true,
+  color: '#00FFFF',
+  maxAttachments: null // null = unlimited
+});
+
+const slotModal = reactive({ open: false });
 
 const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   createModal,
@@ -1013,6 +1105,48 @@ function removeGameEntity(entityId) {
 
   // Update all entity controllers with the updated entity list
   updateAllControllersEntityList();
+}
+
+// ---------------------------
+// Slots System
+// ---------------------------
+
+function openSlotModal() {
+  slotForm.id = '';
+  slotForm.offsetX = 0;
+  slotForm.offsetY = 0;
+  slotForm.transformBehavior = 'follow_entity';
+  slotForm.visualEnabled = true;
+  slotForm.color = '#00FFFF';
+  slotForm.maxAttachments = null;
+  slotModal.open = true;
+}
+
+function closeSlotModal() {
+  slotModal.open = false;
+}
+
+function confirmAddSlot() {
+  if (!selectedGameEntity.value) return;
+
+  const slotId = slotForm.id?.trim() || `slot_${Date.now()}`;
+
+  selectedGameEntity.value.instance.addSlot({
+    id: slotId,
+    offset: { x: Number(slotForm.offsetX) || 0, y: Number(slotForm.offsetY) || 0 },
+    transformBehavior: slotForm.transformBehavior,
+    visualEnabled: slotForm.visualEnabled,
+    color: slotForm.color || '#00FFFF',
+    maxAttachments: slotForm.maxAttachments
+  });
+
+  closeSlotModal();
+}
+
+function removeSlot(slotId) {
+  if (!selectedGameEntity.value) return;
+
+  selectedGameEntity.value.instance.removeSlot(slotId);
 }
 
 function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
@@ -1823,6 +1957,66 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 .json__output:focus {
   outline: 2px solid rgba(79, 195, 247, 0.25);
   border-color: rgba(79, 195, 247, 0.30);
+}
+
+/* Slots styles */
+.slots-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.slot-item {
+  display: grid;
+  grid-template-columns: 1fr 28px;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.slot-item__info {
+  display: grid;
+  gap: 4px;
+}
+
+.slot-item__name {
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.slot-item__meta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.slot-item__behavior {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(79, 195, 247, 0.10);
+  font-size: 11px;
+}
+
+.slot-item__delete {
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 90, 90, 0.20);
+  background: rgba(255, 90, 90, 0.10);
+  color: rgba(255, 90, 90, 0.80);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.slot-item__delete:hover {
+  background: rgba(255, 90, 90, 0.20);
+  border-color: rgba(255, 90, 90, 0.30);
 }
 </style>
 

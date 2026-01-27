@@ -65,6 +65,9 @@ export class Entity {
 
     // Components (ECS)
     this.components = options.components instanceof Map ? options.components : new Map();
+
+    // Slots (attachment points for entities/barrels)
+    this.slots = options.slots || [];
   }
 
   _enforceSingleBinding() {
@@ -106,6 +109,93 @@ export class Entity {
 
   removeComponent(key) {
     this.components.delete(key);
+  }
+
+  // ==================== Slots System ====================
+
+  /**
+   * Add a slot to this entity
+   * @param {Object} slotData - Slot configuration
+   * @param {string} slotData.id - Unique slot ID
+   * @param {number} slotData.offset.x - X offset from entity center
+   * @param {number} slotData.offset.y - Y offset from entity center
+   * @param {'follow_entity'|'static'} slotData.transformBehavior - How slot transforms with entity
+   * @param {boolean} slotData.visualEnabled - Whether to visualize slot
+   * @param {string} slotData.color - Visual color (hex)
+   * @param {number|null} slotData.maxAttachments - Max attachments (null = unlimited)
+   * @returns {Object} The created slot
+   */
+  addSlot(slotData = {}) {
+    const slot = {
+      id: slotData.id || `slot_${this.id}_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+      offset: {
+        x: Number(slotData.offset?.x) || 0,
+        y: Number(slotData.offset?.y) || 0
+      },
+      transformBehavior: slotData.transformBehavior || 'follow_entity', // 'follow_entity' | 'static'
+      visualEnabled: slotData.visualEnabled !== false, // default: true
+      color: slotData.color || '#00FFFF', // cyan by default
+      maxAttachments: slotData.maxAttachments !== undefined ? slotData.maxAttachments : null // null = unlimited
+    };
+
+    this.slots.push(slot);
+    return slot;
+  }
+
+  /**
+   * Remove a slot by ID
+   * @param {string} slotId - ID of slot to remove
+   * @returns {boolean} True if slot was removed, false if not found
+   */
+  removeSlot(slotId) {
+    const index = this.slots.findIndex(s => s.id === slotId);
+    if (index >= 0) {
+      this.slots.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get all slots on this entity
+   * @returns {Array} Array of slot objects
+   */
+  getSlots() {
+    return this.slots || [];
+  }
+
+  /**
+   * Get a specific slot by ID
+   * @param {string} slotId - ID of slot to retrieve
+   * @returns {Object|null} Slot object or null if not found
+   */
+  getSlot(slotId) {
+    return this.slots.find(s => s.id === slotId) || null;
+  }
+
+  /**
+   * Update a slot by ID
+   * @param {string} slotId - ID of slot to update
+   * @param {Object} updates - Properties to update
+   * @returns {boolean} True if slot was updated, false if not found
+   */
+  updateSlot(slotId, updates = {}) {
+    const slot = this.getSlot(slotId);
+    if (!slot) return false;
+
+    // Merge updates into slot
+    if (updates.offset !== undefined) {
+      slot.offset = {
+        x: Number(updates.offset.x) !== undefined ? updates.offset.x : slot.offset.x,
+        y: Number(updates.offset.y) !== undefined ? updates.offset.y : slot.offset.y
+      };
+    }
+    if (updates.transformBehavior !== undefined) slot.transformBehavior = updates.transformBehavior;
+    if (updates.visualEnabled !== undefined) slot.visualEnabled = updates.visualEnabled;
+    if (updates.color !== undefined) slot.color = updates.color;
+    if (updates.maxAttachments !== undefined) slot.maxAttachments = updates.maxAttachments;
+
+    return true;
   }
 }
 

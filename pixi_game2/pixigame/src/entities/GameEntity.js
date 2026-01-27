@@ -100,6 +100,9 @@ export class GameEntity extends Entity {
 
     // 🎬 Анимации
     this.animations = this._createAnimationsComponent(options);
+
+    // Слоты (attachment points)
+    this.slots = options.slots || [];
   }
 
   /**

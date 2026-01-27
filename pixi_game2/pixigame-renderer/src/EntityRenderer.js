@@ -9,6 +9,7 @@ export class EntityRenderer {
     this.canvas = canvas;
     this._cache = new Map();
     this._collisionBoundsCache = new Map(); // Кеш для границ коллизии
+    this._slotsCache = new Map(); // Кеш для визуализации слотов
   }
   
   renderEntities(camera, world, container) {
@@ -62,6 +63,13 @@ export class EntityRenderer {
           container.removeChild(boundsGraphics);
         }
 
+        // Remove slots graphics
+        const slotsKey = `${cachePrefix}slots::${entityId}`;
+        const slotsGraphics = this._slotsCache.get(slotsKey);
+        if (slotsGraphics && slotsGraphics.parent === container) {
+          container.removeChild(slotsGraphics);
+        }
+
         continue;
       }
 
@@ -84,6 +92,9 @@ export class EntityRenderer {
 
       // Рендеринг границ коллизии (если включено)
       this._renderCollisionBounds(camera, entityId, components, container);
+
+      // Рендеринг слотов (если включено)
+      this._renderSlots(camera, entityId, components, container);
     }
 
     // Очистка неактивных объектов
@@ -108,6 +119,20 @@ export class EntityRenderer {
           }
           boundsGraphics.destroy({ children: true });
           this._collisionBoundsCache.delete(boundsKey);
+        }
+      }
+    }
+
+    // Очистка неактивных слотов
+    for (const [slotsKey, slotsGraphics] of this._slotsCache) {
+      if (slotsKey.startsWith(cachePrefix + 'slots::')) {
+        const entityId = slotsKey.substring((cachePrefix + 'slots::').length);
+        if (!activeEntityIds.has(entityId)) {
+          if (slotsGraphics.parent === container) {
+            container.removeChild(slotsGraphics);
+          }
+          slotsGraphics.destroy({ children: true });
+          this._slotsCache.delete(slotsKey);
         }
       }
     }
@@ -318,17 +343,114 @@ export class EntityRenderer {
     }
   }
 
+  _renderSlots(camera, entityId, components, container) {
+    const entityRef = components.get('_entityRef');
+    const position = components.get('position');
+    const rotationComp = components.get('rotation');
+
+    // Проверяем наличие слотов на entityRef
+    const slots = entityRef?.slots;
+    if (!slots || slots.length === 0) {
+      // Если нет слотов - удаляем графику если есть
+      const slotsKey = `${camera.id}::slots::${entityId}`;
+      const slotsGraphics = this._slotsCache.get(slotsKey);
+      if (slotsGraphics && slotsGraphics.parent === container) {
+        container.removeChild(slotsGraphics);
+      }
+      return;
+    }
+
+    // Rotation can be stored as:
+    // - number (radians)
+    // - { value: number }
+    // - or on a linked _entityRef
+    const rotation =
+      rotationComp != null
+        ? (typeof rotationComp === 'number'
+            ? rotationComp
+            : (Number(rotationComp?.value) || 0))
+        : (Number(entityRef?.rotation) || 0);
+
+    const slotsKey = `${camera.id}::slots::${entityId}`;
+    let slotsGraphics = this._slotsCache.get(slotsKey);
+
+    if (!slotsGraphics) {
+      slotsGraphics = new PIXI.Graphics();
+      this._slotsCache.set(slotsKey, slotsGraphics);
+    }
+
+    // Очистка и перерисовка
+    slotsGraphics.clear();
+
+    // Отрисовываем только слоты с visualEnabled=true
+    for (const slot of slots) {
+      if (!slot.visualEnabled) continue;
+
+      const offset = slot.offset || { x: 0, y: 0 };
+      const slotColor = slot.color || '#00FFFF';
+
+      // Вычисляем позицию слота
+      let slotX, slotY;
+
+      if (slot.transformBehavior === 'follow_entity') {
+        // Слот двигается вместе с сущностью (применяем поворот)
+        slotX = offset.x * Math.cos(rotation) - offset.y * Math.sin(rotation);
+        slotY = offset.x * Math.sin(rotation) + offset.y * Math.cos(rotation);
+      } else {
+        // Статичный слот (не поворачивается)
+        slotX = offset.x;
+        slotY = offset.y;
+      }
+
+      // Рисуем точку слота (маленький круг)
+      const dotSize = 4;
+      const dotColor = parseInt(slotColor.replace('#', ''), 16);
+
+      slotsGraphics
+        .circle(slotX, slotY, dotSize)
+        .stroke({
+          width: 2,
+          color: dotColor,
+          alpha: 0.9
+        });
+    }
+
+    // Позиционируем slots graphics на позицию сущности
+    slotsGraphics.position.set(position.x, position.y);
+
+    // Добавляем в контейнер если еще не добавлен
+    if (slotsGraphics.parent !== container) {
+      container.addChild(slotsGraphics);
+    }
+  }
+
   clearCameraCache(cameraId) {
     const cachePrefix = `${cameraId}::`;
-    
+
     for (const [cacheKey, displayObj] of this._cache) {
       if (cacheKey.startsWith(cachePrefix)) {
         displayObj.destroy({ children: true });
         this._cache.delete(cacheKey);
       }
     }
+
+    // Очистка кеша коллизий
+    for (const [boundsKey, boundsGraphics] of this._collisionBoundsCache) {
+      if (boundsKey.startsWith(cachePrefix + 'bounds::')) {
+        boundsGraphics.destroy({ children: true });
+        this._collisionBoundsCache.delete(boundsKey);
+      }
+    }
+
+    // Очистка кеша слотов
+    for (const [slotsKey, slotsGraphics] of this._slotsCache) {
+      if (slotsKey.startsWith(cachePrefix + 'slots::')) {
+        slotsGraphics.destroy({ children: true });
+        this._slotsCache.delete(slotsKey);
+      }
+    }
   }
-  
+
   _clearAllCache() {
     for (const displayObj of this._cache.values()) {
       displayObj.destroy({ children: true });
@@ -339,6 +461,11 @@ export class EntityRenderer {
       boundsGraphics.destroy({ children: true });
     }
     this._collisionBoundsCache.clear();
+
+    for (const slotsGraphics of this._slotsCache.values()) {
+      slotsGraphics.destroy({ children: true });
+    }
+    this._slotsCache.clear();
   }
   
   getCacheSize() {
