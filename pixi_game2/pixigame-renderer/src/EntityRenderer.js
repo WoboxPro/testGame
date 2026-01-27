@@ -40,6 +40,8 @@ export class EntityRenderer {
               : (Number(rotationComp?.value) || 0))
           : (Number(entityRef?.rotation) || 0);
 
+      const entityScale = entityRef?.scale || { x: 1, y: 1 };
+
       const isVisible = this._isEntityVisible(
         { x: position.x, y: position.y },
         appearance.size || 0,
@@ -74,7 +76,7 @@ export class EntityRenderer {
         this._cache.set(cacheKey, displayObj);
       }
 
-      this._updateDisplayObject(displayObj, position, appearance, rotation, world, animations);
+      this._updateDisplayObject(displayObj, position, appearance, rotation, entityScale, world, animations);
 
       if (displayObj.parent !== container) {
         container.addChild(displayObj);
@@ -141,12 +143,13 @@ export class EntityRenderer {
     return graphics;
   }
 
-  _updateDisplayObject(displayObj, position, appearance, rotation = 0, world, animations) {
+  _updateDisplayObject(displayObj, position, appearance, rotation = 0, entityScale = { x: 1, y: 1 }, world, animations) {
     displayObj.position.set(position.x, position.y);
     displayObj.rotation = Number(rotation) || 0;
+    displayObj.scale.set(Number(entityScale.x) || 1, Number(entityScale.y) || 1);
 
     if (displayObj instanceof PIXI.Sprite) {
-      this._updateSprite(displayObj, appearance, world, animations);
+      this._updateSprite(displayObj, appearance, entityScale, world, animations);
     } else {
       this._updateGraphics(displayObj, appearance);
     }
@@ -168,11 +171,16 @@ export class EntityRenderer {
     }
   }
 
-  _updateSprite(sprite, appearance, world, animations) {
+  _updateSprite(sprite, appearance, entityScale, world, animations) {
     // Обновляем текстуру если она изменилась
     if (appearance.textureUrl && sprite.texture.url !== appearance.textureUrl) {
       sprite.texture = PIXI.Texture.from(appearance.textureUrl);
     }
+
+    // Применяем appearance.scale как базовый масштаб, затем entity.scale
+    const baseScale = Number(appearance.scale) || 1;
+    const scaleX = baseScale * (Number(entityScale.x) || 1);
+    const scaleY = baseScale * (Number(entityScale.y) || 1);
 
     // Обновляем размеры
     if (appearance.width) {
@@ -181,9 +189,8 @@ export class EntityRenderer {
     if (appearance.height) {
       sprite.height = appearance.height;
     }
-    if (appearance.scale) {
-      sprite.scale.set(appearance.scale);
-    }
+
+    sprite.scale.set(scaleX, scaleY);
     if (appearance.tint) {
       sprite.tint = appearance.tint;
     }

@@ -151,23 +151,32 @@
       </div>
     </div>
 
-    <div class="form__section">
-      <div class="form__section-title">Movement</div>
-      <div class="grid2">
-        <label class="field">
-          <span class="field__label">Max Speed</span>
-          <input class="field__input" type="number" v-model.number="model.maxSpeed" />
-        </label>
-        <label class="field">
-          <span class="field__label">Acceleration</span>
-          <input class="field__input" type="number" v-model.number="model.acceleration" />
-        </label>
-      </div>
-      <label class="field">
-        <span class="field__label">Friction</span>
-        <input class="field__input" type="number" v-model.number="model.friction" />
-      </label>
-    </div>
+     <div class="form__section">
+       <div class="form__section-title">Movement</div>
+       <div class="grid2">
+         <label class="field">
+           <span class="field__label">Max Speed</span>
+           <input class="field__input" type="number" v-model.number="model.maxSpeed" />
+         </label>
+         <label class="field">
+           <span class="field__label">Acceleration</span>
+           <input class="field__input" type="number" v-model.number="model.acceleration" />
+         </label>
+       </div>
+       <label class="field">
+         <span class="field__label">Friction</span>
+         <input class="field__input" type="number" v-model.number="model.friction" />
+       </label>
+       <label class="field">
+         <span class="field__label">Rotation / Reflection</span>
+         <select class="field__input" v-model="model.reflectionBehavior">
+           <option value="none">None (manual rotation only)</option>
+           <option value="mirrorX">Mirror X (left/right)</option>
+           <option value="mirrorY">Mirror Y (up/down)</option>
+         </select>
+         <span class="field__hint">Mirror disables rotation, flips entity based on movement or Q/E</span>
+       </label>
+     </div>
 
     <div class="form__section" v-if="model.shape === 'sprite'">
       <div class="form__section-title">🎬 Animations</div>

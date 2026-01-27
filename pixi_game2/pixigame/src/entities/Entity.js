@@ -13,10 +13,13 @@ export class Entity {
     *  subtype?: string,
     *  position?: {x:number,y:number},
     *  rotation?: number,
-    *  rotationBehavior?: 'none'|'move'|'mouse',
-    *  rotationSpeed?: number,
-    *  scale?: {x:number,y:number},
-    *  visible?: boolean,
+     *  rotationBehavior?: 'none'|'move'|'mouse',
+     *  reflectionBehavior?: 'none'|'mirrorX'|'mirrorY',
+     *  rotationSpeed?: number,
+     *  scale?: {x:number,y:number},
+     *  baseScale?: {x:number,y:number},
+     *  mirrorDirection?: {x?:number,y?:number},
+     *  visible?: boolean,
     *  z_index?: number,
     *  opacity?: number,
     *  blendMode?: string,
@@ -33,14 +36,17 @@ export class Entity {
     this.type = options.type || 'game';
     this.subtype = options.subtype;
 
-    // Transform
-    this.position = options.position ? { x: Number(options.position.x) || 0, y: Number(options.position.y) || 0 } : { x: 0, y: 0 };
-    this.rotation = Number(options.rotation) || 0;
-    this.scale = options.scale ? { x: Number(options.scale.x) || 1, y: Number(options.scale.y) || 1 } : { x: 1, y: 1 };
+     // Transform
+     this.position = options.position ? { x: Number(options.position.x) || 0, y: Number(options.position.y) || 0 } : { x: 0, y: 0 };
+     this.rotation = Number(options.rotation) || 0;
+     this.baseScale = options.baseScale ? { x: Number(options.baseScale.x) || 1, y: Number(options.baseScale.y) || 1 } : { x: 1, y: 1 };
+     this.scale = options.scale ? { x: Number(options.scale.x) || 1, y: Number(options.scale.y) || 1 } : { ...this.baseScale };
+     this.mirrorDirection = options.mirrorDirection || { x: 1, y: 1 }; // Store last mirror direction
 
     // Rotation behavior (optional, used by controllers)
-    this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'move' | 'mouse'
-    this.rotationSpeed = Number.isFinite(options.rotationSpeed) ? Number(options.rotationSpeed) : 8.0; // rad/s (used for smooth turning)
+     this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'move' | 'mouse'
+     this.reflectionBehavior = options.reflectionBehavior || 'none'; // 'none' | 'mirrorX' | 'mirrorY'
+     this.rotationSpeed = Number.isFinite(options.rotationSpeed) ? Number(options.rotationSpeed) : 8.0; // rad/s (used for smooth turning)
 
     // Visibility
     this.visible = options.visible !== false;

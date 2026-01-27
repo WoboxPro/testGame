@@ -350,102 +350,224 @@ export class EntityController extends Controller {
       this.onEntityMoved(entity);
     }
 
-    // ---------------------------
-    // Rotation behavior (optional)
-    // - keyboard: none | move | mouse
-    // - touch:    none | move (mouse ignored)
-    // ---------------------------
-    let mode =
-      this.rotationMode ??
-      (typeof entity.rotationBehavior === 'string' ? entity.rotationBehavior : null) ??
-      'none';
+     // ---------------------------
+     // Rotation / Reflection behavior
+     // - keyboard: none | move | mouse
+     // - touch:    none | move (mouse ignored)
+     // - reflection: mirrorX | mirrorY (excludes rotation)
+     // ---------------------------
+     const reflection = entity.reflectionBehavior || 'none';
 
-    if (mode !== 'none' && mode !== 'move' && mode !== 'mouse') {
-      mode = 'none';
-    }
+     if (reflection === 'mirrorX' || reflection === 'mirrorY') {
+       // Reflection behavior - same logic as rotation
+       const baseScale = entity.baseScale || { x: 1, y: 1 };
 
-    if (this.inputType === 'touch' && mode === 'mouse') {
-      mode = 'none';
-    }
+       // Initialize mirrorDirection if not set
+       if (!entity.mirrorDirection) {
+         entity.mirrorDirection = { x: 1, y: 1 };
+       }
 
-    const rotSpeed = Number.isFinite(entity.rotationSpeed) ? Number(entity.rotationSpeed) : 8.0;
+       let direction = 1;
+       let directionChanged = false;
 
-    const normalizeAngle = (a) => {
-      let v = a;
-      while (v > Math.PI) v -= 2 * Math.PI;
-      while (v < -Math.PI) v += 2 * Math.PI;
-      return v;
-    };
+       let rotationMode =
+         this.rotationMode ??
+         (typeof entity.rotationBehavior === 'string' ? entity.rotationBehavior : null) ??
+         'none';
 
-    const rotateTowards = (current, target, maxStep) => {
-      const cur = normalizeAngle(Number(current) || 0);
-      const tgt = normalizeAngle(Number(target) || 0);
-      let diff = normalizeAngle(tgt - cur); // shortest
-      if (Math.abs(diff) <= maxStep) return tgt;
-      return normalizeAngle(cur + Math.sign(diff) * maxStep);
-    };
+       if (this.inputType === 'touch' && rotationMode === 'mouse') {
+         rotationMode = 'none';
+       }
 
-    if (mode === 'move') {
-      const vx = Number(velocity.x) || 0;
-      const vy = Number(velocity.y) || 0;
-      const speedSq = vx * vx + vy * vy;
-      if (speedSq > 0.001) {
-        const desired = Math.atan2(vy, vx);
-        entity.rotation = rotateTowards(entity.rotation, desired, rotSpeed * dt);
-        if (this.onEntityRotated) this.onEntityRotated(entity);
-      }
-    } else if (mode === 'mouse') {
-      // Requires keyboard input and a camera to convert screen -> world
-      if (this.inputType === 'keyboard') {
-        const cam = typeof this.aimCamera === 'function' ? this.aimCamera() : this.aimCamera;
-        if (cam && typeof cam.screenToWorld === 'function') {
-          // IMPORTANT:
-          // mousemove gives viewport coords (clientX/Y), but Camera.screenToWorld expects
-          // coordinates in PIXI canvas space. Convert using the canvas DOM rect.
-          let sx = this._mouseScreen.x;
-          let sy = this._mouseScreen.y;
+       if (rotationMode === 'mouse' && this.inputType === 'keyboard') {
+         // Mirror based on mouse direction
+         const cam = typeof this.aimCamera === 'function' ? this.aimCamera() : this.aimCamera;
+         if (cam && typeof cam.screenToWorld === 'function') {
+           let sx = this._mouseScreen.x;
+           let sy = this._mouseScreen.y;
 
-          const canvasEl = cam.canvas?.app?.canvas;
-          if (canvasEl && typeof canvasEl.getBoundingClientRect === 'function') {
-            const rect = canvasEl.getBoundingClientRect();
-            // If cursor is outside this canvas, do not rotate to avoid jumps
-            if (
-              sx < rect.left ||
-              sx > rect.right ||
-              sy < rect.top ||
-              sy > rect.bottom
-            ) {
-              return;
-            }
-            sx = sx - rect.left;
-            sy = sy - rect.top;
-          }
+           const canvasEl = cam.canvas?.app?.canvas;
+           if (canvasEl && typeof canvasEl.getBoundingClientRect === 'function') {
+             const rect = canvasEl.getBoundingClientRect();
+             if (
+               sx >= rect.left &&
+               sx <= rect.right &&
+               sy >= rect.top &&
+               sy <= rect.bottom
+             ) {
+               sx = sx - rect.left;
+               sy = sy - rect.top;
 
-          const wp = cam.screenToWorld(sx, sy);
-          const dx = (Number(wp?.x) || 0) - position.x;
-          const dy = (Number(wp?.y) || 0) - position.y;
-          if (dx * dx + dy * dy > 0.0001) {
-            const desired = Math.atan2(dy, dx);
-            // For mouse aiming we want crisp/accurate facing, not slow turning.
-            entity.rotation = normalizeAngle(desired);
-            if (this.onEntityRotated) this.onEntityRotated(entity);
-          }
-        }
-      }
-    } else {
-      // mode === 'none' => manual rotation by Q/E (keyboard only)
-      if (this.inputType === 'keyboard') {
-        const rotateLeft = this.isActionActive(EntityController.ACTIONS.ROTATE_LEFT);
-        const rotateRight = this.isActionActive(EntityController.ACTIONS.ROTATE_RIGHT);
+               const wp = cam.screenToWorld(sx, sy);
+               const dx = (Number(wp?.x) || 0) - position.x;
+               const dy = (Number(wp?.y) || 0) - position.y;
 
-        if (rotateLeft || rotateRight) {
-          const dir = (rotateRight ? 1 : 0) + (rotateLeft ? -1 : 0); // right=+1, left=-1
-          const before = Number(entity.rotation) || 0;
-          entity.rotation = normalizeAngle(before + dir * rotSpeed * dt);
-          if (this.onEntityRotated) this.onEntityRotated(entity);
-        }
-      }
-    }
+               const newDirection = reflection === 'mirrorX'
+                 ? (dx > 0 ? 1 : -1)
+                 : (dy > 0 ? 1 : -1);
+
+               if (newDirection !== entity.mirrorDirection.x && reflection === 'mirrorX') {
+                 entity.mirrorDirection.x = newDirection;
+                 directionChanged = true;
+               } else if (newDirection !== entity.mirrorDirection.y && reflection === 'mirrorY') {
+                 entity.mirrorDirection.y = newDirection;
+                 directionChanged = true;
+               }
+               direction = newDirection;
+             }
+           }
+         }
+         // Use stored direction if mouse outside canvas
+         direction = reflection === 'mirrorX' ? entity.mirrorDirection.x : entity.mirrorDirection.y;
+       } else if (rotationMode === 'move') {
+         // Mirror based on movement direction
+         const vx = Number(velocity.x) || 0;
+         const vy = Number(velocity.y) || 0;
+         const speedSq = vx * vx + vy * vy;
+
+         if (speedSq > 0.001) {
+           const newDirection = reflection === 'mirrorX'
+             ? (vx > 0 ? 1 : -1)
+             : (vy > 0 ? 1 : -1);
+
+           if (newDirection !== entity.mirrorDirection.x && reflection === 'mirrorX') {
+             entity.mirrorDirection.x = newDirection;
+             directionChanged = true;
+           } else if (newDirection !== entity.mirrorDirection.y && reflection === 'mirrorY') {
+             entity.mirrorDirection.y = newDirection;
+             directionChanged = true;
+           }
+           direction = newDirection;
+         } else {
+           // Use stored direction when stopped
+           direction = reflection === 'mirrorX' ? entity.mirrorDirection.x : entity.mirrorDirection.y;
+         }
+       } else if (this.inputType === 'keyboard') {
+         // Manual mirror control with Q/E (when rotationMode is 'none')
+         const rotateLeft = this.isActionActive(EntityController.ACTIONS.ROTATE_LEFT);
+         const rotateRight = this.isActionActive(EntityController.ACTIONS.ROTATE_RIGHT);
+
+         if (rotateLeft || rotateRight) {
+           const dir = (rotateRight ? 1 : 0) + (rotateLeft ? -1 : 0);
+           const newDirection = dir > 0 ? 1 : -1;
+
+           if (newDirection !== entity.mirrorDirection.x && reflection === 'mirrorX') {
+             entity.mirrorDirection.x = newDirection;
+             directionChanged = true;
+           } else if (newDirection !== entity.mirrorDirection.y && reflection === 'mirrorY') {
+             entity.mirrorDirection.y = newDirection;
+             directionChanged = true;
+           }
+           direction = newDirection;
+         } else {
+           // Use stored direction when standing still
+           direction = reflection === 'mirrorX' ? entity.mirrorDirection.x : entity.mirrorDirection.y;
+         }
+       }
+
+       if (reflection === 'mirrorX') {
+         entity.scale.x = baseScale.x * direction;
+         entity.scale.y = baseScale.y;
+       } else {
+         entity.scale.x = baseScale.x;
+         entity.scale.y = baseScale.y * direction;
+       }
+
+       if (this.onEntityRotated) this.onEntityRotated(entity);
+     } else {
+       // Rotation behavior
+       let mode =
+         this.rotationMode ??
+         (typeof entity.rotationBehavior === 'string' ? entity.rotationBehavior : null) ??
+         'none';
+
+       if (mode !== 'none' && mode !== 'move' && mode !== 'mouse') {
+         mode = 'none';
+       }
+
+       if (this.inputType === 'touch' && mode === 'mouse') {
+         mode = 'none';
+       }
+
+       const rotSpeed = Number.isFinite(entity.rotationSpeed) ? Number(entity.rotationSpeed) : 8.0;
+
+       const normalizeAngle = (a) => {
+         let v = a;
+         while (v > Math.PI) v -= 2 * Math.PI;
+         while (v < -Math.PI) v += 2 * Math.PI;
+         return v;
+       };
+
+       const rotateTowards = (current, target, maxStep) => {
+         const cur = normalizeAngle(Number(current) || 0);
+         const tgt = normalizeAngle(Number(target) || 0);
+         let diff = normalizeAngle(tgt - cur); // shortest
+         if (Math.abs(diff) <= maxStep) return tgt;
+         return normalizeAngle(cur + Math.sign(diff) * maxStep);
+       };
+
+       if (mode === 'move') {
+         const vx = Number(velocity.x) || 0;
+         const vy = Number(velocity.y) || 0;
+         const speedSq = vx * vx + vy * vy;
+         if (speedSq > 0.001) {
+           const desired = Math.atan2(vy, vx);
+           entity.rotation = rotateTowards(entity.rotation, desired, rotSpeed * dt);
+           if (this.onEntityRotated) this.onEntityRotated(entity);
+         }
+       } else if (mode === 'mouse') {
+         // Requires keyboard input and a camera to convert screen -> world
+         if (this.inputType === 'keyboard') {
+           const cam = typeof this.aimCamera === 'function' ? this.aimCamera() : this.aimCamera;
+           if (cam && typeof cam.screenToWorld === 'function') {
+             // IMPORTANT:
+             // mousemove gives viewport coords (clientX/Y), but Camera.screenToWorld expects
+             // coordinates in PIXI canvas space. Convert using the canvas DOM rect.
+             let sx = this._mouseScreen.x;
+             let sy = this._mouseScreen.y;
+
+             const canvasEl = cam.canvas?.app?.canvas;
+             if (canvasEl && typeof canvasEl.getBoundingClientRect === 'function') {
+               const rect = canvasEl.getBoundingClientRect();
+               // If cursor is outside this canvas, do not rotate to avoid jumps
+               if (
+                 sx < rect.left ||
+                 sx > rect.right ||
+                 sy < rect.top ||
+                 sy > rect.bottom
+               ) {
+                 return;
+               }
+               sx = sx - rect.left;
+               sy = sy - rect.top;
+             }
+
+             const wp = cam.screenToWorld(sx, sy);
+             const dx = (Number(wp?.x) || 0) - position.x;
+             const dy = (Number(wp?.y) || 0) - position.y;
+             if (dx * dx + dy * dy > 0.0001) {
+               const desired = Math.atan2(dy, dx);
+               // For mouse aiming we want crisp/accurate facing, not slow turning.
+               entity.rotation = normalizeAngle(desired);
+               if (this.onEntityRotated) this.onEntityRotated(entity);
+             }
+           }
+         }
+       } else {
+         // mode === 'none' => manual rotation by Q/E (keyboard only)
+         if (this.inputType === 'keyboard') {
+           const rotateLeft = this.isActionActive(EntityController.ACTIONS.ROTATE_LEFT);
+           const rotateRight = this.isActionActive(EntityController.ACTIONS.ROTATE_RIGHT);
+
+           if (rotateLeft || rotateRight) {
+             const dir = (rotateRight ? 1 : 0) + (rotateLeft ? -1 : 0); // right=+1, left=-1
+             const before = Number(entity.rotation) || 0;
+             entity.rotation = normalizeAngle(before + dir * rotSpeed * dt);
+             if (this.onEntityRotated) this.onEntityRotated(entity);
+           }
+         }
+       }
+     }
   }
 
   /**

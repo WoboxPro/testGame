@@ -602,12 +602,13 @@ const gameEntityForm = reactive({
   collisionSize: null, // переопределение размера коллизии для circle
   collisionWidth: null, // переопределение ширины коллизии для rect
   collisionHeight: null, // переопределение высоты коллизии для rect
-  maxSpeed: 200,
-  acceleration: 1000,
-  friction: 5,
-  animationsEnabled: false, // включить анимации
-  spritesheetUrl: '', // URL к JSON файлу спрайтшита
-  defaultAnimationState: 'idle', // дефолтное состояние
+   maxSpeed: 200,
+   acceleration: 1000,
+   friction: 5,
+   reflectionBehavior: 'none', // none | mirrorX | mirrorY
+   animationsEnabled: false, // включить анимации
+   spritesheetUrl: '', // URL к JSON файлу спрайтшита
+   defaultAnimationState: 'idle', // дефолтное состояние
   animationSpeedMultiplier: 1.0 // множитель скорости анимации
 });
 
@@ -1140,7 +1141,9 @@ function createGameEntityFromForm() {
     position: { x: Number(gameEntityForm.x) || 0, y: Number(gameEntityForm.y) || 0 },
     velocity: { x: 0, y: 0 },
     rotation: 0,
-    scale: { x: 1, y: 1 },
+    baseScale: { x: Number(gameEntityForm.scale) || 1, y: Number(gameEntityForm.scale) || 1 },
+    scale: { x: Number(gameEntityForm.scale) || 1, y: Number(gameEntityForm.scale) || 1 },
+    reflectionBehavior: gameEntityForm.reflectionBehavior || 'none',
     movement: {
       maxSpeed: Number(gameEntityForm.maxSpeed) || 200,
       acceleration: Number(gameEntityForm.acceleration) || 1000,

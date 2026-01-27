@@ -47,6 +47,11 @@ export class GameEntity extends Entity {
     // Подтип игровой сущности
     this.subtype = options.subtype || 'unit';
 
+    // Initialize baseScale from appearance.scale if not provided
+    if (!this.baseScale && this.appearance?.scale) {
+      this.baseScale = { x: Number(this.appearance.scale) || 1, y: Number(this.appearance.scale) || 1 };
+    }
+
     // Движение (используется EntityController и ECS velocity компонентом)
     this.velocity = options.velocity
       ? { x: Number(options.velocity.x) || 0, y: Number(options.velocity.y) || 0 }
