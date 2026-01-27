@@ -1165,25 +1165,31 @@ function attachEntityToWorld() {
   // Clear error
   attachmentForm.error = '';
 
+  // Store entity reference before removing from unattachedEntities
+  const entityInstance = selectedUnattachedEntity.value.instance;
+  const entityId = selectedUnattachedEntity.value.id;
+  const subtype = selectedUnattachedEntity.value.subtype;
+  const appearance = selectedUnattachedEntity.value.appearance;
+
   // Update entity position from form
-  selectedUnattachedEntity.value.instance.position.x = x;
-  selectedUnattachedEntity.value.instance.position.y = y;
+  entityInstance.position.x = x;
+  entityInstance.position.y = y;
 
   // Attach entity to world using new addEntity() method
-  worldModel.instance.addEntity(selectedUnattachedEntity.value.instance);
+  worldModel.instance.addEntity(entityInstance);
 
   // Create attached entity model
   const attachedModel = {
-    id: selectedUnattachedEntity.value.id,
-    entityId: selectedUnattachedEntity.value.id, // Using entity ID as entity reference
-    subtype: selectedUnattachedEntity.value.subtype,
+    id: entityId,
+    entityId: entityId, // Using entity ID as entity reference
+    subtype: subtype,
     worldId: worldModel.id,
-    appearance: selectedUnattachedEntity.value.appearance,
-    instance: selectedUnattachedEntity.value.instance
+    appearance: appearance,
+    instance: entityInstance
   };
 
   // Move from unattached to gameEntities
-  const unattachedIdx = unattachedEntities.findIndex((e) => e.id === selectedUnattachedEntity.value.id);
+  const unattachedIdx = unattachedEntities.findIndex((e) => e.id === entityId);
   if (unattachedIdx >= 0) {
     unattachedEntities.splice(unattachedIdx, 1);
   }
@@ -1193,7 +1199,7 @@ function attachEntityToWorld() {
   updateAllControllersEntityList();
 
   // Select the newly attached entity
-  select({ type: 'game_entity', id: selectedUnattachedEntity.value.id });
+  select({ type: 'game_entity', id: entityId });
 }
 
 function removeGameEntity(entityId) {
