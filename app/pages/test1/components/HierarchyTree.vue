@@ -86,6 +86,23 @@
       <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'ui', u.id)">×</button>
     </div>
 
+    <!-- Unattached Entities Section -->
+    <div class="tree__section">
+      <div class="tree__title">Unattached Entities</div>
+    </div>
+    <div v-if="unattachedEntities.length === 0" class="tree__empty">No unattached entities</div>
+    <div
+      v-for="e in unattachedEntities"
+      :key="e.id"
+      class="tree__item"
+      :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id }"
+      @click="$emit('select', { type: 'game_entity', id: e.id })"
+    >
+      <span class="tree__name">{{ e.id }}</span>
+      <span class="tree__meta">{{ e.subtype }} • Unattached</span>
+      <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'game_entity', e.id)">×</button>
+    </div>
+
     <!-- Entities Section -->
     <div class="tree__section">
       <div class="tree__title">Entities</div>
@@ -190,16 +207,17 @@
 
 <script setup>
 defineProps({
-  worlds: Array,
-  canvases: Array,
-  cameras: Array,
-  uiEntities: Array,
-  gameEntities: Array,
-  regions: Array,
-  controllers: Array,
-  collisionTypes: Array,
-  collisionRelations: Array,
-  selected: Object
+  worlds: { type: Array, default: () => [] },
+  canvases: { type: Array, default: () => [] },
+  cameras: { type: Array, default: () => [] },
+  uiEntities: { type: Array, default: () => [] },
+  gameEntities: { type: Array, default: () => [] },
+  unattachedEntities: { type: Array, default: () => [] },
+  regions: { type: Array, default: () => [] },
+  controllers: { type: Array, default: () => [] },
+  collisionTypes: { type: Array, default: () => [] },
+  collisionRelations: { type: Array, default: () => [] },
+  selected: { type: Object, default: () => null }
 });
 
 defineEmits(['select', 'add', 'delete', 'json', 'delete-collision-type']);

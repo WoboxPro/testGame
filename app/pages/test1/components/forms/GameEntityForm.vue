@@ -7,6 +7,7 @@
     <label class="field">
       <span class="field__label">World</span>
       <select class="field__input" v-model="model.worldId">
+        <option value="">None</option>
         <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
       </select>
     </label>
