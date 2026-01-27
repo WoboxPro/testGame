@@ -823,6 +823,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   cameras,
   uiEntities,
   gameEntities,
+  unattachedEntities,
   regions,
   controllers,
   worldForm,
@@ -1382,9 +1383,31 @@ function createUIButtonFromForm() {
 }
 
 function createGameEntityFromForm() {
-  // Generate ID based on whether we're creating attached or unattached entity
-  const id = gameEntityForm.id?.trim() || suggestId('unit', gameEntityForm.worldId ? gameEntities : unattachedEntities);
-  if (gameEntities.some((e) => e.id === id) || unattachedEntities.some((e) => e.id === id)) return;
+  // IMPORTANT: Ensure ID uniqueness across BOTH arrays
+  // Auto-fix duplicate IDs by generating new ones
+  let id = gameEntityForm.id?.trim() || suggestId('unit', [...gameEntities, ...unattachedEntities]);
+  
+  // Keep generating new IDs until we find a unique one
+  let attempts = 0;
+  const maxAttempts = 100;
+  
+  while (attempts < maxAttempts) {
+    const isDuplicate = gameEntities.some((e) => e.id === id) || unattachedEntities.some((e) => e.id === id);
+    if (!isDuplicate) {
+      // ID is unique, use it
+      break;
+    }
+    // ID is duplicate, generate next one
+    const prefix = id.match(/^[a-z_]+/i)?.[0] || 'unit';
+    const currentNum = parseInt(id.match(/\d+$/)?.[0] || '0');
+    id = `${prefix}_${currentNum + 1}`;
+    attempts++;
+  }
+  
+  if (attempts >= maxAttempts) {
+    alert(`Could not generate unique ID after ${maxAttempts} attempts.`);
+    return;
+  }
 
   const worldModel = worlds.find((w) => w.id === gameEntityForm.worldId);
 

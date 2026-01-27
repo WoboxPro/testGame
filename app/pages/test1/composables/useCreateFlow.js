@@ -11,6 +11,7 @@ export function useCreateFlow({
   cameras,
   uiEntities,
   gameEntities,
+  unattachedEntities,
   regions,
   controllers,
   worldForm,
@@ -53,7 +54,8 @@ export function useCreateFlow({
       uiButtonForm.cameraId = cameras[0]?.id || '';
       uiButtonForm.worldId = worlds[0]?.id || '';
     } else if (type === 'game_entity') {
-      gameEntityForm.id = suggestId('unit', gameEntities);
+      // IMPORTANT: Check BOTH arrays to avoid ID collisions
+      gameEntityForm.id = suggestId('unit', [...gameEntities, ...unattachedEntities]);
       gameEntityForm.worldId = worlds[0]?.id || '';
       gameEntityForm.subtype = 'unit';
       gameEntityForm.x = 0;
