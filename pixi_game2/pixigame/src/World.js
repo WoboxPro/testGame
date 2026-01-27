@@ -94,10 +94,27 @@ export class World {
     // Set entity's binding to this world
     gameEntity.worldId = this.id;
 
-    // Store entity reference in world's entities Map
-    // Note: This stores the entity instance, not ECS components (like createEntity)
-    // The entity is referenced by its ID for lookup/management
-    this.entities.set(gameEntity.id, gameEntity);
+    // Create ECS-compatible components Map (compatible with AnimationSystem)
+    const components = new Map();
+    components.set('_entityRef', gameEntity);
+    components.set('position', gameEntity.position);
+    components.set('velocity', gameEntity.velocity);
+    components.set('movement', gameEntity.movement);
+    components.set('appearance', gameEntity.appearance);
+    components.set('subtype', gameEntity.subtype);
+
+    // Add collision component if entity has collision
+    if (gameEntity.hasCollision && gameEntity.collision) {
+      components.set('collision', gameEntity.collision);
+    }
+
+    // Add animations component if enabled
+    if (gameEntity.animations && gameEntity.animations.enabled) {
+      components.set('animations', gameEntity.animations);
+    }
+
+    // Store entity with components in world's entities Map
+    this.entities.set(gameEntity.id, components);
 
     console.log(`🔗 Entity attached to world: ${gameEntity.id} -> ${this.id}`);
     return true;
