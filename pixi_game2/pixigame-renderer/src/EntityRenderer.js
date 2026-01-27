@@ -371,6 +371,9 @@ export class EntityRenderer {
             : (Number(rotationComp?.value) || 0))
         : (Number(entityRef?.rotation) || 0);
 
+    // Mirror direction (для отражения слотов)
+    const mirrorDirection = entityRef?.mirrorDirection || { x: 1, y: 1 };
+
     const slotsKey = `${camera.id}::slots::${entityId}`;
     let slotsGraphics = this._slotsCache.get(slotsKey);
 
@@ -394,10 +397,15 @@ export class EntityRenderer {
 
       if (slot.transformBehavior === 'follow_entity') {
         // Слот двигается вместе с сущностью (применяем поворот)
-        slotX = offset.x * Math.cos(rotation) - offset.y * Math.sin(rotation);
-        slotY = offset.x * Math.sin(rotation) + offset.y * Math.cos(rotation);
+        // Сначала вращаем offset
+        const rotatedX = offset.x * Math.cos(rotation) - offset.y * Math.sin(rotation);
+        const rotatedY = offset.x * Math.sin(rotation) + offset.y * Math.cos(rotation);
+
+        // Затем применяем отражение (mirror)
+        slotX = rotatedX * mirrorDirection.x;
+        slotY = rotatedY * mirrorDirection.y;
       } else {
-        // Статичный слот (не поворачивается)
+        // Статичный слот (не поворачивается и не отражается)
         slotX = offset.x;
         slotY = offset.y;
       }
@@ -422,7 +430,7 @@ export class EntityRenderer {
     if (slotsGraphics.parent !== container) {
       container.addChild(slotsGraphics);
     }
-  }
+    }
 
   clearCameraCache(cameraId) {
     const cachePrefix = `${cameraId}::`;
