@@ -23,6 +23,7 @@
             :cameras="cameras"
             :ui-entities="uiEntities"
             :game-entities="gameEntities"
+            :unattached-entities="unattachedEntities"
             :regions="regions"
             :controllers="controllers"
             :collision-types="getCollisionTypes()"
@@ -223,6 +224,50 @@
                 </div>
                 <button class="slot-item__delete" @click="removeSlot(slot.id)" title="Delete slot">×</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Unattached Entity Inspector -->
+        <div v-else-if="isUnattachedEntitySelected && selectedUnattachedEntity" class="inspector__content">
+          <div class="inspector__title">Entity: {{ selectedUnattachedEntity.id }} (Unattached)</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">Type</div><div class="kv__v">{{ selectedUnattachedEntity.subtype }}</div></div>
+            <div class="kv__row"><div class="kv__k">Shape</div><div class="kv__v">{{ selectedUnattachedEntity.appearance.shape }}</div></div>
+            <div class="kv__row"><div class="kv__k">Color</div><div class="kv__v" :style="{color: '#' + selectedUnattachedEntity.instance.appearance.color.toString(16).padStart(6, '0')}">{{ '#' + selectedUnattachedEntity.instance.appearance.color.toString(16).padStart(6, '0') }}</div></div>
+            <div class="kv__row" v-if="selectedUnattachedEntity.appearance.shape === 'circle'"><div class="kv__k">Size</div><div class="kv__v">{{ selectedUnattachedEntity.appearance.size }}</div></div>
+            <div class="kv__row" v-else><div class="kv__k">Size</div><div class="kv__v">{{ selectedUnattachedEntity.appearance.width }}×{{ selectedUnattachedEntity.appearance.height }}</div></div>
+            <div class="kv__row"><div class="kv__k">Position</div><div class="kv__v">{{ selectedUnattachedEntity.instance.position.x }}, {{ selectedUnattachedEntity.instance.position.y }}</div></div>
+          </div>
+
+          <!-- Attach to World Section -->
+          <div class="inspector__section">
+            <div class="inspector__section-title">Attach to World</div>
+
+            <!-- Error message -->
+            <div v-if="attachmentForm.error" class="inspector__error">{{ attachmentForm.error }}</div>
+
+            <label class="field">
+              <span class="field__label">World</span>
+              <select class="field__input" v-model="attachmentForm.worldId">
+                <option value="">Select world</option>
+                <option v-for="w in worlds" :key="w.id" :value="w.id">{{ w.id }}</option>
+              </select>
+            </label>
+
+            <div class="grid2">
+              <label class="field">
+                <span class="field__label">X</span>
+                <input class="field__input" type="number" v-model.number="attachmentForm.x" />
+              </label>
+              <label class="field">
+                <span class="field__label">Y</span>
+                <input class="field__input" type="number" v-model.number="attachmentForm.y" />
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="btn" @click="attachEntityToWorld()">📌 Attach</button>
             </div>
           </div>
         </div>
@@ -526,6 +571,7 @@ const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor
 const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, focusX, focusY, zoom, priority, minZoom, maxZoom, anchor, instance }
 const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const gameEntities = reactive([]); // { id, subtype, worldId, instance }
+const unattachedEntities = reactive([]); // { id, subtype, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
 
@@ -539,7 +585,15 @@ const leftPanelMode = ref('hierarchy');
 
 const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showMode: 'all', showRegions: true, showRegionBorders: true, showGameEntities: true, showUIEntities: true });
 
-// canvasId -> DOM element
+// Attachment form for unattached entities
+const attachmentForm = reactive({
+  worldId: '',
+  x: 0,
+  y: 0,
+  error: ''
+});
+
+ // canvasId -> DOM element
 const canvasHosts = new Map();
 function setCanvasHost(canvasId, el) {
   if (el) canvasHosts.set(canvasId, el);
@@ -556,6 +610,7 @@ const { jsonModal, openJsonModal, closeJsonModal, copyJsonToClipboard } = useJso
   canvases,
   cameras,
   uiEntities,
+  unattachedEntities,
   regions,
   controllers
 });
@@ -1001,6 +1056,7 @@ const { removeWorld, removeCanvas, removeCamera, removeSelected, handleTreeDelet
   canvases,
   cameras,
   uiEntities,
+  unattachedEntities,
   regions,
   selected,
   canvasHosts,
@@ -1023,6 +1079,11 @@ const selectedCanvas = computed(() => (selected.value?.type === 'canvas' ? canva
 const selectedCamera = computed(() => (selected.value?.type === 'camera' ? cameras.find((c) => c.id === selected.value.id) : null));
 const selectedUI = computed(() => (selected.value?.type === 'ui' ? uiEntities.find((u) => u.id === selected.value.id) : null));
 const selectedGameEntity = computed(() => (selected.value?.type === 'game_entity' ? gameEntities.find((e) => e.id === selected.value.id) : null));
+const selectedUnattachedEntity = computed(() => {
+  const entity = unattachedEntities.find((e) => e.id === selected.value.id);
+  return entity ? entity : null;
+});
+const isUnattachedEntitySelected = computed(() => selectedUnattachedEntity.value !== null);
 const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
 const selectedController = computed(() => (selected.value?.type === 'controller' ? controllers.find((c) => c.id === selected.value.id) : null));
 
@@ -1087,11 +1148,70 @@ function removeUI(uiId) {
   if (selected.value?.type === 'ui' && selected.value.id === uiId) selected.value = null;
 }
 
+function attachEntityToWorld() {
+  if (!selectedUnattachedEntity.value) return;
+
+  const worldId = attachmentForm.worldId;
+  const x = Number(attachmentForm.x) || 0;
+  const y = Number(attachmentForm.y) || 0;
+
+  // Validate world exists
+  const worldModel = worlds.find((w) => w.id === worldId);
+  if (!worldId || !worldModel) {
+    attachmentForm.error = 'World not found';
+    return;
+  }
+
+  // Clear error
+  attachmentForm.error = '';
+
+  // Update entity position from form
+  selectedUnattachedEntity.value.instance.position.x = x;
+  selectedUnattachedEntity.value.instance.position.y = y;
+
+  // Attach entity to world using new addEntity() method
+  worldModel.instance.addEntity(selectedUnattachedEntity.value.instance);
+
+  // Create attached entity model
+  const attachedModel = {
+    id: selectedUnattachedEntity.value.id,
+    entityId: selectedUnattachedEntity.value.id, // Using entity ID as entity reference
+    subtype: selectedUnattachedEntity.value.subtype,
+    worldId: worldModel.id,
+    appearance: selectedUnattachedEntity.value.appearance,
+    instance: selectedUnattachedEntity.value.instance
+  };
+
+  // Move from unattached to gameEntities
+  const unattachedIdx = unattachedEntities.findIndex((e) => e.id === selectedUnattachedEntity.value.id);
+  if (unattachedIdx >= 0) {
+    unattachedEntities.splice(unattachedIdx, 1);
+  }
+  gameEntities.push(attachedModel);
+
+  // Update controllers
+  updateAllControllersEntityList();
+
+  // Select the newly attached entity
+  select({ type: 'game_entity', id: selectedUnattachedEntity.value.id });
+}
+
 function removeGameEntity(entityId) {
-  const idx = gameEntities.findIndex((e) => e.id === entityId);
+  // Try to find in gameEntities (attached)
+  let idx = gameEntities.findIndex((e) => e.id === entityId);
+  let entityModel = null;
+  let isArray = 'gameEntities';
+
+  // If not found in gameEntities, check unattachedEntities
+  if (idx < 0) {
+    idx = unattachedEntities.findIndex((e) => e.id === entityId);
+    isArray = 'unattachedEntities';
+  }
+
   if (idx < 0) return;
 
-  const entityModel = gameEntities[idx];
+  entityModel = isArray === 'gameEntities' ? gameEntities[idx] : unattachedEntities[idx];
+
   // Remove from world (используем entityId из world, а не UI id)
   if (entityModel.worldId && entityModel.entityId) {
     const worldModel = worlds.find((w) => w.id === entityModel.worldId);
@@ -1100,7 +1220,13 @@ function removeGameEntity(entityId) {
     }
   }
 
-  gameEntities.splice(idx, 1);
+  // Remove from appropriate array
+  if (isArray === 'gameEntities') {
+    gameEntities.splice(idx, 1);
+  } else {
+    unattachedEntities.splice(idx, 1);
+  }
+
   if (selected.value?.type === 'game_entity' && selected.value.id === entityId) selected.value = null;
 
   // Update all entity controllers with the updated entity list
@@ -1250,11 +1376,14 @@ function createUIButtonFromForm() {
 }
 
 function createGameEntityFromForm() {
-  const id = gameEntityForm.id?.trim() || suggestId('unit', gameEntities);
-  if (gameEntities.some((e) => e.id === id)) return;
+  // Generate ID based on whether we're creating attached or unattached entity
+  const id = gameEntityForm.id?.trim() || suggestId('unit', gameEntityForm.worldId ? gameEntities : unattachedEntities);
+  if (gameEntities.some((e) => e.id === id) || unattachedEntities.some((e) => e.id === id)) return;
 
   const worldModel = worlds.find((w) => w.id === gameEntityForm.worldId);
-  if (!worldModel) return;
+
+  // If worldId provided but world doesn't exist - return
+  if (gameEntityForm.worldId && !worldModel) return;
 
   // Validation: если shape не circle/rect и есть коллизия - обязательно выбрать collisionShape
   if (gameEntityForm.hasCollision && !['circle', 'rect'].includes(gameEntityForm.shape) && !gameEntityForm.collisionShape) {
@@ -1307,31 +1436,45 @@ function createGameEntityFromForm() {
     } : undefined
   }));
 
-  // Add entity to world using ECS format (plain object with components)
-  const entityId = worldModel.instance.createEntity({
-    _entityRef: instance,
-    position: instance.position,
-    velocity: instance.velocity,
-    movement: instance.movement,
-    appearance: instance.appearance,
-    subtype: instance.subtype,
-    collision: instance.hasCollision ? instance.collision : undefined,
-    animations: instance.animations
-  });
+  // Check if we're creating an attached or unattached entity
+  if (!gameEntityForm.worldId) {
+    // Create unattached entity (no world binding)
+    const model = {
+      id,
+      subtype: instance.subtype,
+      appearance: instance.appearance,
+      instance
+    };
+    unattachedEntities.push(model);
+    select({ type: 'game_entity', id });
+  } else {
+    // Create attached entity (existing logic)
+    // Add entity to world using ECS format (plain object with components)
+    const entityId = worldModel.instance.createEntity({
+      _entityRef: instance,
+      position: instance.position,
+      velocity: instance.velocity,
+      movement: instance.movement,
+      appearance: instance.appearance,
+      subtype: instance.subtype,
+      collision: instance.hasCollision ? instance.collision : undefined,
+      animations: instance.animations
+    });
 
-  const model = {
-    id,
-    entityId, // ID в world.entities Map
-    subtype: instance.subtype,
-    worldId: gameEntityForm.worldId,
-    appearance: instance.appearance,
-    instance
-  };
-  gameEntities.push(model);
-  select({ type: 'game_entity', id });
+    const model = {
+      id,
+      entityId, // ID в world.entities Map
+      subtype: instance.subtype,
+      worldId: gameEntityForm.worldId,
+      appearance: instance.appearance,
+      instance
+    };
+    gameEntities.push(model);
+    select({ type: 'game_entity', id });
 
-  // Update all entity controllers with the new entity list
-  updateAllControllersEntityList();
+    // Update all entity controllers with the new entity list
+    updateAllControllersEntityList();
+  }
 }
 
 function createRegionFromForm() {
