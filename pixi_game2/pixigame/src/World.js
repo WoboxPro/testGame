@@ -134,6 +134,9 @@ export class World {
    * 🔄 Обновление мира (вызывается каждый кадр)
    */
   update(dt) {
+    // Обновляем позиции сущностей, прикрепленных к слотам
+    this.updateSlotAttachments();
+
     // Обновляем анимации
     if (this.animationSystem) {
       this.animationSystem.update(dt);
@@ -143,6 +146,115 @@ export class World {
     if (this.collisionSystem) {
       this.collisionSystem.checkCollisions();
     }
+  }
+
+  /**
+   * 📌 Обновление позиций сущностей, прикрепленных к слотам
+   *
+   * This method ensures that entities attached to slots follow their parent entities.
+   * Each frame, it calculates the correct position for attached entities based on:
+   * - Parent entity's position
+   * - Slot's offset (x, y)
+   * - Slot's transformBehavior ('follow_entity' vs 'static')
+   */
+  updateSlotAttachments() {
+    // Iterate through all entities in the world
+    for (const [entityId, entityComponents] of this.entities) {
+      const entityRef = entityComponents.get('_entityRef');
+
+      // Skip if entity has no slots or reference
+      if (!entityRef || !entityRef.slots || entityRef.slots.length === 0) {
+        continue;
+      }
+
+      // Process each slot on this entity
+      for (const slot of entityRef.slots) {
+        // Skip if no entities attached to this slot
+        if (!slot.attachedEntities || slot.attachedEntities.length === 0) {
+          continue;
+        }
+
+        // Calculate slot's world position based on transformBehavior
+        const slotPosition = this.calculateSlotPosition(entityRef, slot);
+
+        // Update each attached entity's position
+        for (const attachedEntityId of slot.attachedEntities) {
+          // Find the attached entity in the world
+          const attachedEntityComponents = this.entities.get(attachedEntityId);
+          if (!attachedEntityComponents) {
+            // Entity may have been deleted - clean up reference
+            console.warn(`⚠️ Attached entity "${attachedEntityId}" not found in world, removing from slot "${slot.id}"`);
+            const index = slot.attachedEntities.indexOf(attachedEntityId);
+            if (index >= 0) {
+              slot.attachedEntities.splice(index, 1);
+            }
+            continue;
+          }
+
+          const attachedEntityRef = attachedEntityComponents.get('_entityRef');
+          if (attachedEntityRef) {
+            // Принудительно синхронизируем позицию со слотом
+            // Используем Object.assign для гарантии обновления всех ссылок
+            Object.assign(attachedEntityRef.position, slotPosition);
+
+            // Синхронизируем rotation с родительской сущностью
+            // Прикрепленная сущность вращается вместе с родителем
+            attachedEntityRef.rotation = entityRef.rotation || 0;
+
+            // Обнуляем velocity - сущность управляется слотом
+            if (attachedEntityRef.velocity) {
+              attachedEntityRef.velocity.x = 0;
+              attachedEntityRef.velocity.y = 0;
+            }
+
+            // Store attachment reference on the attached entity
+            attachedEntityRef._parentEntityId = entityRef.id;
+            attachedEntityRef._parentSlotId = slot.id;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Calculate the world position of a slot
+   * @param {Object} parentEntity - The parent entity containing the slot
+   * @param {Object} slot - The slot configuration
+   * @returns {Object} { x: number, y: number } World position of the slot
+   */
+  calculateSlotPosition(parentEntity, slot) {
+    if (slot.transformBehavior === 'static') {
+      // Static: slot stays at its initial world position (stored when attached)
+      // _staticPosition already contains full world position (no need to add offset again)
+      return slot._staticPosition || {
+        x: parentEntity.position.x + slot.offset.x,
+        y: parentEntity.position.y + slot.offset.y
+      };
+    }
+
+    // Follow entity: slot moves and rotates with parent entity
+    // Apply rotation to offset if parent has rotation
+    const rotation = parentEntity.rotation || 0;
+    if (rotation === 0) {
+      // No rotation - simple offset
+      return {
+        x: parentEntity.position.x + slot.offset.x,
+        y: parentEntity.position.y + slot.offset.y
+      };
+    }
+
+    // Apply rotation to offset
+    // x' = x * cos(θ) - y * sin(θ)
+    // y' = x * sin(θ) + y * cos(θ)
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const rotatedOffsetX = slot.offset.x * cos - slot.offset.y * sin;
+    const rotatedOffsetY = slot.offset.x * sin + slot.offset.y * cos;
+
+    return {
+      x: parentEntity.position.x + rotatedOffsetX,
+      y: parentEntity.position.y + rotatedOffsetY
+    };
   }
 
   getInfo() {

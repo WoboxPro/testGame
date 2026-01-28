@@ -34,6 +34,7 @@
             @delete="handleTreeDelete"
             @json="openJsonModal"
             @delete-collision-type="removeCollisionType"
+            @detach-entity="handleHierarchyDetachEntity"
           />
         </template>
 
@@ -220,9 +221,41 @@
                     <span class="slot-item__behavior">
                       {{ slot.transformBehavior === 'follow_entity' ? '🔄 Follow' : '📌 Static' }}
                     </span>
+                    <span class="slot-item__attachments" v-if="slot.attachedEntities && slot.attachedEntities.length > 0">
+                      ({{ slot.attachedEntities.length }} attached)
+                    </span>
                   </div>
                 </div>
                 <button class="slot-item__delete" @click="removeSlot(slot.id)" title="Delete slot">×</button>
+
+                <!-- Attached Entities -->
+                <div v-if="slot.attachedEntities && slot.attachedEntities.length > 0" class="slot-attachments">
+                  <div class="slot-attachments__header">Attached Entities:</div>
+                  <div v-for="entityId in slot.attachedEntities" :key="entityId" class="slot-attachment-item">
+                    <span class="slot-attachment-item__id">{{ getEntityLabel(entityId) }}</span>
+                    <button class="slot-attachment-item__detach" @click="detachEntity(slot.id, entityId)" title="Detach entity">×</button>
+                  </div>
+                </div>
+
+                <!-- Attach Entity Control -->
+                <div v-else class="slot-attach-control">
+                  <label class="field">
+                    <span class="field__label field__label--small">Attach Entity:</span>
+                    <select class="field__input field__input--small" v-model="slotAttachmentForm[slot.id]">
+                      <option value="">Select entity...</option>
+                      <option v-for="entity in getAttachableEntities()" :key="entity.id" :value="entity.id">
+                        {{ entity.id }} ({{ entity.subtype }})
+                      </option>
+                    </select>
+                  </label>
+                  <button
+                    class="btn btn--small btn--primary"
+                    :disabled="!slotAttachmentForm[slot.id]"
+                    @click="attachEntity(slot.id, slotAttachmentForm[slot.id])"
+                  >
+                    + Attach
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -605,11 +638,12 @@ function setCanvasHost(canvasId, el) {
 // ---------------------------
 const createModal = reactive({ open: false, type: null });
 
-const { jsonModal, openJsonModal, closeJsonModal, copyJsonToClipboard } = useJsonExport({
+ const { jsonModal, openJsonModal, closeJsonModal, copyJsonToClipboard } = useJsonExport({
   worlds,
   canvases,
   cameras,
   uiEntities,
+  gameEntities,
   unattachedEntities,
   regions,
   controllers
@@ -808,13 +842,17 @@ const slotForm = reactive({
   id: '',
   offsetX: 0,
   offsetY: 0,
-  transformBehavior: 'follow_entity', // 'follow_entity' | 'static'
+  transformBehavior: 'follow_entity',
   visualEnabled: true,
   color: '#00FFFF',
-  maxAttachments: null // null = unlimited
+  maxAttachments: null
 });
 
 const slotModal = reactive({ open: false });
+
+// Хранилище для выбора сущности в форме прикрепления к слоту
+// key: slotId, value: entityId для прикрепления
+const slotAttachmentForm = reactive({});
 
 const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   createModal,
@@ -1219,6 +1257,9 @@ function removeGameEntity(entityId) {
 
   entityModel = isArray === 'gameEntities' ? gameEntities[idx] : unattachedEntities[idx];
 
+  // Detach entity from any slots it's attached to
+  detachEntityFromAllSlots(entityModel.id);
+
   // Remove from world (используем entityId из world, а не UI id)
   if (entityModel.worldId && entityModel.entityId) {
     const worldModel = worlds.find((w) => w.id === entityModel.worldId);
@@ -1279,7 +1320,208 @@ function confirmAddSlot() {
 function removeSlot(slotId) {
   if (!selectedGameEntity.value) return;
 
+  // Detach all entities from this slot before removing it
+  const slot = selectedGameEntity.value.instance.getSlot(slotId);
+  if (slot && slot.attachedEntities) {
+    for (const entityId of slot.attachedEntities) {
+      selectedGameEntity.value.instance.detachEntityFromSlot(entityId, slotId);
+    }
+  }
+
   selectedGameEntity.value.instance.removeSlot(slotId);
+}
+
+// ---------------------------
+// Entity Attachment to Slots
+// ---------------------------
+
+/**
+ * Get a readable label for an entity by ID
+ */
+function getEntityLabel(entityId) {
+  if (!entityId) return 'Unknown';
+
+  // Search in gameEntities
+  const gameEntity = gameEntities.find(e => e.id === entityId || e.entityId === entityId);
+  if (gameEntity) {
+    return `${gameEntity.id} (${gameEntity.subtype})`;
+  }
+
+  // Search in unattachedEntities
+  const unattachedEntity = unattachedEntities.find(e => e.id === entityId);
+  if (unattachedEntity) {
+    return `${unattachedEntity.id} (${unattachedEntity.subtype})`;
+  }
+
+  // Return ID as fallback
+  return entityId;
+}
+
+/**
+ * Get list of entities that can be attached to slots on the selected entity
+ * Excludes entities that are already attached to this entity's slots
+ */
+function getAttachableEntities() {
+  if (!selectedGameEntity.value) return [];
+
+  const alreadyAttachedIds = new Set();
+
+  // Collect all entity IDs that are already attached to this entity's slots
+  for (const slot of selectedGameEntity.value.instance.getSlots()) {
+    if (slot.attachedEntities) {
+      for (const entityId of slot.attachedEntities) {
+        alreadyAttachedIds.add(entityId);
+      }
+    }
+  }
+
+  // Filter entities that are not already attached and are not the parent entity itself
+  const attachable = [
+    ...gameEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id),
+    ...unattachedEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id)
+  ];
+
+  return attachable;
+}
+
+/**
+ * Attach an entity to a slot on the selected game entity
+ */
+function attachEntity(slotId, entityId) {
+  if (!selectedGameEntity.value) return;
+  if (!slotId || !entityId) return;
+
+  // Find the entity to attach
+  let entityToAttach = null;
+
+  // Search in gameEntities
+  entityToAttach = gameEntities.find(e => e.id === entityId);
+  if (!entityToAttach) {
+    // Search in unattachedEntities
+    entityToAttach = unattachedEntities.find(e => e.id === entityId);
+  }
+
+  if (!entityToAttach) {
+    console.error(`Entity "${entityId}" not found for attachment`);
+    return;
+  }
+
+  // Track if entity was unattached (needs to be moved to world)
+  const wasUnattached = !entityToAttach.worldId;
+
+  // If entity is unattached, add it to world first
+  if (wasUnattached) {
+    const worldModel = worlds.find(w => w.id === selectedGameEntity.value.worldId);
+    if (worldModel && worldModel.instance) {
+      // Add entity instance to world
+      worldModel.instance.addEntity(entityToAttach.instance);
+
+      // Update entity's worldId
+      entityToAttach.worldId = selectedGameEntity.value.worldId;
+
+      // Move from unattachedEntities to gameEntities
+      const unattachedIdx = unattachedEntities.findIndex(e => e.id === entityId);
+      if (unattachedIdx >= 0) {
+        unattachedEntities.splice(unattachedIdx, 1);
+      }
+
+      // Create game entity model with entityId reference
+      const attachedModel = {
+        id: entityToAttach.id,
+        entityId: entityToAttach.id,
+        subtype: entityToAttach.subtype,
+        worldId: selectedGameEntity.value.worldId,
+        appearance: entityToAttach.appearance,
+        instance: entityToAttach.instance
+      };
+      gameEntities.push(attachedModel);
+
+      // Update entityToAttach to reference the new model
+      entityToAttach = attachedModel;
+
+      // Update controllers with new entity list
+      updateAllControllersEntityList();
+
+      console.log(`🔗 Entity "${entityId}" moved from unattached to world "${selectedGameEntity.value.worldId}"`);
+    }
+  }
+
+  // Attach entity to slot (pass the instance, not the model)
+  const result = selectedGameEntity.value.instance.attachEntityToSlot(entityToAttach.instance, slotId);
+
+  if (result.success) {
+    console.log(`✅ ${result.message}`);
+
+    // Clear the attach form field for this slot
+    if (slotAttachmentForm[slotId] !== undefined) {
+      slotAttachmentForm[slotId] = '';
+    }
+  } else {
+    console.error(`❌ ${result.message}`);
+    alert(result.message);
+  }
+}
+
+/**
+ * Detach an entity from a slot on the selected game entity
+ */
+function detachEntity(slotId, entityId) {
+  if (!selectedGameEntity.value) return;
+
+  const result = selectedGameEntity.value.instance.detachEntityFromSlot(entityId, slotId);
+
+  if (result.success) {
+    console.log(`✅ ${result.message}`);
+  } else {
+    console.error(`❌ ${result.message}`);
+  }
+}
+
+/**
+ * Detach an entity from all slots it's attached to
+ * This is called when an entity is being deleted
+ */
+function detachEntityFromAllSlots(entityId) {
+  if (!entityId) return;
+
+  // Iterate through all game entities and their slots
+  for (const gameEntity of gameEntities) {
+    if (!gameEntity.instance || !gameEntity.instance.slots) continue;
+
+    // Check if this entity is attached to any slot on this parent
+    for (const slot of gameEntity.instance.slots) {
+      if (slot.attachedEntities && slot.attachedEntities.includes(entityId)) {
+        const result = gameEntity.instance.detachEntityFromSlot(entityId, slot.id);
+        if (result.success) {
+          console.log(`🔓 Auto-detached entity "${entityId}" from slot "${slot.id}" on entity "${gameEntity.id}"`);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Handle detach-entity event from HierarchyTree
+ * @param {string} parentEntityId - ID of the parent entity with the slot
+ * @param {string} slotId - ID of the slot
+ * @param {string} entityId - ID of the entity to detach
+ */
+function handleHierarchyDetachEntity(parentEntityId, slotId, entityId) {
+  // Find the parent entity
+  const parentEntity = gameEntities.find(e => e.id === parentEntityId);
+  if (!parentEntity || !parentEntity.instance) {
+    console.error(`Parent entity "${parentEntityId}" not found`);
+    return;
+  }
+
+  // Detach the entity from the slot
+  const result = parentEntity.instance.detachEntityFromSlot(entityId, slotId);
+
+  if (result.success) {
+    console.log(`✅ ${result.message}`);
+  } else {
+    console.error(`❌ ${result.message}`);
+  }
 }
 
 function ensureUIInstanceInContainer(uiModel, container, cacheKey, ctx = null) {
@@ -1478,21 +1720,13 @@ function createGameEntityFromForm() {
     select({ type: 'game_entity', id });
   } else {
     // Create attached entity (existing logic)
-    // Add entity to world using ECS format (plain object with components)
-    const entityId = worldModel.instance.createEntity({
-      _entityRef: instance,
-      position: instance.position,
-      velocity: instance.velocity,
-      movement: instance.movement,
-      appearance: instance.appearance,
-      subtype: instance.subtype,
-      collision: instance.hasCollision ? instance.collision : undefined,
-      animations: instance.animations
-    });
+    // Add entity to world using addEntity() method to ensure ID consistency
+    // addEntity() uses GameEntity's own ID as the key, avoiding ID mismatch
+    worldModel.instance.addEntity(instance);
 
     const model = {
       id,
-      entityId, // ID в world.entities Map
+      entityId: id, // Same as GameEntity's ID for consistency
       subtype: instance.subtype,
       worldId: gameEntityForm.worldId,
       appearance: instance.appearance,

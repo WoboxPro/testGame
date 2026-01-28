@@ -103,7 +103,7 @@
       <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'game_entity', e.id)">×</button>
     </div>
 
-    <!-- Entities Section -->
+     <!-- Entities Section -->
     <div class="tree__section">
       <div class="tree__title">Entities</div>
       <div class="tree__actions">
@@ -115,16 +115,60 @@
       </div>
     </div>
     <div v-if="gameEntities.length === 0" class="tree__empty">No entities</div>
-    <div
-      v-for="e in gameEntities"
-      :key="e.id"
-      class="tree__item"
-      :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id }"
-      @click="$emit('select', { type: 'game_entity', id: e.id })"
-    >
-      <span class="tree__name">{{ e.id }}</span>
-      <span class="tree__meta">{{ e.subtype }} • {{ e.appearance.shape }} • {{ e.worldId }}</span>
-      <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'game_entity', e.id)">×</button>
+    <div v-for="e in gameEntities" :key="e.id" class="tree__entity-group">
+      <!-- Entity Item -->
+      <div
+        class="tree__item"
+        :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === e.id, 'has-children': e.instance?.getSlots?.().length > 0 }"
+        @click="$emit('select', { type: 'game_entity', id: e.id })"
+      >
+        <span class="tree__name">{{ e.id }}</span>
+        <span class="tree__meta">{{ e.subtype }} • {{ e.appearance?.shape }} • {{ e.worldId }}</span>
+        <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'game_entity', e.id)">×</button>
+      </div>
+
+      <!-- Slots and Attached Entities (nested) -->
+      <div v-if="e.instance?.getSlots?.().length > 0" class="tree__nested">
+        <div
+          v-for="slot in e.instance.getSlots()"
+          :key="slot.id"
+          class="tree__slot"
+        >
+          <!-- Slot -->
+          <div
+            class="tree__item tree__item--slot"
+            :class="{ 'is-selected': selected?.type === 'slot' && selected?.id === slot.id }"
+            @click="$emit('select', { type: 'slot', entityId: e.id, slotId: slot.id })"
+          >
+            <span class="tree__name tree__name--slot">📌 {{ slot.id }}</span>
+            <span class="tree__meta">
+              ({{ slot.offset.x }}, {{ slot.offset.y }})
+              {{ slot.attachedEntities?.length > 0 ? `• ${slot.attachedEntities.length} attached` : '' }}
+            </span>
+          </div>
+
+          <!-- Attached Entities -->
+          <div
+            v-if="slot.attachedEntities && slot.attachedEntities.length > 0"
+            class="tree__attached-entities"
+          >
+            <div
+              v-for="attachedEntityId in slot.attachedEntities"
+              :key="attachedEntityId"
+              class="tree__item tree__item--attached"
+              :class="{ 'is-selected': selected?.type === 'game_entity' && selected?.id === attachedEntityId }"
+              @click.stop="$emit('select', { type: 'game_entity', id: attachedEntityId })"
+            >
+              <span class="tree__name tree__name--attached">→ {{ getEntityLabel(attachedEntityId) }}</span>
+              <button
+                class="tree__delete tree__delete--small"
+                title="Detach"
+                @click.stop="$emit('detach-entity', e.id, slot.id, attachedEntityId)"
+              >×</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Regions Section -->
@@ -206,21 +250,40 @@
 </template>
 
 <script setup>
-defineProps({
-  worlds: { type: Array, default: () => [] },
-  canvases: { type: Array, default: () => [] },
-  cameras: { type: Array, default: () => [] },
-  uiEntities: { type: Array, default: () => [] },
-  gameEntities: { type: Array, default: () => [] },
-  unattachedEntities: { type: Array, default: () => [] },
-  regions: { type: Array, default: () => [] },
-  controllers: { type: Array, default: () => [] },
-  collisionTypes: { type: Array, default: () => [] },
-  collisionRelations: { type: Array, default: () => [] },
-  selected: { type: Object, default: () => null }
-});
+ const props = defineProps({
+   worlds: { type: Array, default: () => [] },
+   canvases: { type: Array, default: () => [] },
+   cameras: { type: Array, default: () => [] },
+   uiEntities: { type: Array, default: () => [] },
+   gameEntities: { type: Array, default: () => [] },
+   unattachedEntities: { type: Array, default: () => [] },
+   regions: { type: Array, default: () => [] },
+   controllers: { type: Array, default: () => [] },
+   collisionTypes: { type: Array, default: () => [] },
+   collisionRelations: { type: Array, default: () => [] },
+   selected: { type: Object, default: () => null }
+  });
 
-defineEmits(['select', 'add', 'delete', 'json', 'delete-collision-type']);
+ defineEmits(['select', 'add', 'delete', 'json', 'delete-collision-type', 'detach-entity']);
+
+// Helper function to get entity label
+function getEntityLabel(entityId) {
+  if (!entityId) return 'Unknown';
+
+  // Search in gameEntities
+  const gameEntity = props.gameEntities.find(e => e.id === entityId || e.entityId === entityId);
+  if (gameEntity) {
+    return `${gameEntity.id} (${gameEntity.subtype})`;
+  }
+
+  // Search in unattachedEntities
+  const unattachedEntity = props.unattachedEntities.find(e => e.id === entityId);
+  if (unattachedEntity) {
+    return `${unattachedEntity.id} (${unattachedEntity.subtype})`;
+  }
+
+  return entityId;
+}
 </script>
 
 <style scoped>
@@ -348,7 +411,70 @@ defineEmits(['select', 'add', 'delete', 'json', 'delete-collision-type']);
   font-weight: 600;
 }
 
-.tree__json:hover {
-  background: rgba(123, 211, 255, 0.10);
-}
-</style>
+ .tree__json:hover {
+   background: rgba(123, 211, 255, 0.10);
+ }
+
+ /* Entity Groups (for nested slots) */
+ .tree__entity-group {
+   margin-bottom: 8px;
+ }
+
+ .tree__nested {
+   margin-left: 20px;
+   border-left: 1px solid rgba(255, 255, 255, 0.08);
+   padding-left: 8px;
+ }
+
+ .tree__slot {
+   margin-top: 4px;
+ }
+
+ .tree__attached-entities {
+   margin-left: 16px;
+   border-left: 1px dashed rgba(255, 255, 255, 0.12);
+   padding-left: 8px;
+ }
+
+ /* Slot Item Styling */
+ .tree__item--slot {
+   background: rgba(0, 255, 255, 0.04);
+   padding: 6px 8px;
+ }
+
+ .tree__item--slot:hover {
+   background: rgba(0, 255, 255, 0.08);
+ }
+
+ .tree__name--slot {
+   color: #00ffff;
+ }
+
+ /* Attached Entity Styling */
+ .tree__item--attached {
+   padding: 6px 8px;
+   font-size: 13px;
+ }
+
+ .tree__item--attached:hover {
+   background: rgba(255, 180, 100, 0.08);
+ }
+
+ .tree__name--attached {
+   color: rgba(255, 255, 255, 0.85);
+   font-weight: 500;
+ }
+
+ .tree__delete--small {
+   height: 18px;
+   width: 18px;
+   font-size: 12px;
+   padding: 0;
+   line-height: 18px;
+ }
+
+ /* Has children indicator */
+ .tree__item.has-children {
+   cursor: default;
+ }
+ </style>

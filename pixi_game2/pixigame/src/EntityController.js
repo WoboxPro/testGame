@@ -336,11 +336,18 @@ export class EntityController extends Controller {
     }
 
     // Применяем velocity к позиции
-    position.x += velocity.x * dt;
-    position.y += velocity.y * dt;
+    // НО: если сущность прикреплена к слоту, её позиция управляется слотом, а не контроллером
+    if (!entity._parentSlotId) {
+      position.x += velocity.x * dt;
+      position.y += velocity.y * dt;
 
-    if ((velocity.x !== 0 || velocity.y !== 0) && this.onEntityMoved) {
-      this.onEntityMoved(entity);
+      if ((velocity.x !== 0 || velocity.y !== 0) && this.onEntityMoved) {
+        this.onEntityMoved(entity);
+      }
+    } else {
+      // Прикрепленная сущность - сбрасываем velocity чтобы не было конфликтов
+      velocity.x = 0;
+      velocity.y = 0;
     }
 
     // 🎬 Автоматическое переключение анимаций в зависимости от скорости

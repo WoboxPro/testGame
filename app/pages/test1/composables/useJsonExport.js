@@ -4,14 +4,15 @@ import { reactive, watch } from 'vue';
  * JSON Export helper for /test1 editor.
  * Lives under /test1 to avoid cross-page coupling.
  */
-export function useJsonExport({
-  worlds,
-  canvases,
-  cameras,
-  uiEntities,
-  regions,
-  controllers
-}) {
+ export function useJsonExport({
+   worlds,
+   canvases,
+   cameras,
+   uiEntities,
+   gameEntities,
+   regions,
+   controllers
+ }) {
   // JSON Export Modal
   const jsonModal = reactive({
     open: false,
@@ -77,15 +78,23 @@ export function useJsonExport({
           json: JSON.stringify(getCameraJsonConfig(c), null, 2)
         }));
         break;
-      case 'ui':
-        jsonModal.title = 'UI Entities';
-        jsonModal.items = uiEntities.map((u) => ({
-          id: u.id,
-          name: `${u.subtype}: ${u.id}`,
-          json: JSON.stringify(getUIJsonConfig(u), null, 2)
-        }));
-        break;
-      case 'region':
+       case 'ui':
+         jsonModal.title = 'UI Entities';
+         jsonModal.items = uiEntities.map((u) => ({
+           id: u.id,
+           name: `${u.subtype}: ${u.id}`,
+           json: JSON.stringify(getUIJsonConfig(u), null, 2)
+         }));
+         break;
+       case 'game_entity':
+         jsonModal.title = 'Game Entities';
+         jsonModal.items = gameEntities.map((e) => ({
+           id: e.id,
+           name: `${e.subtype}: ${e.id}`,
+           json: JSON.stringify(getEntityJsonConfig(e), null, 2)
+         }));
+         break;
+       case 'region':
         jsonModal.title = 'Regions';
         jsonModal.items = regions.map((r) => ({
           id: r.id,
@@ -245,7 +254,7 @@ export function useJsonExport({
     };
   }
 
-  function getControllerJsonConfig(controllerModel) {
+   function getControllerJsonConfig(controllerModel) {
     const c = controllerModel.instance;
     const info = c.getInfo();
     return {
@@ -260,26 +269,55 @@ export function useJsonExport({
     };
   }
 
-  function getAllProjectJson() {
+  function getEntityJsonConfig(entityModel) {
+    const e = entityModel.instance;
     return {
-      version: '1.0',
-      timestamp: new Date().toISOString(),
-      worlds: worlds.map((w) => getWorldJsonConfig(w)),
-      canvases: canvases.map((c) => getCanvasJsonConfig(c)),
-      cameras: cameras.map((c) => getCameraJsonConfig(c)),
-      uiEntities: uiEntities.map((u) => getUIJsonConfig(u)),
-      regions: regions.map((r) => getRegionJsonConfig(r)),
-      controllers: controllers.map((c) => getControllerJsonConfig(c)),
-      summary: {
-        worldCount: worlds.length,
-        canvasCount: canvases.length,
-        cameraCount: cameras.length,
-        uiEntityCount: uiEntities.length,
-        regionCount: regions.length,
-        controllerCount: controllers.length
-      }
+      id: entityModel.id,
+      subtype: entityModel.subtype,
+      worldId: entityModel.worldId,
+      position: e.position,
+      rotation: e.rotation,
+      scale: e.scale,
+      velocity: e.velocity,
+      movement: e.movement,
+      appearance: e.appearance,
+      hasCollision: e.hasCollision,
+      collision: e.collision,
+      animations: e.animations,
+      slots: e.slots ? e.slots.map((slot) => ({
+        id: slot.id,
+        offset: slot.offset,
+        transformBehavior: slot.transformBehavior,
+        visualEnabled: slot.visualEnabled,
+        color: slot.color,
+        maxAttachments: slot.maxAttachments,
+        attachedEntities: slot.attachedEntities || []
+      })) : []
     };
   }
+
+   function getAllProjectJson() {
+     return {
+       version: '1.0',
+       timestamp: new Date().toISOString(),
+       worlds: worlds.map((w) => getWorldJsonConfig(w)),
+       canvases: canvases.map((c) => getCanvasJsonConfig(c)),
+       cameras: cameras.map((c) => getCameraJsonConfig(c)),
+       uiEntities: uiEntities.map((u) => getUIJsonConfig(u)),
+       gameEntities: gameEntities.map((e) => getEntityJsonConfig(e)),
+       regions: regions.map((r) => getRegionJsonConfig(r)),
+       controllers: controllers.map((c) => getControllerJsonConfig(c)),
+       summary: {
+         worldCount: worlds.length,
+         canvasCount: canvases.length,
+         cameraCount: cameras.length,
+         uiEntityCount: uiEntities.length,
+         gameEntityCount: gameEntities.length,
+         regionCount: regions.length,
+         controllerCount: controllers.length
+       }
+     };
+   }
 
   return {
     jsonModal,

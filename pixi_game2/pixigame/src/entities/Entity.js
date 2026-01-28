@@ -135,7 +135,8 @@ export class Entity {
       transformBehavior: slotData.transformBehavior || 'follow_entity', // 'follow_entity' | 'static'
       visualEnabled: slotData.visualEnabled !== false, // default: true
       color: slotData.color || '#00FFFF', // cyan by default
-      maxAttachments: slotData.maxAttachments !== undefined ? slotData.maxAttachments : null // null = unlimited
+      maxAttachments: slotData.maxAttachments !== undefined ? slotData.maxAttachments : null, // null = unlimited
+      attachedEntities: [] // Array of entity IDs attached to this slot
     };
 
     this.slots.push(slot);
@@ -196,6 +197,164 @@ export class Entity {
     if (updates.maxAttachments !== undefined) slot.maxAttachments = updates.maxAttachments;
 
     return true;
+  }
+
+  // ==================== Entity Attachment System ====================
+
+  /**
+   * Attach an entity to a slot on this entity
+   * @param {Object} entity - The entity to attach (must have .id)
+   * @param {string} slotId - ID of the slot to attach to
+   * @returns {Object|null} Result { success: boolean, message: string, slot: Object|null }
+   */
+  attachEntityToSlot(entity, slotId) {
+    if (!entity || !entity.id) {
+      return { success: false, message: 'Invalid entity: must have id property', slot: null };
+    }
+
+    const slot = this.getSlot(slotId);
+    if (!slot) {
+      return { success: false, message: `Slot "${slotId}" not found on entity "${this.id}"`, slot: null };
+    }
+
+    // Check if entity is already attached to this slot
+    if (slot.attachedEntities.includes(entity.id)) {
+      return { success: false, message: `Entity "${entity.id}" is already attached to slot "${slotId}"`, slot };
+    }
+
+    // Check maxAttachments limit
+    if (slot.maxAttachments !== null && slot.attachedEntities.length >= slot.maxAttachments) {
+      return {
+        success: false,
+        message: `Slot "${slotId}" is full (max ${slot.maxAttachments} attachments)`,
+        slot
+      };
+    }
+
+    // Attach entity to slot
+    slot.attachedEntities.push(entity.id);
+
+    // Store static position for 'static' transform behavior
+    if (slot.transformBehavior === 'static' && !slot._staticPosition) {
+      slot._staticPosition = {
+        x: this.position.x + slot.offset.x,
+        y: this.position.y + slot.offset.y
+      };
+    }
+
+    // Set entity's parent reference to this entity and slot
+    entity._parentEntityId = this.id;
+    entity._parentSlotId = slotId;
+
+    // Update entity's position immediately to slot position
+    entity.position.x = this.position.x + slot.offset.x;
+    entity.position.y = this.position.y + slot.offset.y;
+
+    console.log(`🔗 Entity "${entity.id}" attached to slot "${slotId}" on entity "${this.id}"`);
+    return { success: true, message: `Entity "${entity.id}" attached to slot "${slotId}"`, slot };
+  }
+
+  /**
+   * Detach an entity from a slot on this entity
+   * @param {string} entityId - ID of the entity to detach
+   * @param {string} slotId - ID of the slot to detach from (optional, auto-detected if not provided)
+   * @returns {Object|null} Result { success: boolean, message: string, slot: Object|null }
+   */
+  detachEntityFromSlot(entityId, slotId = null) {
+    let targetSlotId = slotId;
+
+    // If slotId not provided, find which slot the entity is attached to
+    if (!targetSlotId) {
+      for (const slot of this.slots) {
+        if (slot.attachedEntities.includes(entityId)) {
+          targetSlotId = slot.id;
+          break;
+        }
+      }
+    }
+
+    if (!targetSlotId) {
+      return { success: false, message: `Entity "${entityId}" is not attached to any slot on entity "${this.id}"`, slot: null };
+    }
+
+    const slot = this.getSlot(targetSlotId);
+    if (!slot) {
+      return { success: false, message: `Slot "${targetSlotId}" not found on entity "${this.id}"`, slot: null };
+    }
+
+    // Check if entity is attached to this slot
+    const index = slot.attachedEntities.indexOf(entityId);
+    if (index < 0) {
+      return { success: false, message: `Entity "${entityId}" is not attached to slot "${targetSlotId}"`, slot };
+    }
+
+    // Detach entity from slot
+    slot.attachedEntities.splice(index, 1);
+
+    console.log(`🔓 Entity "${entityId}" detached from slot "${targetSlotId}" on entity "${this.id}"`);
+    return { success: true, message: `Entity "${entityId}" detached from slot "${targetSlotId}"`, slot };
+  }
+
+  /**
+   * Get all entities attached to a specific slot
+   * @param {string} slotId - ID of the slot
+   * @returns {Array} Array of entity IDs attached to the slot
+   */
+  getAttachedEntities(slotId) {
+    const slot = this.getSlot(slotId);
+    if (!slot) return [];
+    return [...slot.attachedEntities]; // Return copy
+  }
+
+  /**
+   * Check if an entity is attached to any slot on this entity
+   * @param {string} entityId - ID of the entity to check
+   * @returns {boolean} True if entity is attached, false otherwise
+   */
+  isEntityAttached(entityId) {
+    for (const slot of this.slots) {
+      if (slot.attachedEntities.includes(entityId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Find which slot an entity is attached to
+   * @param {string} entityId - ID of the entity to find
+   * @returns {Object|null} Slot object or null if not attached
+   */
+  getSlotForEntity(entityId) {
+    for (const slot of this.slots) {
+      if (slot.attachedEntities.includes(entityId)) {
+        return slot;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Detach an entity from all slots on this entity
+   * @param {string} entityId - ID of the entity to detach
+   * @returns {Object} Result { success: boolean, message: string, slots: Array }
+   */
+  detachEntityFromAllSlots(entityId) {
+    const results = [];
+    for (const slot of this.slots) {
+      const index = slot.attachedEntities.indexOf(entityId);
+      if (index >= 0) {
+        slot.attachedEntities.splice(index, 1);
+        results.push(slot.id);
+      }
+    }
+
+    if (results.length === 0) {
+      return { success: false, message: `Entity "${entityId}" was not attached to any slot`, slots: [] };
+    }
+
+    console.log(`🔓 Entity "${entityId}" detached from all slots: ${results.join(', ')}`);
+    return { success: true, message: `Entity "${entityId}" detached from ${results.length} slot(s)`, slots: results };
   }
 }
 
