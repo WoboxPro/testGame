@@ -233,13 +233,15 @@ export class World {
     }
 
     // Follow entity: slot moves and rotates with parent entity
+    const mirrorDirection = parentEntity.mirrorDirection || { x: 1, y: 1 };
+
     // Apply rotation to offset if parent has rotation
     const rotation = parentEntity.rotation || 0;
     if (rotation === 0) {
-      // No rotation - simple offset
+      // No rotation - simple offset with mirror
       return {
-        x: parentEntity.position.x + slot.offset.x,
-        y: parentEntity.position.y + slot.offset.y
+        x: parentEntity.position.x + slot.offset.x * mirrorDirection.x,
+        y: parentEntity.position.y + slot.offset.y * mirrorDirection.y
       };
     }
 
@@ -251,21 +253,22 @@ export class World {
     const rotatedOffsetX = slot.offset.x * cos - slot.offset.y * sin;
     const rotatedOffsetY = slot.offset.x * sin + slot.offset.y * cos;
 
-    return {
-      x: parentEntity.position.x + rotatedOffsetX,
-      y: parentEntity.position.y + rotatedOffsetY
-    };
-  }
+     // Apply mirror to rotated offset
+     return {
+       x: parentEntity.position.x + rotatedOffsetX * mirrorDirection.x,
+       y: parentEntity.position.y + rotatedOffsetY * mirrorDirection.y
+     };
+   }
 
-  getInfo() {
-    return {
-      id: this.id,
-      type: this.type,
-      width: this.width,
-      height: this.height,
-      backgroundColor: this.backgroundColor,
-      backgroundTexture: this.backgroundTexture,
-      entityCount: this.entities.size
-    };
-  }
+   getInfo() {
+     return {
+       id: this.id,
+       type: this.type,
+       width: this.width,
+       height: this.height,
+       backgroundColor: this.backgroundColor,
+       backgroundTexture: this.backgroundTexture,
+       entityCount: this.entities.size
+     };
+   }
 }
