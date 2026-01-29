@@ -234,31 +234,36 @@
 
                 <!-- Attached Entities -->
                 <div v-if="slot.attachedEntities && slot.attachedEntities.length > 0" class="slot-attachments">
-                  <div class="slot-attachments__header">Attached Entities:</div>
+                  <div class="slot-attachments__header">Attached Entities ({{ slot.attachedEntities.length }}{{ slot.maxAttachments ? `/${slot.maxAttachments}` : '' }}):</div>
                   <div v-for="entityId in slot.attachedEntities" :key="entityId" class="slot-attachment-item">
                     <span class="slot-attachment-item__id">{{ getEntityLabel(entityId) }}</span>
                     <button class="slot-attachment-item__detach" @click="detachEntity(slot.id, entityId)" title="Detach entity">×</button>
                   </div>
                 </div>
 
-                <!-- Attach Entity Control -->
-                <div v-else class="slot-attach-control">
-                  <label class="field">
-                    <span class="field__label field__label--small">Attach Entity:</span>
-                    <select class="field__input field__input--small" v-model="slotAttachmentForm[slot.id]">
-                      <option value="">Select entity...</option>
-                      <option v-for="entity in getAttachableEntities()" :key="entity.id" :value="entity.id">
-                        {{ entity.subtype ? `${entity.id} (${entity.subtype})` : `🔫 ${entity.id}` }}
-                      </option>
-                    </select>
-                  </label>
-                  <button
-                    class="btn btn--small btn--primary"
-                    :disabled="!slotAttachmentForm[slot.id]"
-                    @click="attachEntity(slot.id, slotAttachmentForm[slot.id])"
-                  >
-                    + Attach
-                  </button>
+                <!-- Attach Entity Control - всегда показываем (если не достигнут лимит) -->
+                <div class="slot-attach-control">
+                  <div v-if="slot.maxAttachments !== null && slot.attachedEntities.length >= slot.maxAttachments" class="slot-attach-full">
+                    ⚠️ Slot is full ({{ slot.attachedEntities.length }}/{{ slot.maxAttachments }})
+                  </div>
+                  <template v-else>
+                    <label class="field">
+                      <span class="field__label field__label--small">Attach Entity:</span>
+                      <select class="field__input field__input--small" v-model="slotAttachmentForm[slot.id]">
+                        <option value="">Select entity...</option>
+                        <option v-for="entity in getAttachableEntities()" :key="entity.id" :value="entity.id">
+                          {{ entity.subtype ? `${entity.id} (${entity.subtype})` : `🔫 ${entity.id}` }}
+                        </option>
+                      </select>
+                    </label>
+                    <button
+                      class="btn btn--small btn--primary"
+                      :disabled="!slotAttachmentForm[slot.id]"
+                      @click="attachEntity(slot.id, slotAttachmentForm[slot.id])"
+                    >
+                      + Attach
+                    </button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -2687,6 +2692,16 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 .slot-item__delete:hover {
   background: rgba(255, 90, 90, 0.20);
   border-color: rgba(255, 90, 90, 0.30);
+}
+
+.slot-attach-full {
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 150, 50, 0.10);
+  border: 1px solid rgba(255, 150, 50, 0.20);
+  color: rgba(255, 150, 50, 0.80);
+  font-size: 11px;
+  text-align: center;
 }
 </style>
 
