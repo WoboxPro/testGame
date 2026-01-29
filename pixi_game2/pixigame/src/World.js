@@ -133,31 +133,33 @@ export class World {
   /**
    * 🔄 Обновление мира (вызывается каждый кадр)
    */
-  update(dt) {
-    // Обновляем позиции сущностей, прикрепленных к слотам
-    this.updateSlotAttachments();
+   update(dt) {
+     // Обновляем позиции сущностей, прикрепленных к слотам
+     this.updateSlotAttachments(dt);
 
-    // Обновляем анимации
-    if (this.animationSystem) {
-      this.animationSystem.update(dt);
-    }
+     // Обновляем анимации
+     if (this.animationSystem) {
+       this.animationSystem.update(dt);
+     }
 
-    // Проверяем коллизии
-    if (this.collisionSystem) {
-      this.collisionSystem.checkCollisions();
-    }
-  }
+     // Проверяем коллизии
+     if (this.collisionSystem) {
+       this.collisionSystem.checkCollisions();
+     }
+   }
 
-  /**
-   * 📌 Обновление позиций сущностей, прикрепленных к слотам
-   *
-   * This method ensures that entities attached to slots follow their parent entities.
-   * Each frame, it calculates the correct position for attached entities based on:
-   * - Parent entity's position
-   * - Slot's offset (x, y)
-   * - Slot's transformBehavior ('follow_entity' vs 'static')
-   */
-   updateSlotAttachments() {
+   /**
+    * 📌 Обновление позиций сущностей, прикрепленных к слотам
+    *
+    * This method ensures that entities attached to slots follow their parent entities.
+    * Each frame, it calculates correct position for attached entities based on:
+    * - Parent entity's position
+    * - Slot's offset (x, y)
+    * - Slot's transformBehavior ('follow_entity' vs 'static')
+    *
+    * @param {number} dt - Delta time в миллисекундах
+    */
+  updateSlotAttachments(dt) {
      // Iterate through all entities in world
      for (const [entityId, entityComponents] of this.entities) {
        const entityRef = entityComponents.get('_entityRef');
