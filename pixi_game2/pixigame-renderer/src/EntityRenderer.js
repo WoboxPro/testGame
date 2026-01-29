@@ -527,17 +527,24 @@ export class EntityRenderer {
     const debugColor = entityRef.debugColor || '#FF00FF';
     const colorInt = parseInt(debugColor.replace('#', ''), 16);
 
+    // Режим направления muzzle
+    const directionMode = entityRef.directionMode || 'relative';
+
     // Вычисляем направление с учетом поворота и отражения
     let dirX = direction.x;
     let dirY = direction.y;
 
-    // Применяем rotation к direction
-    const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
-    const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+    // Применяем rotation к direction ТОЛЬКО для relative режима
+    if (directionMode === 'relative') {
+      // Применяем rotation к direction
+      const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+      const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
 
-    // Применяем mirror
-    dirX = rotatedDirX * mirrorDirection.x;
-    dirY = rotatedDirY * mirrorDirection.y;
+      // Применяем mirror
+      dirX = rotatedDirX * mirrorDirection.x;
+      dirY = rotatedDirY * mirrorDirection.y;
+    }
+    // Для static режима rotation НЕ применяется - direction остается как есть
 
     // Нормализуем направление
     const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);

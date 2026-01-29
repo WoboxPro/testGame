@@ -214,6 +214,8 @@ export class World {
              // Синхронизируем rotation с родительской сущностью
              // Прикрепленная сущность вращается вместе с родителем
              attachedEntityRef.rotation = entityRef.rotation || 0;
+             // Синхронизируем компонент rotation в ECS для корректного рендеринга
+             attachedEntityComponents.set('rotation', attachedEntityRef.rotation);
 
              // Обнуляем velocity - сущность управляется слотом
              if (attachedEntityRef.velocity) {

@@ -942,6 +942,7 @@ const collisionRelationForm = reactive({
 const muzzleForm = reactive({
   id: '',
   direction: { x: 1, y: 0 },
+  directionMode: 'relative',
   showDebug: true,
   debugColor: '#FF00FF'
 });
@@ -1967,6 +1968,7 @@ function createMuzzleFromForm() {
       x: Number(muzzleForm.direction.x) || 1,
       y: Number(muzzleForm.direction.y) || 0
     },
+    directionMode: muzzleForm.directionMode || 'relative',
     showDebug: muzzleForm.showDebug !== false,
     debugColor: muzzleForm.debugColor?.trim() || '#FF00FF',
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
@@ -1992,6 +1994,7 @@ function createMuzzleFromForm() {
   const model = {
     id,
     direction: instance.direction,
+    directionMode: instance.directionMode,
     showDebug: instance.showDebug,
     debugColor: instance.debugColor,
     instance,

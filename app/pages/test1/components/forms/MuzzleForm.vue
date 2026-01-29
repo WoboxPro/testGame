@@ -24,6 +24,21 @@
     </div>
 
     <div class="form__section">
+      <div class="form__section-title">Direction Mode (режим направления)</div>
+      <label class="field">
+        <span class="field__label">Mode</span>
+        <select class="field__input" v-model="model.directionMode">
+          <option value="static">Static (фиксированный)</option>
+          <option value="relative">Relative (вместе с родителем)</option>
+        </select>
+        <span class="field__hint">
+          • Static - направление фиксировано в мировых координатах<br>
+          • Relative - направление вращается вместе с родительской сущностью
+        </span>
+      </label>
+    </div>
+
+    <div class="form__section">
       <div class="form__section-title">Debug Visualization</div>
       <label class="field field--row">
         <input type="checkbox" v-model="model.showDebug" />

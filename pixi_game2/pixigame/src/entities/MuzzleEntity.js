@@ -16,6 +16,7 @@ export class MuzzleEntity extends Entity {
   /**
    * @param {Partial<Entity> & {
    *  direction?: {x:number, y:number},
+   *  directionMode?: 'static' | 'relative',
    *  showDebug?: boolean,
    *  debugColor?: string
    * }} options
@@ -27,6 +28,11 @@ export class MuzzleEntity extends Entity {
     // Направление выстрела (вектор нормализованный или нет)
     // { x: 1, y: 0 } = вправо, { x: -1, y: 0 } = влево, { x: 0, y: 1 } = вниз
     this.direction = options.direction || { x: 1, y: 0 };
+
+    // Режим направления:
+    // - 'static': направление фиксировано в мировых координатах
+    // - 'relative': направление вращается вместе с родительской сущностью
+    this.directionMode = options.directionMode || 'relative';
 
     // Debug визуализация
     this.showDebug = options.showDebug !== false; // default: true
@@ -77,10 +83,27 @@ export class MuzzleEntity extends Entity {
     this.debugColor = color;
   }
 
+  /**
+   * Установить режим направления
+   * @param {'static' | 'relative'} mode - Режим направления
+   */
+  setDirectionMode(mode) {
+    this.directionMode = mode;
+  }
+
+  /**
+   * Получить режим направления
+   * @returns {'static' | 'relative'} Режим направления
+   */
+  getDirectionMode() {
+    return this.directionMode;
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
       direction: this.direction,
+      directionMode: this.directionMode,
       normalizedDirection: this.getNormalizedDirection(),
       directionAngle: this.getDirectionAngle(),
       showDebug: this.showDebug,
