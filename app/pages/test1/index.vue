@@ -24,6 +24,7 @@
             :ui-entities="uiEntities"
             :game-entities="gameEntities"
             :unattached-entities="unattachedEntities"
+            :muzzles="muzzles"
             :regions="regions"
             :controllers="controllers"
             :collision-types="getCollisionTypes()"
@@ -247,7 +248,7 @@
                     <select class="field__input field__input--small" v-model="slotAttachmentForm[slot.id]">
                       <option value="">Select entity...</option>
                       <option v-for="entity in getAttachableEntities()" :key="entity.id" :value="entity.id">
-                        {{ entity.id }} ({{ entity.subtype }})
+                        {{ entity.subtype ? `${entity.id} (${entity.subtype})` : `🔫 ${entity.id}` }}
                       </option>
                     </select>
                   </label>
@@ -305,6 +306,21 @@
             <div class="actions">
               <button class="btn" @click="attachEntityToWorld()">📌 Attach</button>
             </div>
+          </div>
+        </div>
+
+        <!-- Muzzle Inspector -->
+        <div v-else-if="selected.type === 'muzzle' && selectedMuzzle" class="inspector__content">
+          <div class="inspector__title">🔫 Muzzle: {{ selectedMuzzle.id }}</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">ID</div><div class="kv__v">{{ selectedMuzzle.id }}</div></div>
+            <div class="kv__row"><div class="kv__k">Direction</div><div class="kv__v">({{ selectedMuzzle.direction?.x }}, {{ selectedMuzzle.direction?.y }})</div></div>
+            <div class="kv__row"><div class="kv__k">Show Debug</div><div class="kv__v">{{ selectedMuzzle.showDebug ? 'enabled' : 'disabled' }}</div></div>
+            <div class="kv__row"><div class="kv__k">Debug Color</div><div class="kv__v" :style="{color: selectedMuzzle.debugColor}">{{ selectedMuzzle.debugColor }}</div></div>
+          </div>
+          <div class="inspector__section">
+            <div class="inspector__section-title">📌 Attach to Slot</div>
+            <div class="field__hint">Muzzles should be attached to slots on entities for positioning.</div>
           </div>
         </div>
 
@@ -393,6 +409,12 @@
             v-else-if="createModal.type === 'game_entity'"
             v-model="gameEntityForm"
             :worlds="worlds"
+          />
+
+          <!-- Muzzle Form -->
+          <MuzzleForm
+            v-else-if="createModal.type === 'muzzle'"
+            v-model="muzzleForm"
           />
 
           <!-- Region Form -->
@@ -614,6 +636,7 @@
  import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
  import * as PIXI from 'pixi.js';
  import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
+ import { MuzzleEntity } from '../../../pixi_game2/pixigame/src/entities/MuzzleEntity.js';
  import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
  import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
  import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
@@ -631,6 +654,7 @@
   import RegionForm from './components/forms/RegionForm.vue';
   import ControllerForm from './components/forms/ControllerForm.vue';
   import GameEntityForm from './components/forms/GameEntityForm.vue';
+  import MuzzleForm from './components/forms/MuzzleForm.vue';
   import CollisionTypeForm from './components/forms/CollisionTypeForm.vue';
   import CollisionRelationForm from './components/forms/CollisionRelationForm.vue';
   import WorldInspector from './components/inspectors/WorldInspector.vue';
@@ -681,6 +705,7 @@ const cameras = reactive([]);  // { id, canvasId, worldId, width, height, x, y, 
 const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const gameEntities = reactive([]); // { id, subtype, worldId, instance }
 const unattachedEntities = reactive([]); // { id, subtype, instance }
+const muzzles = reactive([]); // { id, direction, showDebug, debugColor, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
 
@@ -721,6 +746,7 @@ const createModal = reactive({ open: false, type: null });
   uiEntities,
   gameEntities,
   unattachedEntities,
+  muzzles,
   regions,
   controllers
 });
@@ -913,6 +939,13 @@ const collisionRelationForm = reactive({
   worldId: ''  // Which world to add to
 });
 
+const muzzleForm = reactive({
+  id: '',
+  direction: { x: 1, y: 0 },
+  showDebug: true,
+  debugColor: '#FF00FF'
+});
+
  // Slot form
  const slotForm = reactive({
    id: '',
@@ -949,6 +982,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   uiEntities,
   gameEntities,
   unattachedEntities,
+  muzzles,
   regions,
   controllers,
   worldForm,
@@ -957,6 +991,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   uiTextForm,
   uiButtonForm,
   gameEntityForm,
+  muzzleForm,
   regionForm,
   controllerForm,
   collisionTypeForm,
@@ -968,6 +1003,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
     ui_text: () => createUITextFromForm(),
     ui_button: () => createUIButtonFromForm(),
     game_entity: () => createGameEntityFromForm(),
+    muzzle: () => createMuzzleFromForm(),
     region: () => createRegionFromForm(),
     controller: () => createControllerFromForm(),
     collision_type: () => createCollisionTypeFromForm(),
@@ -1182,12 +1218,13 @@ const { removeWorld, removeCanvas, removeCamera, removeSelected, handleTreeDelet
   canvases,
   cameras,
   uiEntities,
-  unattachedEntities,
+  muzzles,
   regions,
   selected,
   canvasHosts,
   removeUI,
   removeGameEntity,
+  removeMuzzle,
   removeRegion,
   removeController
 });
@@ -1210,6 +1247,7 @@ const selectedUnattachedEntity = computed(() => {
   return entity ? entity : null;
 });
 const isUnattachedEntitySelected = computed(() => selectedUnattachedEntity.value !== null);
+const selectedMuzzle = computed(() => (selected.value?.type === 'muzzle' ? muzzles.find((m) => m.id === selected.value.id) : null));
 const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
 const selectedController = computed(() => (selected.value?.type === 'controller' ? controllers.find((c) => c.id === selected.value.id) : null));
 
@@ -1368,6 +1406,30 @@ function removeGameEntity(entityId) {
   updateAllControllersEntityList();
 }
 
+function removeMuzzle(muzzleId) {
+  const idx = muzzles.findIndex((m) => m.id === muzzleId);
+  if (idx < 0) return;
+
+  const muzzleModel = muzzles[idx];
+
+  // Detach muzzle from any slots it's attached to
+  detachEntityFromAllSlots(muzzleModel.id);
+
+  // Remove from world's ECS
+  if (muzzleModel.worldId) {
+    const worldModel = worlds.find((w) => w.id === muzzleModel.worldId);
+    if (worldModel?.instance) {
+      worldModel.instance.entities.delete(muzzleId);
+      console.log(`🔫 Muzzle "${muzzleId}" removed from world "${muzzleModel.worldId}"`);
+    }
+  }
+
+  // Remove from muzzles array
+  muzzles.splice(idx, 1);
+
+  if (selected.value?.type === 'muzzle' && selected.value.id === muzzleId) selected.value = null;
+}
+
 // ---------------------------
 // Slots System
 // ---------------------------
@@ -1455,6 +1517,12 @@ function getEntityLabel(entityId) {
     return `${unattachedEntity.id} (${unattachedEntity.subtype})`;
   }
 
+  // Search in muzzles
+  const muzzle = muzzles.find(m => m.id === entityId);
+  if (muzzle) {
+    return `🔫 ${muzzle.id}`;
+  }
+
    // Return ID as fallback
    return entityId;
  }
@@ -1490,7 +1558,8 @@ function getAttachableEntities() {
   // Filter entities that are not already attached and are not the parent entity itself
   const attachable = [
     ...gameEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id),
-    ...unattachedEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id)
+    ...unattachedEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id),
+    ...muzzles.filter(m => !alreadyAttachedIds.has(m.id))
   ];
 
   return attachable;
@@ -1505,6 +1574,7 @@ function attachEntity(slotId, entityId) {
 
   // Find the entity to attach
   let entityToAttach = null;
+  let isMuzzle = false;
 
   // Search in gameEntities
   entityToAttach = gameEntities.find(e => e.id === entityId);
@@ -1512,9 +1582,23 @@ function attachEntity(slotId, entityId) {
     // Search in unattachedEntities
     entityToAttach = unattachedEntities.find(e => e.id === entityId);
   }
+  if (!entityToAttach) {
+    // Search in muzzles
+    entityToAttach = muzzles.find(m => m.id === entityId);
+    if (entityToAttach) isMuzzle = true;
+  }
 
   if (!entityToAttach) {
     console.error(`Entity "${entityId}" not found for attachment`);
+    return;
+  }
+
+  // Muzzles attach directly without adding to world
+  if (isMuzzle) {
+    const result = selectedGameEntity.value.instance.attachEntityToSlot(entityToAttach.instance, slotId);
+    if (result.success) {
+      console.log(`🔫 Muzzle "${entityId}" attached to slot "${slotId}"`);
+    }
     return;
   }
 
@@ -1850,6 +1934,71 @@ function createGameEntityFromForm() {
     // Update all entity controllers with the new entity list
     updateAllControllersEntityList();
   }
+}
+
+function createMuzzleFromForm() {
+  // Generate unique ID
+  let id = muzzleForm.id?.trim() || suggestId('muzzle', muzzles);
+
+  // Ensure ID uniqueness
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  while (attempts < maxAttempts) {
+    const isDuplicate = muzzles.some((m) => m.id === id);
+    if (!isDuplicate) {
+      break;
+    }
+    const prefix = id.match(/^[a-z_]+/i)?.[0] || 'muzzle';
+    const currentNum = parseInt(id.match(/\d+$/)?.[0] || '0');
+    id = `${prefix}_${currentNum + 1}`;
+    attempts++;
+  }
+
+  if (attempts >= maxAttempts) {
+    alert(`Could not generate unique ID after ${maxAttempts} attempts.`);
+    return;
+  }
+
+  // Create MuzzleEntity instance
+  const instance = markRaw(new MuzzleEntity({
+    id,
+    direction: {
+      x: Number(muzzleForm.direction.x) || 1,
+      y: Number(muzzleForm.direction.y) || 0
+    },
+    showDebug: muzzleForm.showDebug !== false,
+    debugColor: muzzleForm.debugColor?.trim() || '#FF00FF',
+    position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
+    rotation: 0,
+    scale: { x: 1, y: 1 }
+  }));
+
+  // Find first world to add muzzle to ECS system
+  const worldModel = worlds[0];
+  if (worldModel && worldModel.instance) {
+    // Add muzzle to world with minimal components for ECS
+    const components = new Map();
+    components.set('_entityRef', instance);
+    components.set('position', instance.position);
+    components.set('rotation', instance.rotation);
+    components.set('scale', instance.scale);
+    worldModel.instance.entities.set(id, components);
+
+    console.log(`🔫 Muzzle "${id}" added to world "${worldModel.id}"`);
+  }
+
+  // Muzzle model
+  const model = {
+    id,
+    direction: instance.direction,
+    showDebug: instance.showDebug,
+    debugColor: instance.debugColor,
+    instance,
+    worldId: worldModel?.id // Store world reference
+  };
+  muzzles.push(model);
+  select({ type: 'muzzle', id });
 }
 
 function createRegionFromForm() {

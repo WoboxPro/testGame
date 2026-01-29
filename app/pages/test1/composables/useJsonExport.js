@@ -10,6 +10,7 @@ import { reactive, watch } from 'vue';
    cameras,
    uiEntities,
    gameEntities,
+   muzzles,
    regions,
    controllers
  }) {
@@ -92,6 +93,14 @@ import { reactive, watch } from 'vue';
            id: e.id,
            name: `${e.subtype}: ${e.id}`,
            json: JSON.stringify(getEntityJsonConfig(e), null, 2)
+         }));
+         break;
+       case 'muzzle':
+         jsonModal.title = 'Muzzles';
+         jsonModal.items = muzzles.map((m) => ({
+           id: m.id,
+           name: `Muzzle: ${m.id}`,
+           json: JSON.stringify(getMuzzleJsonConfig(m), null, 2)
          }));
          break;
        case 'region':
@@ -296,6 +305,19 @@ import { reactive, watch } from 'vue';
     };
   }
 
+  function getMuzzleJsonConfig(muzzleModel) {
+    const m = muzzleModel.instance;
+    return {
+      id: muzzleModel.id,
+      direction: m.direction,
+      showDebug: m.showDebug,
+      debugColor: m.debugColor,
+      position: m.position,
+      rotation: m.rotation,
+      scale: m.scale
+    };
+  }
+
    function getAllProjectJson() {
      return {
        version: '1.0',
@@ -305,6 +327,7 @@ import { reactive, watch } from 'vue';
        cameras: cameras.map((c) => getCameraJsonConfig(c)),
        uiEntities: uiEntities.map((u) => getUIJsonConfig(u)),
        gameEntities: gameEntities.map((e) => getEntityJsonConfig(e)),
+       muzzles: muzzles.map((m) => getMuzzleJsonConfig(m)),
        regions: regions.map((r) => getRegionJsonConfig(r)),
        controllers: controllers.map((c) => getControllerJsonConfig(c)),
        summary: {
@@ -313,6 +336,7 @@ import { reactive, watch } from 'vue';
          cameraCount: cameras.length,
          uiEntityCount: uiEntities.length,
          gameEntityCount: gameEntities.length,
+         muzzleCount: muzzles.length,
          regionCount: regions.length,
          controllerCount: controllers.length
        }

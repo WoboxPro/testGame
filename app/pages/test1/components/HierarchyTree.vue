@@ -171,6 +171,27 @@
       </div>
     </div>
 
+    <!-- Muzzles Section -->
+    <div class="tree__section">
+      <div class="tree__title">Muzzles</div>
+      <div class="tree__actions">
+        <button class="tree__add" @click="$emit('add', 'muzzle')">+ Add</button>
+        <button class="tree__json" @click="$emit('json', 'muzzle')" title="Export JSON">{ }</button>
+      </div>
+    </div>
+    <div v-if="muzzles.length === 0" class="tree__empty">No muzzles</div>
+    <div
+      v-for="m in muzzles"
+      :key="m.id"
+      class="tree__item"
+      :class="{ 'is-selected': selected?.type === 'muzzle' && selected?.id === m.id }"
+      @click="$emit('select', { type: 'muzzle', id: m.id })"
+    >
+      <span class="tree__name tree__name--muzzle">🔫 {{ m.id }}</span>
+      <span class="tree__meta">({{ m.direction?.x }}, {{ m.direction?.y }}) {{ m.showDebug ? '• visible' : '' }}</span>
+      <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'muzzle', m.id)">×</button>
+    </div>
+
     <!-- Regions Section -->
     <div class="tree__section">
       <div class="tree__title">Regions</div>
@@ -257,6 +278,7 @@
    uiEntities: { type: Array, default: () => [] },
    gameEntities: { type: Array, default: () => [] },
    unattachedEntities: { type: Array, default: () => [] },
+   muzzles: { type: Array, default: () => [] },
    regions: { type: Array, default: () => [] },
    controllers: { type: Array, default: () => [] },
    collisionTypes: { type: Array, default: () => [] },
@@ -448,6 +470,11 @@ function getEntityLabel(entityId) {
 
  .tree__name--slot {
    color: #00ffff;
+ }
+
+ /* Muzzle Item Styling */
+ .tree__name--muzzle {
+   color: #ff88ff;
  }
 
  /* Attached Entity Styling */

@@ -12,6 +12,7 @@ export function useCreateFlow({
   uiEntities,
   gameEntities,
   unattachedEntities,
+  muzzles,
   regions,
   controllers,
   worldForm,
@@ -20,6 +21,7 @@ export function useCreateFlow({
   uiTextForm,
   uiButtonForm,
   gameEntityForm,
+  muzzleForm,
   regionForm,
   controllerForm,
   collisionTypeForm,
@@ -97,6 +99,11 @@ export function useCreateFlow({
       collisionRelationForm.block = true;
       collisionRelationForm.trigger = true;
       collisionRelationForm.worldId = worlds[0]?.id || '';
+    } else if (type === 'muzzle') {
+      muzzleForm.id = suggestId('muzzle', muzzles);
+      muzzleForm.direction = { x: 1, y: 0 };
+      muzzleForm.showDebug = true;
+      muzzleForm.debugColor = '#FF00FF';
     }
   }
 

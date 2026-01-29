@@ -10,6 +10,7 @@ export class EntityRenderer {
     this._cache = new Map();
     this._collisionBoundsCache = new Map(); // Кеш для границ коллизии
     this._slotsCache = new Map(); // Кеш для визуализации слотов
+    this._muzzleCache = new Map(); // Кеш для визуализации muzzle
   }
   
   renderEntities(camera, world, container) {
@@ -28,7 +29,10 @@ export class EntityRenderer {
       const collision = components.get('collision');
       const animations = components.get('animations');
 
-      if (!position || !appearance) continue;
+      // 🔫 Special handling for muzzle - no appearance component required
+      const isMuzzle = entityRef?.subtype === 'muzzle';
+
+      if (!position || (!appearance && !isMuzzle)) continue;
 
       // Rotation can be stored as:
       // - number (radians)
@@ -43,9 +47,10 @@ export class EntityRenderer {
 
       const entityScale = entityRef?.scale || { x: 1, y: 1 };
 
-      const isVisible = this._isEntityVisible(
+      // 🔫 For muzzle, always consider visible (no culling based on appearance size)
+      const isVisible = isMuzzle || this._isEntityVisible(
         { x: position.x, y: position.y },
-        appearance.size || 0,
+        appearance?.size || 0,
         visibleBounds
       );
 
@@ -70,10 +75,23 @@ export class EntityRenderer {
           container.removeChild(slotsGraphics);
         }
 
+        // Remove muzzle graphics
+        const muzzleKey = `${cachePrefix}muzzle::${entityId}`;
+        const muzzleGraphics = this._muzzleCache.get(muzzleKey);
+        if (muzzleGraphics && muzzleGraphics.parent === container) {
+          container.removeChild(muzzleGraphics);
+        }
+
         continue;
       }
 
       activeEntityIds.add(entityId);
+
+      // 🔫 Muzzle rendering - skip appearance-based rendering
+      if (isMuzzle) {
+        this._renderMuzzle(camera, entityId, components, container);
+        continue;
+      }
 
       // Рендеринг основной сущности
       const cacheKey = `${cachePrefix}${entityId}`;
@@ -95,6 +113,9 @@ export class EntityRenderer {
 
       // Рендеринг слотов (если включено)
       this._renderSlots(camera, entityId, components, container);
+
+      // Рендеринг muzzle (если это muzzle)
+      this._renderMuzzle(camera, entityId, components, container);
     }
 
     // Очистка неактивных объектов
@@ -133,6 +154,20 @@ export class EntityRenderer {
           }
           slotsGraphics.destroy({ children: true });
           this._slotsCache.delete(slotsKey);
+        }
+      }
+    }
+
+    // Очистка неактивных muzzle
+    for (const [muzzleKey, muzzleGraphics] of this._muzzleCache) {
+      if (muzzleKey.startsWith(cachePrefix + 'muzzle::')) {
+        const entityId = muzzleKey.substring((cachePrefix + 'muzzle::').length);
+        if (!activeEntityIds.has(entityId)) {
+          if (muzzleGraphics.parent === container) {
+            container.removeChild(muzzleGraphics);
+          }
+          muzzleGraphics.destroy({ children: true });
+          this._muzzleCache.delete(muzzleKey);
         }
       }
     }
@@ -432,6 +467,144 @@ export class EntityRenderer {
     }
     }
 
+  /**
+   * 🔫 Отрисовка muzzle (ствола) - точки и вектора направления
+   */
+  _renderMuzzle(camera, entityId, components, container) {
+    const entityRef = components.get('_entityRef');
+    const position = components.get('position');
+    const rotationComp = components.get('rotation');
+
+    // Проверяем, что это muzzle
+    if (!entityRef || entityRef.subtype !== 'muzzle') {
+      // Если не muzzle - удаляем графику если есть
+      const muzzleKey = `${camera.id}::muzzle::${entityId}`;
+      const muzzleGraphics = this._muzzleCache.get(muzzleKey);
+      if (muzzleGraphics && muzzleGraphics.parent === container) {
+        container.removeChild(muzzleGraphics);
+      }
+      return;
+    }
+
+    // Если выключена debug визуализация - не рисуем
+    if (!entityRef.showDebug) {
+      const muzzleKey = `${camera.id}::muzzle::${entityId}`;
+      const muzzleGraphics = this._muzzleCache.get(muzzleKey);
+      if (muzzleGraphics && muzzleGraphics.parent === container) {
+        container.removeChild(muzzleGraphics);
+      }
+      return;
+    }
+
+    // Rotation can be stored as:
+    // - number (radians)
+    // - { value: number }
+    // - or on a linked _entityRef
+    const rotation =
+      rotationComp != null
+        ? (typeof rotationComp === 'number'
+            ? rotationComp
+            : (Number(rotationComp?.value) || 0))
+        : (Number(entityRef?.rotation) || 0);
+
+    // Mirror direction (для отражения direction)
+    const mirrorDirection = entityRef?.mirrorDirection || { x: 1, y: 1 };
+
+    // Направление выстрела
+    const direction = entityRef.direction || { x: 1, y: 0 };
+
+    const muzzleKey = `${camera.id}::muzzle::${entityId}`;
+    let muzzleGraphics = this._muzzleCache.get(muzzleKey);
+
+    if (!muzzleGraphics) {
+      muzzleGraphics = new PIXI.Graphics();
+      this._muzzleCache.set(muzzleKey, muzzleGraphics);
+    }
+
+    // Очистка и перерисовка
+    muzzleGraphics.clear();
+
+    const debugColor = entityRef.debugColor || '#FF00FF';
+    const colorInt = parseInt(debugColor.replace('#', ''), 16);
+
+    // Вычисляем направление с учетом поворота и отражения
+    let dirX = direction.x;
+    let dirY = direction.y;
+
+    // Применяем rotation к direction
+    const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+    const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+
+    // Применяем mirror
+    dirX = rotatedDirX * mirrorDirection.x;
+    dirY = rotatedDirY * mirrorDirection.y;
+
+    // Нормализуем направление
+    const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+    if (dirLength > 0) {
+      dirX /= dirLength;
+      dirY /= dirLength;
+    }
+
+    // Длина вектора направления
+    const vectorLength = 40;
+
+    // Рисуем точку muzzle (круг)
+    const dotSize = 6;
+    muzzleGraphics
+      .circle(0, 0, dotSize)
+      .stroke({
+        width: 2,
+        color: colorInt,
+        alpha: 0.9
+      });
+
+    // Рисуем стрелку направления
+    const arrowEndX = dirX * vectorLength;
+    const arrowEndY = dirY * vectorLength;
+
+    // Линия направления
+    muzzleGraphics
+      .moveTo(0, 0)
+      .lineTo(arrowEndX, arrowEndY)
+      .stroke({
+        width: 2,
+        color: colorInt,
+        alpha: 0.7
+      });
+
+    // Рисуем стрелочку на конце
+    const arrowHeadSize = 8;
+    const arrowAngle = Math.atan2(dirY, dirX);
+
+    // Левая линия стрелки
+    const leftX = arrowEndX - arrowHeadSize * Math.cos(arrowAngle - Math.PI / 6);
+    const leftY = arrowEndY - arrowHeadSize * Math.sin(arrowAngle - Math.PI / 6);
+
+    // Правая линия стрелки
+    const rightX = arrowEndX - arrowHeadSize * Math.cos(arrowAngle + Math.PI / 6);
+    const rightY = arrowEndY - arrowHeadSize * Math.sin(arrowAngle + Math.PI / 6);
+
+    muzzleGraphics
+      .moveTo(arrowEndX, arrowEndY)
+      .lineTo(leftX, leftY)
+      .moveTo(arrowEndX, arrowEndY)
+      .lineTo(rightX, rightY)
+      .stroke({
+        width: 2,
+        color: colorInt,
+        alpha: 0.7
+      });
+
+    // Позиционируем muzzle graphics на позицию сущности
+    muzzleGraphics.position.set(position.x, position.y);
+
+    // Добавляем в контейнер если еще не добавлен
+    if (muzzleGraphics.parent !== container) {
+      container.addChild(muzzleGraphics);
+    }
+    }
+
   clearCameraCache(cameraId) {
     const cachePrefix = `${cameraId}::`;
 
@@ -457,6 +630,14 @@ export class EntityRenderer {
         this._slotsCache.delete(slotsKey);
       }
     }
+
+    // Очистка кеша muzzle
+    for (const [muzzleKey, muzzleGraphics] of this._muzzleCache) {
+      if (muzzleKey.startsWith(cachePrefix + 'muzzle::')) {
+        muzzleGraphics.destroy({ children: true });
+        this._muzzleCache.delete(muzzleKey);
+      }
+    }
   }
 
   _clearAllCache() {
@@ -474,6 +655,11 @@ export class EntityRenderer {
       slotsGraphics.destroy({ children: true });
     }
     this._slotsCache.clear();
+
+    for (const muzzleGraphics of this._muzzleCache.values()) {
+      muzzleGraphics.destroy({ children: true });
+    }
+    this._muzzleCache.clear();
   }
   
   getCacheSize() {

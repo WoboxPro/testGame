@@ -7,11 +7,13 @@ export function useRemovalActions({
   canvases,
   cameras,
   uiEntities,
+  muzzles,
   regions,
   selected,
   canvasHosts,
   removeUI,
   removeGameEntity,
+  removeMuzzle,
   removeRegion,
   removeController
 }) {
@@ -93,6 +95,7 @@ export function useRemovalActions({
     else if (type === 'camera') removeCamera(id);
     else if (type === 'ui') removeUI(id);
     else if (type === 'game_entity') removeGameEntity(id);
+    else if (type === 'muzzle') removeMuzzle(id);
     else if (type === 'region') removeRegion(id);
     else if (type === 'controller') removeController(id);
   }
@@ -103,12 +106,14 @@ export function useRemovalActions({
     else if (type === 'camera') removeCamera(id);
     else if (type === 'ui') removeUI(id);
     else if (type === 'game_entity') removeGameEntity(id);
+    else if (type === 'muzzle') removeMuzzle(id);
     else if (type === 'region') removeRegion(id);
     else if (type === 'controller') removeController(id);
   }
 
   function resetAll() {
-    // remove everything in safe order: regions -> ui -> cameras -> canvases -> worlds
+    // remove everything in safe order: muzzles -> regions -> ui -> cameras -> canvases -> worlds
+    for (const m of [...muzzles]) removeMuzzle(m.id);
     for (const r of [...regions]) removeRegion(r.id);
     for (const u of [...uiEntities]) removeUI(u.id);
     for (const cam of [...cameras]) removeCamera(cam.id);
