@@ -507,8 +507,11 @@ export class EntityRenderer {
             : (Number(rotationComp?.value) || 0))
         : (Number(entityRef?.rotation) || 0);
 
-    // Mirror direction (для отражения direction)
-    const mirrorDirection = entityRef?.mirrorDirection || { x: 1, y: 1 };
+    // Mirror direction - используем родительский mirrorDirection для attached muzzle
+    // Если muzzle прикреплен к слоту, используется _parentMirrorDirection от родителя
+    // Если muzzle не прикреплен (редкий случай), используется собственный mirrorDirection
+    const mirrorDirectionComp = components.get('mirrorDirection');
+    const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
 
     // Направление выстрела
     const direction = entityRef.direction || { x: 1, y: 0 };

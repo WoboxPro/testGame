@@ -217,6 +217,13 @@ export class World {
              // Синхронизируем компонент rotation в ECS для корректного рендеринга
              attachedEntityComponents.set('rotation', attachedEntityRef.rotation);
 
+             // Синхронизируем mirrorDirection с родительской сущностью
+             // Прикрепленная сущность отражается вместе с родителем (для muzzle direction)
+             const parentMirrorDirection = entityRef.mirrorDirection || { x: 1, y: 1 };
+             attachedEntityRef._parentMirrorDirection = parentMirrorDirection;
+             // Синхронизируем компонент mirrorDirection в ECS
+             attachedEntityComponents.set('mirrorDirection', parentMirrorDirection);
+
              // Обнуляем velocity - сущность управляется слотом
              if (attachedEntityRef.velocity) {
                attachedEntityRef.velocity.x = 0;
