@@ -329,6 +329,19 @@ export class World {
     // 5. Обновляем позицию
     currentPos.x += physics.velocity.x * dtSeconds;
     currentPos.y += physics.velocity.y * dtSeconds;
+
+    // 6. Принудительно ограничиваем расстояние от targetPosition до maxLength
+    // Это предотвращает растяжение пружины за пределы maxLength
+    const finalDx = targetPosition.x - currentPos.x;
+    const finalDy = targetPosition.y - currentPos.y;
+    const finalDistance = Math.sqrt(finalDx * finalDx + finalDy * finalDy);
+
+    if (finalDistance > maxLength) {
+      // Корректируем позицию так, чтобы расстояние равнялось точно maxLength
+      const factor = maxLength / finalDistance;
+      currentPos.x = targetPosition.x - finalDx * factor;
+      currentPos.y = targetPosition.y - finalDy * factor;
+    }
   }
 
    /**
