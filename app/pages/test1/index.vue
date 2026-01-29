@@ -214,18 +214,21 @@
             <div v-if="selectedGameEntity.instance.getSlots().length === 0" class="inspector__empty">No slots</div>
             <div v-else class="slots-list">
               <div v-for="slot in selectedGameEntity.instance.getSlots()" :key="slot.id" class="slot-item">
-                <div class="slot-item__info">
-                  <div class="slot-item__name">{{ slot.id }}</div>
-                  <div class="slot-item__meta">
-                    Offset: ({{ slot.offset.x }}, {{ slot.offset.y }})
-                    <span class="slot-item__behavior">
-                      {{ slot.transformBehavior === 'follow_entity' ? '🔄 Follow' : '📌 Static' }}
-                    </span>
-                    <span class="slot-item__attachments" v-if="slot.attachedEntities && slot.attachedEntities.length > 0">
-                      ({{ slot.attachedEntities.length }} attached)
-                    </span>
-                  </div>
-                </div>
+                 <div class="slot-item__info">
+                   <div class="slot-item__name">{{ slot.id }}</div>
+                   <div class="slot-item__meta">
+                     Offset: ({{ slot.offset.x }}, {{ slot.offset.y }})
+                     <span class="slot-item__behavior">
+                       {{ slot.transformBehavior === 'follow_entity' ? '🔄 Follow' : '📌 Static' }}
+                     </span>
+                     <span class="slot-item__mode">
+                       Physics: {{ getPhysicsModeLabel(slot.physicsMode) }}
+                     </span>
+                     <span class="slot-item__attachments" v-if="slot.attachedEntities && slot.attachedEntities.length > 0">
+                       ({{ slot.attachedEntities.length }} attached)
+                     </span>
+                   </div>
+                 </div>
                 <button class="slot-item__delete" @click="removeSlot(slot.id)" title="Delete slot">×</button>
 
                 <!-- Attached Entities -->
@@ -479,47 +482,120 @@
           <button class="modal__close" @click="closeSlotModal">×</button>
         </div>
 
-        <div class="modal__body">
-          <label class="field">
-            <span class="field__label">Slot ID</span>
-            <input class="field__input" v-model.trim="slotForm.id" placeholder="slot_1" />
-          </label>
+         <div class="modal__body">
+           <label class="field">
+             <span class="field__label">Slot ID</span>
+             <input class="field__input" v-model.trim="slotForm.id" placeholder="slot_1" />
+           </label>
 
-          <div class="grid2">
-            <label class="field">
-              <span class="field__label">Offset X</span>
-              <input class="field__input" type="number" v-model.number="slotForm.offsetX" />
-            </label>
-            <label class="field">
-              <span class="field__label">Offset Y</span>
-              <input class="field__input" type="number" v-model.number="slotForm.offsetY" />
-            </label>
-          </div>
+           <div class="grid2">
+             <label class="field">
+               <span class="field__label">Offset X</span>
+               <input class="field__input" type="number" v-model.number="slotForm.offsetX" />
+             </label>
+             <label class="field">
+               <span class="field__label">Offset Y</span>
+               <input class="field__input" type="number" v-model.number="slotForm.offsetY" />
+             </label>
+           </div>
 
-          <label class="field">
-            <span class="field__label">Transform Behavior</span>
-            <select class="field__input" v-model="slotForm.transformBehavior">
-              <option value="follow_entity">Follow Entity (🔄 moves with entity)</option>
-              <option value="static">Static (📌 stays in world)</option>
-            </select>
-          </label>
+           <label class="field">
+             <span class="field__label">Transform Behavior</span>
+             <select class="field__input" v-model="slotForm.transformBehavior">
+               <option value="follow_entity">Follow Entity (🔄 moves with entity)</option>
+               <option value="static">Static (📌 stays in world)</option>
+             </select>
+           </label>
 
-          <label class="field field--row">
-            <input type="checkbox" v-model="slotForm.visualEnabled" />
-            <span class="field__label">Show Visual Dot</span>
-          </label>
+           <label class="field field--row">
+             <input type="checkbox" v-model="slotForm.visualEnabled" />
+             <span class="field__label">Show Visual Dot</span>
+           </label>
 
-          <label class="field" v-if="slotForm.visualEnabled">
-            <span class="field__label">Visual Color</span>
-            <input class="field__input" type="color" v-model="slotForm.color" />
-          </label>
+           <label class="field" v-if="slotForm.visualEnabled">
+             <span class="field__label">Visual Color</span>
+             <input class="field__input" type="color" v-model="slotForm.color" />
+           </label>
 
-          <label class="field">
-            <span class="field__label">Max Attachments (optional)</span>
-            <input class="field__input" type="number" v-model.number="slotForm.maxAttachments" placeholder="Empty = unlimited" min="1" />
-            <span class="field__hint">Leave empty for unlimited attachments</span>
-          </label>
-        </div>
+           <label class="field">
+             <span class="field__label">Max Attachments (optional)</span>
+             <input class="field__input" type="number" v-model.number="slotForm.maxAttachments" placeholder="Empty = unlimited" min="1" />
+             <span class="field__hint">Leave empty for unlimited attachments</span>
+           </label>
+
+           <!-- 🎯 PHYSICS MODE -->
+           <div class="inspector__section">
+             <div class="inspector__section-title">Physics Mode</div>
+             <label class="field">
+               <span class="field__label">Physics Mode</span>
+               <select class="field__input" v-model="slotForm.physicsMode">
+                 <option value="instant">🔒 Instant (immediate)</option>
+                 <option value="lerp">⚡ Lerp (smooth)</option>
+                 <option value="spring">🌊 Spring (elastic)</option>
+               </select>
+             </label>
+
+             <!-- ⚡ Lerp Settings -->
+             <template v-if="slotForm.physicsMode === 'lerp'">
+               <label class="field">
+                 <span class="field__label">Lerp Factor ({{ slotForm.lerpFactor.toFixed(2) }})</span>
+                 <input
+                   type="range"
+                   min="0.01"
+                   max="1.0"
+                   step="0.01"
+                   v-model.number="slotForm.lerpFactor"
+                 />
+                 <span class="field__hint">
+                   {{ slotForm.lerpFactor < 0.1 ? '🐢 Slow' : slotForm.lerpFactor > 0.5 ? '🐇 Fast' : '⏱️ Normal' }}
+                 </span>
+               </label>
+             </template>
+
+             <!-- 🌊 Spring Settings -->
+             <template v-if="slotForm.physicsMode === 'spring'">
+               <label class="field">
+                 <span class="field__label">Stiffness ({{ slotForm.springStiffness.toFixed(1) }})</span>
+                 <input
+                   type="range"
+                   min="0.1"
+                   max="10"
+                   step="0.1"
+                   v-model.number="slotForm.springStiffness"
+                 />
+                 <span class="field__hint">
+                   {{ slotForm.springStiffness < 2 ? '🍃 Soft' : slotForm.springStiffness > 6 ? '🔧 Stiff' : '⚖️ Medium' }}
+                 </span>
+               </label>
+
+               <label class="field">
+                 <span class="field__label">Damping ({{ slotForm.springDamping.toFixed(2) }})</span>
+                 <input
+                   type="range"
+                   min="0.7"
+                   max="0.99"
+                   step="0.01"
+                   v-model.number="slotForm.springDamping"
+                 />
+                 <span class="field__hint">
+                   {{ slotForm.springDamping < 0.85 ? '🌊 Bouncy' : '🎯 Stable' }}
+                 </span>
+               </label>
+
+               <label class="field">
+                 <span class="field__label">Max Stretch (px)</span>
+                 <input
+                   class="field__input"
+                   type="number"
+                   min="10"
+                   max="500"
+                   v-model.number="slotForm.springMaxLength"
+                 />
+                 <span class="field__hint">Maximum spring length (10-500px)</span>
+               </label>
+             </template>
+           </div>
+         </div>
 
         <div class="modal__footer">
           <button class="btn" @click="closeSlotModal">Cancel</button>
@@ -837,16 +913,27 @@ const collisionRelationForm = reactive({
   worldId: ''  // Which world to add to
 });
 
-// Slot form
-const slotForm = reactive({
-  id: '',
-  offsetX: 0,
-  offsetY: 0,
-  transformBehavior: 'follow_entity',
-  visualEnabled: true,
-  color: '#00FFFF',
-  maxAttachments: null
-});
+ // Slot form
+ const slotForm = reactive({
+   id: '',
+   offsetX: 0,
+   offsetY: 0,
+   transformBehavior: 'follow_entity',
+   visualEnabled: true,
+   color: '#00FFFF',
+   maxAttachments: null,
+
+   // 🎯 PHYSICS MODE
+   physicsMode: 'instant', // 'instant' | 'lerp' | 'spring'
+
+   // ⚡ LERP PARAMETERS
+   lerpFactor: 0.1,
+
+   // 🌊 SPRING PARAMETERS
+   springStiffness: 3.0,
+   springDamping: 0.9,
+   springMaxLength: 100
+ });
 
 const slotModal = reactive({ open: false });
 
@@ -1285,37 +1372,52 @@ function removeGameEntity(entityId) {
 // Slots System
 // ---------------------------
 
-function openSlotModal() {
-  slotForm.id = '';
-  slotForm.offsetX = 0;
-  slotForm.offsetY = 0;
-  slotForm.transformBehavior = 'follow_entity';
-  slotForm.visualEnabled = true;
-  slotForm.color = '#00FFFF';
-  slotForm.maxAttachments = null;
-  slotModal.open = true;
-}
+ function openSlotModal() {
+   slotForm.id = '';
+   slotForm.offsetX = 0;
+   slotForm.offsetY = 0;
+   slotForm.transformBehavior = 'follow_entity';
+   slotForm.visualEnabled = true;
+   slotForm.color = '#00FFFF';
+   slotForm.maxAttachments = null;
+
+   // 🎯 Reset physics mode
+   slotForm.physicsMode = 'instant';
+   slotForm.lerpFactor = 0.1;
+   slotForm.springStiffness = 3.0;
+   slotForm.springDamping = 0.9;
+   slotForm.springMaxLength = 100;
+
+   slotModal.open = true;
+ }
 
 function closeSlotModal() {
   slotModal.open = false;
 }
 
-function confirmAddSlot() {
-  if (!selectedGameEntity.value) return;
+ function confirmAddSlot() {
+   if (!selectedGameEntity.value) return;
 
-  const slotId = slotForm.id?.trim() || `slot_${Date.now()}`;
+   const slotId = slotForm.id?.trim() || `slot_${Date.now()}`;
 
-  selectedGameEntity.value.instance.addSlot({
-    id: slotId,
-    offset: { x: Number(slotForm.offsetX) || 0, y: Number(slotForm.offsetY) || 0 },
-    transformBehavior: slotForm.transformBehavior,
-    visualEnabled: slotForm.visualEnabled,
-    color: slotForm.color || '#00FFFF',
-    maxAttachments: slotForm.maxAttachments
-  });
+   selectedGameEntity.value.instance.addSlot({
+     id: slotId,
+     offset: { x: Number(slotForm.offsetX) || 0, y: Number(slotForm.offsetY) || 0 },
+     transformBehavior: slotForm.transformBehavior,
+     visualEnabled: slotForm.visualEnabled,
+     color: slotForm.color || '#00FFFF',
+     maxAttachments: slotForm.maxAttachments,
 
-  closeSlotModal();
-}
+     // 🎯 Physics mode parameters
+     physicsMode: slotForm.physicsMode,
+     lerpFactor: slotForm.lerpFactor,
+     springStiffness: slotForm.springStiffness,
+     springDamping: slotForm.springDamping,
+     springMaxLength: slotForm.springMaxLength
+   });
+
+   closeSlotModal();
+ }
 
 function removeSlot(slotId) {
   if (!selectedGameEntity.value) return;
@@ -1353,8 +1455,18 @@ function getEntityLabel(entityId) {
     return `${unattachedEntity.id} (${unattachedEntity.subtype})`;
   }
 
-  // Return ID as fallback
-  return entityId;
+   // Return ID as fallback
+   return entityId;
+ }
+
+/**
+ * Get human-readable label for physics mode
+ */
+function getPhysicsModeLabel(mode) {
+  if (!mode || mode === 'instant') return '🔒 Instant';
+  if (mode === 'lerp') return '⚡ Lerp';
+  if (mode === 'spring') return '🌊 Spring';
+  return mode;
 }
 
 /**

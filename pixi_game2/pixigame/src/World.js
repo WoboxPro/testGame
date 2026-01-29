@@ -157,71 +157,83 @@ export class World {
    * - Slot's offset (x, y)
    * - Slot's transformBehavior ('follow_entity' vs 'static')
    */
-  updateSlotAttachments() {
-    // Iterate through all entities in the world
-    for (const [entityId, entityComponents] of this.entities) {
-      const entityRef = entityComponents.get('_entityRef');
+   updateSlotAttachments() {
+     // Iterate through all entities in world
+     for (const [entityId, entityComponents] of this.entities) {
+       const entityRef = entityComponents.get('_entityRef');
 
-      // Skip if entity has no slots or reference
-      if (!entityRef || !entityRef.slots || entityRef.slots.length === 0) {
-        continue;
-      }
+       // Skip if entity has no slots or reference
+       if (!entityRef || !entityRef.slots || entityRef.slots.length === 0) {
+         continue;
+       }
 
-      // Process each slot on this entity
-      for (const slot of entityRef.slots) {
-        // Skip if no entities attached to this slot
-        if (!slot.attachedEntities || slot.attachedEntities.length === 0) {
-          continue;
-        }
+       // Process each slot on this entity
+       for (const slot of entityRef.slots) {
+         // Skip if no entities attached to this slot
+         if (!slot.attachedEntities || slot.attachedEntities.length === 0) {
+           continue;
+         }
 
-        // Calculate slot's world position based on transformBehavior
-        const slotPosition = this.calculateSlotPosition(entityRef, slot);
+         // Calculate slot's world position based on transformBehavior
+         const slotPosition = this.calculateSlotPosition(entityRef, slot);
 
-        // Update each attached entity's position
-        for (const attachedEntityId of slot.attachedEntities) {
-          // Find the attached entity in the world
-          const attachedEntityComponents = this.entities.get(attachedEntityId);
-          if (!attachedEntityComponents) {
-            // Entity may have been deleted - clean up reference
-            console.warn(`⚠️ Attached entity "${attachedEntityId}" not found in world, removing from slot "${slot.id}"`);
-            const index = slot.attachedEntities.indexOf(attachedEntityId);
-            if (index >= 0) {
-              slot.attachedEntities.splice(index, 1);
-            }
-            continue;
+         // Update each attached entity's position
+         for (const attachedEntityId of slot.attachedEntities) {
+           // Find the attached entity in world
+           const attachedEntityComponents = this.entities.get(attachedEntityId);
+           if (!attachedEntityComponents) {
+             // Entity may have been deleted - clean up reference
+             console.warn(`⚠️ Attached entity "${attachedEntityId}" not found in world, removing from slot "${slot.id}"`);
+             const index = slot.attachedEntities.indexOf(attachedEntityId);
+             if (index >= 0) {
+               slot.attachedEntities.splice(index, 1);
+             }
+             continue;
+           }
+
+           const attachedEntityRef = attachedEntityComponents.get('_entityRef');
+           if (attachedEntityRef) {
+             // 🎯 PHYSICS MODE - обновляем позицию в зависимости от режима
+             const physicsMode = slot.physicsMode || 'instant';
+
+             if (physicsMode === 'spring') {
+               // 🌊 SPRING PHYSICS - пружина с затуханием
+               this._updateSpringPhysics(attachedEntityRef, slotPosition, slot, dt);
+             } else if (physicsMode === 'lerp') {
+               // ⚡ LERP - линейная интерполяция
+               const lerpFactor = slot.lerpFactor !== undefined ? slot.lerpFactor : 0.1;
+               attachedEntityRef.position.x = this._lerp(attachedEntityRef.position.x, slotPosition.x, lerpFactor);
+               attachedEntityRef.position.y = this._lerp(attachedEntityRef.position.y, slotPosition.y, lerpFactor);
+             } else {
+               // 🔒 INSTANT - мгновенное обновление (default)
+               Object.assign(attachedEntityRef.position, slotPosition);
+             }
+
+             // Синхронизируем rotation с родительской сущностью
+             // Прикрепленная сущность вращается вместе с родителем
+             attachedEntityRef.rotation = entityRef.rotation || 0;
+
+             // Обнуляем velocity - сущность управляется слотом
+             if (attachedEntityRef.velocity) {
+               attachedEntityRef.velocity.x = 0;
+               attachedEntityRef.velocity.y = 0;
+             }
+
+             // Store attachment reference on attached entity
+             attachedEntityRef._parentEntityId = entityRef.id;
+             attachedEntityRef._parentSlotId = slot.id;
           }
+         }
+       }
+     }
+   }
 
-          const attachedEntityRef = attachedEntityComponents.get('_entityRef');
-          if (attachedEntityRef) {
-            // Принудительно синхронизируем позицию со слотом
-            // Используем Object.assign для гарантии обновления всех ссылок
-            Object.assign(attachedEntityRef.position, slotPosition);
-
-            // Синхронизируем rotation с родительской сущностью
-            // Прикрепленная сущность вращается вместе с родителем
-            attachedEntityRef.rotation = entityRef.rotation || 0;
-
-            // Обнуляем velocity - сущность управляется слотом
-            if (attachedEntityRef.velocity) {
-              attachedEntityRef.velocity.x = 0;
-              attachedEntityRef.velocity.y = 0;
-            }
-
-            // Store attachment reference on the attached entity
-            attachedEntityRef._parentEntityId = entityRef.id;
-            attachedEntityRef._parentSlotId = slot.id;
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Calculate the world position of a slot
-   * @param {Object} parentEntity - The parent entity containing the slot
-   * @param {Object} slot - The slot configuration
-   * @returns {Object} { x: number, y: number } World position of the slot
-   */
+   /**
+    * Calculate the world position of a slot
+    * @param {Object} parentEntity - The parent entity containing the slot
+    * @param {Object} slot - The slot configuration
+    * @returns {Object} { x: number, y: number } World position of the slot
+    */
   calculateSlotPosition(parentEntity, slot) {
     if (slot.transformBehavior === 'static') {
       // Static: slot stays at its initial world position (stored when attached)
@@ -245,19 +257,88 @@ export class World {
       };
     }
 
-    // Apply rotation to offset
-    // x' = x * cos(θ) - y * sin(θ)
-    // y' = x * sin(θ) + y * cos(θ)
-    const cos = Math.cos(rotation);
-    const sin = Math.sin(rotation);
-    const rotatedOffsetX = slot.offset.x * cos - slot.offset.y * sin;
-    const rotatedOffsetY = slot.offset.x * sin + slot.offset.y * cos;
+     // Apply rotation to offset
+     // x' = x * cos(θ) - y * sin(θ)
+     // y' = x * sin(θ) + y * cos(θ)
+     const cos = Math.cos(rotation);
+     const sin = Math.sin(rotation);
+     const rotatedOffsetX = slot.offset.x * cos - slot.offset.y * sin;
+     const rotatedOffsetY = slot.offset.x * sin + slot.offset.y * cos;
 
      // Apply mirror to rotated offset
      return {
        x: parentEntity.position.x + rotatedOffsetX * mirrorDirection.x,
        y: parentEntity.position.y + rotatedOffsetY * mirrorDirection.y
      };
+   }
+
+  /**
+   * 🌊 Обновить позицию с Spring Physics (пружина с затуханием)
+   *
+   * @param {Object} entity - Прикрепленная сущность
+   * @param {Object} targetPosition - Целевая позиция слота
+   * @param {Object} slot - Конфигурация слота с параметрами пружины
+   * @param {number} dt - Delta time в миллисекундах
+   */
+  _updateSpringPhysics(entity, targetPosition, slot, dt) {
+    // Инициализация физического состояния при первом кадре
+    if (!entity._springPhysics?.isInitialized) {
+      entity._springPhysics = entity._springPhysics || {
+        velocity: { x: 0, y: 0 },
+        isInitialized: true
+      };
+      entity._springPhysics.isInitialized = true;
+      entity._springPhysics.velocity = { x: 0, y: 0 };
+    }
+
+     const physics = entity._springPhysics;
+     const currentPos = entity.position;
+     const stiffness = slot.springStiffness !== undefined ? slot.springStiffness : 3.0;
+     const damping = slot.springDamping !== undefined ? slot.springDamping : 0.9;
+     const maxLength = slot.springMaxLength !== undefined ? slot.springMaxLength : 100;
+
+    // 1. Применяем ограничение максимальной длины
+    let constrainedTarget = { ...targetPosition };
+    const dx = targetPosition.x - currentPos.x;
+    const dy = targetPosition.y - currentPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > maxLength) {
+      // Ограничиваем тягу на maxLength
+      const factor = maxLength / distance;
+      constrainedTarget.x = currentPos.x + dx * factor;
+      constrainedTarget.y = currentPos.y + dy * factor;
+    }
+
+    // 2. Вычисляем силу пружины (F = -k * displacement)
+    const forceX = -stiffness * (currentPos.x - constrainedTarget.x);
+    const forceY = -stiffness * (currentPos.y - constrainedTarget.y);
+
+    // 3. Применяем силу к velocity (F = ma, m=1 => a=F)
+    // dt конвертируем из миллисекунд в секунды (dt / 1000)
+    const dtSeconds = dt / 1000;
+    physics.velocity.x += forceX * dtSeconds;
+    physics.velocity.y += forceY * dtSeconds;
+
+    // 4. Применяем damping (затухание)
+    physics.velocity.x *= damping;
+    physics.velocity.y *= damping;
+
+    // 5. Обновляем позицию
+    currentPos.x += physics.velocity.x * dtSeconds;
+    currentPos.y += physics.velocity.y * dtSeconds;
+  }
+
+   /**
+    * ⚡ Линейная интерполяция
+    *
+    * @param {number} a - Начальное значение
+    * @param {number} b - Целевое значение
+    * @param {number} t - Фактор интерполяции (0.0-1.0)
+    * @returns {number} Интерполированное значение
+    */
+   _lerp(a, b, t) {
+     return a + (b - a) * t;
    }
 
    getInfo() {
@@ -271,4 +352,4 @@ export class World {
        entityCount: this.entities.size
      };
    }
-}
+ }

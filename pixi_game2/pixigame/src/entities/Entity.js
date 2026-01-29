@@ -123,25 +123,41 @@ export class Entity {
    * @param {boolean} slotData.visualEnabled - Whether to visualize slot
    * @param {string} slotData.color - Visual color (hex)
    * @param {number|null} slotData.maxAttachments - Max attachments (null = unlimited)
+   * @param {'instant'|'lerp'|'spring'} slotData.physicsMode - How attached entities move
+   * @param {number} slotData.lerpFactor - Lerp speed (0.01-1.0)
+   * @param {number} slotData.springStiffness - Spring stiffness (0.1-10)
+   * @param {number} slotData.springDamping - Spring damping (0.7-0.99)
+   * @param {number} slotData.springMaxLength - Max spring length (10-500px)
    * @returns {Object} The created slot
    */
-  addSlot(slotData = {}) {
-    const slot = {
-      id: slotData.id || `slot_${this.id}_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-      offset: {
-        x: Number(slotData.offset?.x) || 0,
-        y: Number(slotData.offset?.y) || 0
-      },
-      transformBehavior: slotData.transformBehavior || 'follow_entity', // 'follow_entity' | 'static'
-      visualEnabled: slotData.visualEnabled !== false, // default: true
-      color: slotData.color || '#00FFFF', // cyan by default
-      maxAttachments: slotData.maxAttachments !== undefined ? slotData.maxAttachments : null, // null = unlimited
-      attachedEntities: [] // Array of entity IDs attached to this slot
-    };
+   addSlot(slotData = {}) {
+     const slot = {
+       id: slotData.id || `slot_${this.id}_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+       offset: {
+         x: Number(slotData.offset?.x) || 0,
+         y: Number(slotData.offset?.y) || 0
+       },
+       transformBehavior: slotData.transformBehavior || 'follow_entity', // 'follow_entity' | 'static'
+       visualEnabled: slotData.visualEnabled !== false, // default: true
+       color: slotData.color || '#00FFFF', // cyan by default
+       maxAttachments: slotData.maxAttachments !== undefined ? slotData.maxAttachments : null, // null = unlimited
+       attachedEntities: [], // Array of entity IDs attached to this slot
 
-    this.slots.push(slot);
-    return slot;
-  }
+       // 🎯 PHYSICS MODE
+       physicsMode: slotData.physicsMode || 'instant', // 'instant' | 'lerp' | 'spring'
+
+       // ⚡ LERP PARAMETERS
+       lerpFactor: slotData.lerpFactor !== undefined ? slotData.lerpFactor : 0.1,
+
+       // 🌊 SPRING PARAMETERS
+       springStiffness: slotData.springStiffness !== undefined ? slotData.springStiffness : 3.0,
+       springDamping: slotData.springDamping !== undefined ? slotData.springDamping : 0.9,
+       springMaxLength: slotData.springMaxLength !== undefined ? slotData.springMaxLength : 100
+     };
+
+     this.slots.push(slot);
+     return slot;
+   }
 
   /**
    * Remove a slot by ID
@@ -246,11 +262,19 @@ export class Entity {
     entity._parentEntityId = this.id;
     entity._parentSlotId = slotId;
 
+    // 🎯 Initialize spring physics state if needed
+    if (slot.physicsMode === 'spring') {
+      entity._springPhysics = {
+        velocity: { x: 0, y: 0 },
+        isInitialized: false
+      };
+    }
+
     // Update entity's position immediately to slot position
     entity.position.x = this.position.x + slot.offset.x;
     entity.position.y = this.position.y + slot.offset.y;
 
-    console.log(`🔗 Entity "${entity.id}" attached to slot "${slotId}" on entity "${this.id}"`);
+    console.log(`🔗 Entity "${entity.id}" attached to slot "${slotId}" (mode: ${slot.physicsMode}) on entity "${this.id}"`);
     return { success: true, message: `Entity "${entity.id}" attached to slot "${slotId}"`, slot };
   }
 
