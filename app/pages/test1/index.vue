@@ -2703,5 +2703,23 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
   font-size: 11px;
   text-align: center;
 }
+
+.slot-attach-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  margin-top: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.slot-attach-control .field {
+  margin: 0;
+}
+
+.slot-attach-control .field__input {
+  width: 100%;
+}
 </style>
 
