@@ -20,6 +20,9 @@ export function useRenderLoop({
 
   let _assetsPreloadStarted = false;
 
+  // 🔫 Состояние кнопки мыши для стрельбы
+  let _isMousePressed = false;
+
   function onWheel(e) {
     if (!selectedCamera.value) return;
 
@@ -47,6 +50,33 @@ export function useRenderLoop({
       Math.min(5.0, cameraUi.zoom + direction * 0.1)
     );
     applySelectedCameraUi();
+  }
+
+  // 🔫 Обработка нажатия левой кнопки мыши
+  function onMouseDown(e) {
+    if (e.button !== 0) return; // Только левая кнопка
+    _isMousePressed = true;
+    updateMuzzleFiringState();
+  }
+
+  // 🔫 Обработка отпускания левой кнопки мыши
+  function onMouseUp(e) {
+    if (e.button !== 0) return; // Только левая кнопка
+    _isMousePressed = false;
+    updateMuzzleFiringState();
+  }
+
+  // 🔫 Обновление состояния стрельбы для всех muzzle
+  function updateMuzzleFiringState() {
+    for (const world of worlds) {
+      if (world.instance?.projectileSystem) {
+        const ps = world.instance.projectileSystem;
+        // Устанавливаем состояние стрельбы для всех зарегистрированных muzzle
+        for (const [muzzleId] of ps.muzzles) {
+          ps.setMuzzleFiring(muzzleId, _isMousePressed);
+        }
+      }
+    }
   }
 
   // Render loop for multiple canvases
@@ -103,6 +133,10 @@ export function useRenderLoop({
     // Pass wheel only, controllers handle their own keyboard events
     window.addEventListener('wheel', onWheel, { passive: false });
 
+    // 🔫 Добавляем обработчики мыши для стрельбы
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mouseup', onMouseUp);
+
     // Preload textures from public/assets manifest into PIXI.Assets cache
     preloadPublicAssetsToCache();
 
@@ -111,6 +145,11 @@ export function useRenderLoop({
 
   onUnmounted(() => {
     window.removeEventListener('wheel', onWheel);
+
+    // 🔫 Удаляем обработчики мыши
+    window.removeEventListener('mousedown', onMouseDown);
+    window.removeEventListener('mouseup', onMouseUp);
+
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
     resetAll?.();

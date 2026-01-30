@@ -1976,6 +1976,11 @@ function createMuzzleFromForm() {
     directionMode: muzzleForm.directionMode || 'relative',
     showDebug: muzzleForm.showDebug !== false,
     debugColor: muzzleForm.debugColor?.trim() || '#FF00FF',
+    // 🔫 Fire parameters
+    fireRate: Number(muzzleForm.fireRate) || 5,
+    bulletSpeed: Number(muzzleForm.bulletSpeed) || 500,
+    bulletRange: Number(muzzleForm.bulletRange) || 1000,
+    autoFire: Boolean(muzzleForm.autoFire) || false,
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }
@@ -1992,6 +1997,11 @@ function createMuzzleFromForm() {
     components.set('scale', instance.scale);
     worldModel.instance.entities.set(id, components);
 
+    // 🔫 Register muzzle in ProjectileSystem
+    if (worldModel.instance.projectileSystem) {
+      worldModel.instance.projectileSystem.registerMuzzle(instance);
+    }
+
     console.log(`🔫 Muzzle "${id}" added to world "${worldModel.id}"`);
   }
 
@@ -2002,6 +2012,10 @@ function createMuzzleFromForm() {
     directionMode: instance.directionMode,
     showDebug: instance.showDebug,
     debugColor: instance.debugColor,
+    fireRate: instance.fireRate,
+    bulletSpeed: instance.bulletSpeed,
+    bulletRange: instance.bulletRange,
+    autoFire: instance.autoFire,
     instance,
     worldId: worldModel?.id // Store world reference
   };

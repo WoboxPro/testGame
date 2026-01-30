@@ -9,6 +9,7 @@
 import { RegionSystem } from './RegionSystem.js';
 import { CollisionSystem } from './CollisionSystem.js';
 import { AnimationSystem } from './AnimationSystem.js';
+import { ProjectileSystem } from './ProjectileSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -46,6 +47,9 @@ export class World {
 
     // 🎬 Система анимаций
     this.animationSystem = new AnimationSystem(this);
+
+    // 🔫 Система снарядов (пуль)
+    this.projectileSystem = new ProjectileSystem(this);
 
     this.entities = new Map();
     this._entityCounter = 1;
@@ -140,6 +144,11 @@ export class World {
      // Обновляем анимации
      if (this.animationSystem) {
        this.animationSystem.update(dt);
+     }
+
+     // 🔫 Обновляем снаряды (пули)
+     if (this.projectileSystem) {
+       this.projectileSystem.update(dt);
      }
 
      // Проверяем коллизии

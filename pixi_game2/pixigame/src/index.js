@@ -9,6 +9,7 @@ export { Controller } from './Controller.js';
 export { CameraController } from './CameraController.js';
 export { EntityController } from './EntityController.js';
 export { CollisionSystem } from './CollisionSystem.js';
+export { ProjectileSystem } from './ProjectileSystem.js';
 export { TimeSystem, timeSystem } from './TimeSystem.js';
 
 // Input
@@ -19,3 +20,4 @@ export { VirtualJoystick } from './input/VirtualJoystick.js';
 export { GameEntity, UnitEntity, BuildEntity, PropEntity } from './entities/GameEntity.js';
 export { UITextEntity } from './entities/UIEntities.js';
 export { UIButtonEntity } from './entities/UIEntities.js';
+export { ProjectileEntity, BulletEntity } from './entities/ProjectileEntity.js';

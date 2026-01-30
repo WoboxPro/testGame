@@ -2,12 +2,13 @@
  * MuzzleEntity - Стволы оружия (точки спавна пуль)
  *
  * Отдельный тип сущности для определения позиции и направления,
- * откуда будут вылетать пули в будущем.
+ * откуда будут вылетать пули.
  *
  * Особенности:
  * - Крепится ТОЛЬКО через слоты к другим сущностям
  * - В слотах работает только с physicsMode: 'instant'
  * - Имеет направление (direction) - вектор куда направлен ствол
+ * - Может стрелять пулями с заданными параметрами
  */
 
 import { Entity } from './Entity.js';
@@ -18,7 +19,11 @@ export class MuzzleEntity extends Entity {
    *  direction?: {x:number, y:number},
    *  directionMode?: 'static' | 'relative',
    *  showDebug?: boolean,
-   *  debugColor?: string
+   *  debugColor?: string,
+   *  fireRate?: number,
+   *  bulletSpeed?: number,
+   *  bulletRange?: number,
+   *  autoFire?: boolean
    * }} options
    */
   constructor(options = {}) {
@@ -37,6 +42,23 @@ export class MuzzleEntity extends Entity {
     // Debug визуализация
     this.showDebug = options.showDebug !== false; // default: true
     this.debugColor = options.debugColor || '#FF00FF'; // magenta по умолчанию
+
+    // 🔫 Параметры стрельбы
+    // Скорострельность (выстрелов в секунду)
+    this.fireRate = options.fireRate !== undefined ? Number(options.fireRate) : 5;
+
+    // Скорость полета пули (пикселей в секунду)
+    this.bulletSpeed = options.bulletSpeed !== undefined ? Number(options.bulletSpeed) : 500;
+
+    // Дальность полета пули (пикселей)
+    this.bulletRange = options.bulletRange !== undefined ? Number(options.bulletRange) : 1000;
+
+    // Автоогонь (true = зажатая кнопка, false = одиночный выстрел при клике)
+    this.autoFire = options.autoFire !== undefined ? Boolean(options.autoFire) : false;
+
+    // Внутреннее состояние для стрельбы
+    this._lastFireTime = 0;
+    this._isFiring = false;
   }
 
   /**
@@ -99,6 +121,83 @@ export class MuzzleEntity extends Entity {
     return this.directionMode;
   }
 
+  /**
+   * 🔫 Установить режим стрельбы (зажата кнопка или нет)
+   * @param {boolean} isFiring - true если кнопка зажата
+   */
+  setFiring(isFiring) {
+    this._isFiring = isFiring;
+  }
+
+  /**
+   * 🔫 Проверить можно ли сейчас произвести выстрел
+   * @param {number} currentTime - Текущее время (performance.now())
+   * @returns {boolean} - true если можно стрелять
+   */
+  canFire(currentTime) {
+    const fireInterval = 1000 / this.fireRate; // мс между выстрелами
+    return currentTime - this._lastFireTime >= fireInterval;
+  }
+
+  /**
+   * 🔫 Произвести выстрел (обновить время последнего выстрела)
+   * @param {number} currentTime - Текущее время (performance.now())
+   */
+  fire(currentTime) {
+    this._lastFireTime = currentTime;
+  }
+
+  /**
+   * 🔫 Проверить нужно ли стрелять сейчас
+   * @param {number} currentTime - Текущее время (performance.now())
+   * @returns {boolean} - true если нужно произвести выстрел
+   */
+  shouldFire(currentTime) {
+    if (this.autoFire) {
+      // Автоогонь - стреляем пока кнопка зажата
+      return this._isFiring && this.canFire(currentTime);
+    } else {
+      // Одиночный выстрел - стреляем при первом нажатии
+      if (this._isFiring && this.canFire(currentTime)) {
+        this._isFiring = false; // сбрасываем после выстрела
+        return true;
+      }
+      return false;
+    }
+  }
+
+  /**
+   * 🔫 Установить скорострельность
+   * @param {number} rate - Выстрелов в секунду
+   */
+  setFireRate(rate) {
+    this.fireRate = Math.max(0.1, Number(rate) || 1);
+  }
+
+  /**
+   * 🔫 Установить скорость пули
+   * @param {number} speed - Пикселей в секунду
+   */
+  setBulletSpeed(speed) {
+    this.bulletSpeed = Math.max(1, Number(speed) || 100);
+  }
+
+  /**
+   * 🔫 Установить дальность пули
+   * @param {number} range - Пикселей
+   */
+  setBulletRange(range) {
+    this.bulletRange = Math.max(1, Number(range) || 100);
+  }
+
+  /**
+   * 🔫 Установить автоогонь
+   * @param {boolean} auto - true для автоогня
+   */
+  setAutoFire(auto) {
+    this.autoFire = Boolean(auto);
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -107,7 +206,12 @@ export class MuzzleEntity extends Entity {
       normalizedDirection: this.getNormalizedDirection(),
       directionAngle: this.getDirectionAngle(),
       showDebug: this.showDebug,
-      debugColor: this.debugColor
+      debugColor: this.debugColor,
+      fireRate: this.fireRate,
+      bulletSpeed: this.bulletSpeed,
+      bulletRange: this.bulletRange,
+      autoFire: this.autoFire,
+      isFiring: this._isFiring
     };
   }
 }

@@ -38,6 +38,37 @@
       </label>
     </div>
 
+    <div class="form__section form__section--fire">
+      <div class="form__section-title">🔫 Fire Parameters (параметры стрельбы)</div>
+
+      <label class="field">
+        <span class="field__label">Fire Rate (скорострельность)</span>
+        <input class="field__input" type="number" step="0.1" min="0.1" max="100" v-model.number="model.fireRate" />
+        <span class="field__hint">Выстрелов в секунду (по умолчанию: 5)</span>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Bullet Speed (скорость пули)</span>
+        <input class="field__input" type="number" step="10" min="1" v-model.number="model.bulletSpeed" />
+        <span class="field__hint">Пикселей в секунду (по умолчанию: 500)</span>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Bullet Range (дальность пули)</span>
+        <input class="field__input" type="number" step="10" min="1" v-model.number="model.bulletRange" />
+        <span class="field__hint">Пикселей (по умолчанию: 1000)</span>
+      </label>
+
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.autoFire" />
+        <span class="field__label">Auto Fire (автоогонь)</span>
+      </label>
+      <span class="field__hint">
+        • Включено - стрельба при зажатой кнопке мыши<br>
+        • Выключено - одиночный выстрел при клике
+      </span>
+    </div>
+
     <div class="form__section">
       <div class="form__section-title">Debug Visualization</div>
       <label class="field field--row">
@@ -55,7 +86,8 @@
       <div class="form__section-title">Примечание</div>
       <div class="field__hint">
         Muzzle крепится ТОЛЬКО через слоты к другим сущностям.<br>
-        В слоте должен быть physicsMode: 'instant' (без lerp/spring).
+        В слоте должен быть physicsMode: 'instant' (без lerp/spring).<br>
+        Стрельба пока привязана к левой кнопке мыши (хардкод).
       </div>
     </div>
   </div>
@@ -90,6 +122,10 @@ const model = defineModel();
   border-radius: 8px;
   background: rgba(255, 0, 255, 0.05);
   border: 1px solid rgba(255, 0, 255, 0.15);
+}
+.form__section--fire {
+  background: rgba(255, 165, 0, 0.08);
+  border: 1px solid rgba(255, 165, 0, 0.25);
 }
 .form__section--info {
   background: rgba(123, 211, 255, 0.05);

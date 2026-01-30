@@ -102,8 +102,14 @@ export function useCreateFlow({
     } else if (type === 'muzzle') {
       muzzleForm.id = suggestId('muzzle', muzzles);
       muzzleForm.direction = { x: 1, y: 0 };
+      muzzleForm.directionMode = 'relative';
       muzzleForm.showDebug = true;
       muzzleForm.debugColor = '#FF00FF';
+      // 🔫 Fire parameters defaults
+      muzzleForm.fireRate = 5;
+      muzzleForm.bulletSpeed = 500;
+      muzzleForm.bulletRange = 1000;
+      muzzleForm.autoFire = false;
     }
   }
 
