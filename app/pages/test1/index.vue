@@ -315,19 +315,12 @@
         </div>
 
         <!-- Muzzle Inspector -->
-        <div v-else-if="selected.type === 'muzzle' && selectedMuzzle" class="inspector__content">
-          <div class="inspector__title">🔫 Muzzle: {{ selectedMuzzle.id }}</div>
-          <div class="kv">
-            <div class="kv__row"><div class="kv__k">ID</div><div class="kv__v">{{ selectedMuzzle.id }}</div></div>
-            <div class="kv__row"><div class="kv__k">Direction</div><div class="kv__v">({{ selectedMuzzle.direction?.x }}, {{ selectedMuzzle.direction?.y }})</div></div>
-            <div class="kv__row"><div class="kv__k">Show Debug</div><div class="kv__v">{{ selectedMuzzle.showDebug ? 'enabled' : 'disabled' }}</div></div>
-            <div class="kv__row"><div class="kv__k">Debug Color</div><div class="kv__v" :style="{color: selectedMuzzle.debugColor}">{{ selectedMuzzle.debugColor }}</div></div>
-          </div>
-          <div class="inspector__section">
-            <div class="inspector__section-title">📌 Attach to Slot</div>
-            <div class="field__hint">Muzzles should be attached to slots on entities for positioning.</div>
-          </div>
-        </div>
+        <MuzzleInspector
+          v-else-if="selected.type === 'muzzle' && selectedMuzzle"
+          :muzzle="selectedMuzzle"
+          :muzzle-ui="muzzleUi"
+          @apply="applySelectedMuzzleUi"
+        />
 
         <!-- Region Inspector -->
         <div v-else-if="selected.type === 'region' && selectedRegion" class="inspector__content">
@@ -664,6 +657,7 @@
   import CollisionRelationForm from './components/forms/CollisionRelationForm.vue';
   import WorldInspector from './components/inspectors/WorldInspector.vue';
   import CanvasInspector from './components/inspectors/CanvasInspector.vue';
+  import MuzzleInspector from './components/inspectors/MuzzleInspector.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
@@ -723,6 +717,18 @@ const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', 
 const leftPanelMode = ref('hierarchy');
 
 const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showMode: 'all', showRegions: true, showRegionBorders: true, showGameEntities: true, showUIEntities: true });
+
+// 🔫 Muzzle UI state for inspector
+const muzzleUi = reactive({
+  fireRate: 5,
+  bulletSpeed: 500,
+  bulletRange: 1000,
+  autoFire: false,
+  direction: { x: 1, y: 0 },
+  directionMode: 'relative',
+  showDebug: true,
+  debugColor: '#FF00FF'
+});
 
 // Attachment form for unattached entities
 const attachmentForm = reactive({
@@ -1277,6 +1283,28 @@ function syncCameraUiFromSelected() {
   }
 }
 
+// 🔫 Синхронизировать muzzleUi из выбранного muzzle
+function syncMuzzleUiFromSelected() {
+  if (!selectedMuzzle.value) return;
+  const m = selectedMuzzle.value;
+
+  // Синхронизируем параметры стрельбы
+  muzzleUi.fireRate = m.fireRate !== undefined ? m.fireRate : 5;
+  muzzleUi.bulletSpeed = m.bulletSpeed !== undefined ? m.bulletSpeed : 500;
+  muzzleUi.bulletRange = m.bulletRange !== undefined ? m.bulletRange : 1000;
+  muzzleUi.autoFire = m.autoFire !== undefined ? m.autoFire : false;
+
+  // Синхронизируем направление
+  muzzleUi.direction = m.direction ? { ...m.direction } : { x: 1, y: 0 };
+  muzzleUi.directionMode = m.directionMode || 'relative';
+
+  // Синхронизируем debug настройки
+  muzzleUi.showDebug = m.showDebug !== undefined ? m.showDebug : true;
+  muzzleUi.debugColor = m.debugColor || '#FF00FF';
+
+  console.log('🔫 Muzzle UI synced:', m.id);
+}
+
 function applySelectedCameraUi() {
   if (!selectedCamera.value) return;
   const cam = selectedCamera.value.instance;
@@ -1297,6 +1325,40 @@ function applySelectedCameraUi() {
 
   // UI rendering now handled by engine - no need to call updateUITransforms
   // updateUITransforms();
+}
+
+// 🔫 Применить настройки muzzle из UI
+function applySelectedMuzzleUi() {
+  const selectedMuzzle = muzzles.find(m => m.id === selected.value?.id);
+  if (!selectedMuzzle || !selectedMuzzle.instance) return;
+
+  const instance = selectedMuzzle.instance;
+
+  // Применяем параметры стрельбы
+  instance.setFireRate(muzzleUi.fireRate);
+  instance.setBulletSpeed(muzzleUi.bulletSpeed);
+  instance.setBulletRange(muzzleUi.bulletRange);
+  instance.setAutoFire(muzzleUi.autoFire);
+
+  // Применяем направление
+  instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
+  instance.setDirectionMode(muzzleUi.directionMode);
+
+  // Применяем debug настройки
+  instance.setShowDebug(muzzleUi.showDebug);
+  instance.setDebugColor(muzzleUi.debugColor);
+
+  // Обновляем модель
+  selectedMuzzle.fireRate = muzzleUi.fireRate;
+  selectedMuzzle.bulletSpeed = muzzleUi.bulletSpeed;
+  selectedMuzzle.bulletRange = muzzleUi.bulletRange;
+  selectedMuzzle.autoFire = muzzleUi.autoFire;
+  selectedMuzzle.direction = { ...muzzleUi.direction };
+  selectedMuzzle.directionMode = muzzleUi.directionMode;
+  selectedMuzzle.showDebug = muzzleUi.showDebug;
+  selectedMuzzle.debugColor = muzzleUi.debugColor;
+
+  console.log('🔫 Muzzle settings applied:', selectedMuzzle.id);
 }
 
 // ---------------------------
@@ -2388,6 +2450,9 @@ useRenderLoop({
 
 // Keep inspector sliders in sync when camera selection changes
 watch(selectedCamera, () => syncCameraUiFromSelected());
+
+// 🔫 Keep muzzle inspector in sync when muzzle selection changes
+watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
 </script>
 
 <style scoped>
