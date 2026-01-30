@@ -25,7 +25,7 @@
       <!-- Bullet Speed -->
       <div class="inspector__group">
         <div class="inspector__label">Bullet Speed: {{ muzzleUi.bulletSpeed.toFixed(0) }} px/s</div>
-        <input type="range" v-model.number="muzzleUi.bulletSpeed" min="50" max="2000" step="10" @input="apply" />
+        <input type="range" v-model.number="muzzleUi.bulletSpeed" min="10" max="2000" step="10" @input="apply" />
         <div class="inspector__value">
           {{ muzzleUi.bulletSpeed < 200 ? '🐌 Slow' : muzzleUi.bulletSpeed > 1000 ? '💨 Fast' : '🚀 Normal' }}
         </div>
