@@ -2032,8 +2032,8 @@ function createMuzzleFromForm() {
   const instance = markRaw(new MuzzleEntity({
     id,
     direction: {
-      x: Number(muzzleForm.direction.x) || 1,
-      y: Number(muzzleForm.direction.y) || 0
+      x: muzzleForm.direction.x != null ? Number(muzzleForm.direction.x) : 1,
+      y: muzzleForm.direction.y != null ? Number(muzzleForm.direction.y) : 0
     },
     directionMode: muzzleForm.directionMode || 'relative',
     showDebug: muzzleForm.showDebug !== false,
