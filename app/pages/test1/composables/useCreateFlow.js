@@ -112,6 +112,11 @@ export function useCreateFlow({
       muzzleForm.bulletSize = 8;
       muzzleForm.bulletColor = '#FFFFFF';
       muzzleForm.autoFire = false;
+      // 🔫 Multi-shot defaults
+      muzzleForm.bulletCount = 1;
+      muzzleForm.isSpread = false;
+      muzzleForm.spreadAngle = 45;
+      muzzleForm.scatterChance = 1;
     }
   }
 

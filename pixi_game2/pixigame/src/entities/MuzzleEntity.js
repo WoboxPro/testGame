@@ -9,6 +9,7 @@
  * - В слотах работает только с physicsMode: 'instant'
  * - Имеет направление (direction) - вектор куда направлен ствол
  * - Может стрелять пулями с заданными параметрами
+ * - Поддерживает веерную стрельбу несколькими пулями
  */
 
 import { Entity } from './Entity.js';
@@ -25,7 +26,11 @@ export class MuzzleEntity extends Entity {
    *  bulletRange?: number,
    *  bulletSize?: number,
    *  bulletColor?: string,
-   *  autoFire?: boolean
+   *  autoFire?: boolean,
+   *  bulletCount?: number,
+   *  isSpread?: boolean,
+   *  spreadAngle?: number,
+   *  scatterChance?: number
    * }} options
    */
   constructor(options = {}) {
@@ -63,6 +68,21 @@ export class MuzzleEntity extends Entity {
 
     // Автоогонь (true = зажатая кнопка, false = одиночный выстрел при клике)
     this.autoFire = options.autoFire !== undefined ? Boolean(options.autoFire) : false;
+
+    // 🔫 Множественная стрельба
+    // Количество пуль за выстрел (1-20)
+    this.bulletCount = Math.min(20, Math.max(1, Number(options.bulletCount) || 1));
+
+    // Веерная стрельба (true = пули разлетаются веером)
+    this.isSpread = options.isSpread !== undefined ? Boolean(options.isSpread) : false;
+
+    // Угол веера в градусах (для isSpread = true)
+    this.spreadAngle = options.spreadAngle !== undefined ? Number(options.spreadAngle) : 45;
+
+    // Шанс разброса (0-1) для режима без равномерного веера
+    // 0 = никогда не разбрасывает, все летят по центру
+    // 1 = всегда разбрасывает
+    this.scatterChance = options.scatterChance !== undefined ? Number(options.scatterChance) : 1;
 
     // Внутреннее состояние для стрельбы
     this._lastFireTime = 0;
@@ -222,6 +242,38 @@ export class MuzzleEntity extends Entity {
     this.bulletColor = color || '#FFFFFF';
   }
 
+  /**
+   * 🔫 Установить количество пуль за выстрел
+   * @param {number} count - Количество пуль (1-20)
+   */
+  setBulletCount(count) {
+    this.bulletCount = Math.min(20, Math.max(1, Number(count) || 1));
+  }
+
+  /**
+   * 🔫 Установить веерную стрельбу
+   * @param {boolean} spread - true для веерной стрельбы
+   */
+  setIsSpread(spread) {
+    this.isSpread = Boolean(spread);
+  }
+
+  /**
+   * 🔫 Установить угол веера
+   * @param {number} angle - Угол веера в градусах
+   */
+  setSpreadAngle(angle) {
+    this.spreadAngle = Math.max(1, Math.min(360, Number(angle) || 45));
+  }
+
+  /**
+   * 🔫 Установить шанс разброса
+   * @param {number} chance - Шанс разброса (0-1)
+   */
+  setScatterChance(chance) {
+    this.scatterChance = Math.max(0, Math.min(1, Number(chance) || 1));
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -237,6 +289,10 @@ export class MuzzleEntity extends Entity {
       bulletSize: this.bulletSize,
       bulletColor: this.bulletColor,
       autoFire: this.autoFire,
+      bulletCount: this.bulletCount,
+      isSpread: this.isSpread,
+      spreadAngle: this.spreadAngle,
+      scatterChance: this.scatterChance,
       isFiring: this._isFiring
     };
   }

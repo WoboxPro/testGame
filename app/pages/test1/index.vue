@@ -726,6 +726,10 @@ const muzzleUi = reactive({
   bulletSize: 8,
   bulletColor: '#FFFFFF',
   autoFire: false,
+  bulletCount: 1,
+  isSpread: false,
+  spreadAngle: 45,
+  scatterChance: 1,
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
@@ -957,7 +961,19 @@ const muzzleForm = reactive({
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
-  debugColor: '#FF00FF'
+  debugColor: '#FF00FF',
+  // 🔫 Fire parameters
+  fireRate: 5,
+  bulletSpeed: 500,
+  bulletRange: 1000,
+  bulletSize: 8,
+  bulletColor: '#FFFFFF',
+  autoFire: false,
+  // 🔫 Multi-shot parameters
+  bulletCount: 1,
+  isSpread: false,
+  spreadAngle: 45,
+  scatterChance: 1
 });
 
  // Slot form
@@ -1297,6 +1313,10 @@ function syncMuzzleUiFromSelected() {
   muzzleUi.bulletSize = m.bulletSize !== undefined ? m.bulletSize : 8;
   muzzleUi.bulletColor = m.bulletColor || '#FFFFFF';
   muzzleUi.autoFire = m.autoFire !== undefined ? m.autoFire : false;
+  muzzleUi.bulletCount = m.bulletCount !== undefined ? m.bulletCount : 1;
+  muzzleUi.isSpread = m.isSpread !== undefined ? m.isSpread : false;
+  muzzleUi.spreadAngle = m.spreadAngle !== undefined ? m.spreadAngle : 45;
+  muzzleUi.scatterChance = m.scatterChance !== undefined ? m.scatterChance : 1;
 
   // Синхронизируем направление
   muzzleUi.direction = m.direction ? { ...m.direction } : { x: 1, y: 0 };
@@ -1345,6 +1365,10 @@ function applySelectedMuzzleUi() {
   instance.setBulletSize(muzzleUi.bulletSize);
   instance.setBulletColor(muzzleUi.bulletColor);
   instance.setAutoFire(muzzleUi.autoFire);
+  instance.setBulletCount(muzzleUi.bulletCount);
+  instance.setIsSpread(muzzleUi.isSpread);
+  instance.setSpreadAngle(muzzleUi.spreadAngle);
+  instance.setScatterChance(muzzleUi.scatterChance);
 
   // Применяем направление
   instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
@@ -1361,6 +1385,10 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.bulletSize = muzzleUi.bulletSize;
   selectedMuzzle.bulletColor = muzzleUi.bulletColor;
   selectedMuzzle.autoFire = muzzleUi.autoFire;
+  selectedMuzzle.bulletCount = muzzleUi.bulletCount;
+  selectedMuzzle.isSpread = muzzleUi.isSpread;
+  selectedMuzzle.spreadAngle = muzzleUi.spreadAngle;
+  selectedMuzzle.scatterChance = muzzleUi.scatterChance;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
   selectedMuzzle.showDebug = muzzleUi.showDebug;
@@ -2053,6 +2081,11 @@ function createMuzzleFromForm() {
     bulletSize: Number(muzzleForm.bulletSize) || 8,
     bulletColor: muzzleForm.bulletColor?.trim() || '#FFFFFF',
     autoFire: Boolean(muzzleForm.autoFire) || false,
+    // 🔫 Multi-shot parameters
+    bulletCount: Math.min(20, Math.max(1, Number(muzzleForm.bulletCount) || 1)),
+    isSpread: Boolean(muzzleForm.isSpread) || false,
+    spreadAngle: Math.max(1, Math.min(359, Number(muzzleForm.spreadAngle) || 45)),
+    scatterChance: Math.max(0, Math.min(1, Number(muzzleForm.scatterChance) || 1)),
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }

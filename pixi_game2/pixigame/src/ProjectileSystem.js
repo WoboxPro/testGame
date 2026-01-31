@@ -52,28 +52,28 @@ export class ProjectileSystem {
   }
 
   /**
-   * 🔫 Создать пулю из muzzle
+   * 🔫 Создать пулю(ы) из muzzle
    * @param {string} muzzleId - ID muzzle
-   * @returns {string|null} - ID созданной пули или null
+   * @returns {string[]} - Массив ID созданных пуль (пустой массив если ошибка)
    */
   fireFromMuzzle(muzzleId) {
     const muzzle = this.muzzles.get(muzzleId);
     if (!muzzle) {
       console.warn(`ProjectileSystem.fireFromMuzzle(): muzzle not found: ${muzzleId}`);
-      return null;
+      return [];
     }
 
     // Получаем позицию muzzle из world
     const muzzleComponents = this.world.entities.get(muzzleId);
     if (!muzzleComponents) {
       console.warn(`ProjectileSystem.fireFromMuzzle(): muzzle not in world: ${muzzleId}`);
-      return null;
+      return [];
     }
 
     const position = muzzleComponents.get('position');
     if (!position) {
       console.warn(`ProjectileSystem.fireFromMuzzle(): muzzle has no position: ${muzzleId}`);
-      return null;
+      return [];
     }
 
     // Получаем направление с учетом поворота и mirrorDirection
@@ -87,57 +87,100 @@ export class ProjectileSystem {
 
     // Вычисляем направление с учетом muzzle settings
     const directionMode = muzzle.directionMode || 'relative';
-    let dirX = muzzle.direction.x;
-    let dirY = muzzle.direction.y;
+    let baseDirX = muzzle.direction.x;
+    let baseDirY = muzzle.direction.y;
 
     // Применяем rotation к direction ТОЛЬКО для relative режима
     if (directionMode === 'relative') {
-      const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
-      const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
-      dirX = rotatedDirX * mirrorDirection.x;
-      dirY = rotatedDirY * mirrorDirection.y;
+      const rotatedDirX = baseDirX * Math.cos(rotation) - baseDirY * Math.sin(rotation);
+      const rotatedDirY = baseDirX * Math.sin(rotation) + baseDirY * Math.cos(rotation);
+      baseDirX = rotatedDirX * mirrorDirection.x;
+      baseDirY = rotatedDirY * mirrorDirection.y;
     }
     // Для static режима rotation НЕ применяется
 
-    // Нормализуем направление
-    const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+    // Нормализуем базовое направление
+    const dirLength = Math.sqrt(baseDirX * baseDirX + baseDirY * baseDirY);
     if (dirLength > 0) {
-      dirX /= dirLength;
-      dirY /= dirLength;
+      baseDirX /= dirLength;
+      baseDirY /= dirLength;
     }
 
-    // Создаем пулю
-    const bulletId = `bullet_${this._projectileCounter++}`;
-    const bullet = new BulletEntity({
-      id: bulletId,
-      position: { x: position.x, y: position.y },
-      direction: { x: dirX, y: dirY },
-      speed: muzzle.bulletSpeed,
-      range: muzzle.bulletRange,
-      color: muzzle.bulletColor || '#FFFFFF',
-      size: muzzle.bulletSize || 8
-    });
+    // Вычисляем базовый угол направления
+    const baseAngle = Math.atan2(baseDirY, baseDirX);
 
-    // Добавляем пулю в мир как ECS компоненты
-    const bulletComponents = new Map();
-    bulletComponents.set('_entityRef', bullet);
-    bulletComponents.set('position', bullet.position);
-    bulletComponents.set('velocity', { x: dirX * bullet.speed, y: dirY * bullet.speed });
-    bulletComponents.set('appearance', bullet.appearance);
-    bulletComponents.set('subtype', bullet.subtype);
+    // Получаем параметры множественной стрельбы
+    const bulletCount = muzzle.bulletCount || 1;
+    const isSpread = muzzle.isSpread || false;
+    const spreadAngle = (muzzle.spreadAngle || 45) * (Math.PI / 180); // конвертируем в радианы
 
-    this.world.entities.set(bulletId, bulletComponents);
+    const createdBulletIds = [];
 
-    // Регистрируем в системе
-    this.projectiles.set(bulletId, {
-      bullet,
-      worldId: this.world.id,
-      spawnTime: Date.now(),
-      muzzleId
-    });
+    // Создаем пули
+    for (let i = 0; i < bulletCount; i++) {
+      let dirX, dirY;
 
-    console.log(`🔫 Пуля создана: ${bulletId} from muzzle ${muzzleId}, dir=(${dirX.toFixed(2)}, ${dirY.toFixed(2)})`);
-    return bulletId;
+      if (isSpread && bulletCount > 1) {
+        // Веерная стрельба - распределяем пули по углу веера равномерно
+        // Угол начала веера (отрицательный угол от базового направления)
+        const startAngle = baseAngle - spreadAngle / 2;
+        // Шаг угла между пулями
+        const angleStep = spreadAngle / (bulletCount - 1);
+        // Угол текущей пули
+        const bulletAngle = startAngle + (i * angleStep);
+
+        dirX = Math.cos(bulletAngle);
+        dirY = Math.sin(bulletAngle);
+      } else if (!isSpread && Math.random() < (muzzle.scatterChance ?? 1)) {
+        // Случайный разброс (для любого количества пуль, включая 1)
+        // Случайный угол в пределах [-spreadAngle/2, +spreadAngle/2]
+        const randomOffset = (Math.random() - 0.5) * spreadAngle;
+        const bulletAngle = baseAngle + randomOffset;
+
+        dirX = Math.cos(bulletAngle);
+        dirY = Math.sin(bulletAngle);
+      } else {
+        // Стрельба по центру (равномерный веер с 1 пулей или разброс не сработал)
+        dirX = baseDirX;
+        dirY = baseDirY;
+      }
+
+      // Создаем пулю
+      const bulletId = `bullet_${this._projectileCounter++}`;
+      const bullet = new BulletEntity({
+        id: bulletId,
+        position: { x: position.x, y: position.y },
+        direction: { x: dirX, y: dirY },
+        speed: muzzle.bulletSpeed,
+        range: muzzle.bulletRange,
+        color: muzzle.bulletColor || '#FFFFFF',
+        size: muzzle.bulletSize || 8
+      });
+
+      // Добавляем пулю в мир как ECS компоненты
+      const bulletComponents = new Map();
+      bulletComponents.set('_entityRef', bullet);
+      bulletComponents.set('position', bullet.position);
+      bulletComponents.set('velocity', { x: dirX * bullet.speed, y: dirY * bullet.speed });
+      bulletComponents.set('appearance', bullet.appearance);
+      bulletComponents.set('subtype', bullet.subtype);
+
+      this.world.entities.set(bulletId, bulletComponents);
+
+      // Регистрируем в системе
+      this.projectiles.set(bulletId, {
+        bullet,
+        worldId: this.world.id,
+        spawnTime: Date.now(),
+        muzzleId
+      });
+
+      createdBulletIds.push(bulletId);
+    }
+
+    const modeText = isSpread ? 'равномерный веер' : (bulletCount > 1 ? 'случайный разброс' : 'одиночная');
+    console.log(`🔫 Создано ${createdBulletIds.length} пуль из muzzle ${muzzleId} (${modeText})`);
+    return createdBulletIds;
   }
 
   /**

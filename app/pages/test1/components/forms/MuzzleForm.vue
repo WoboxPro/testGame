@@ -82,6 +82,36 @@
         • Включено - стрельба при зажатой кнопке мыши<br>
         • Выключено - одиночный выстрел при клике
       </span>
+
+      <label class="field">
+        <span class="field__label">Bullet Count (количество пуль)</span>
+        <input class="field__input" type="number" step="1" min="1" max="20" v-model.number="model.bulletCount" />
+        <span class="field__hint">Пуль за выстрел (1-20, по умолчанию: 1)</span>
+      </label>
+
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.isSpread" />
+        <span class="field__label">🌟 Равномерный веер (для нескольких пуль)</span>
+      </label>
+      <span class="field__hint" v-if="!model.isSpread">
+        Случайный разброс для каждой пули (работает и для 1 пули!)
+      </span>
+
+      <label class="field">
+        <span class="field__label">Макс. разброс (угол)</span>
+        <input class="field__input" type="number" step="5" min="5" max="359" v-model.number="model.spreadAngle" />
+        <span class="field__hint">
+          {{ model.isSpread && (model.bulletCount ?? 1) > 1 ? 'Градусов для равномерного веера' : 'Градусов для случайного разброса' }} (5-359, по умолчанию: 45)
+        </span>
+      </label>
+
+      <label class="field" v-if="!model.isSpread">
+        <span class="field__label">Шанс разброса (0-1)</span>
+        <input class="field__input" type="number" step="0.05" min="0" max="1" v-model.number="model.scatterChance" />
+        <span class="field__hint">
+          Вероятность разброса для каждой пули (0 = никогда, 1 = всегда, по умолчанию: 1)
+        </span>
+      </label>
     </div>
 
     <div class="form__section">

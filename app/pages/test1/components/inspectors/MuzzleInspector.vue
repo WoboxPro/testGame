@@ -66,6 +66,42 @@
       <div class="inspector__hint">
         {{ muzzleUi.autoFire ? '🔥 Стрельба при зажатой ЛКМ' : '🎯 Одиночный выстрел при клике' }}
       </div>
+
+      <!-- Bullet Count -->
+      <div class="inspector__group">
+        <div class="inspector__label">Bullet Count: {{ muzzleUi.bulletCount ?? 1 }}</div>
+        <input type="range" v-model.number="muzzleUi.bulletCount" min="1" max="20" step="1" @input="apply" />
+        <div class="inspector__value">
+          {{ (muzzleUi.bulletCount ?? 1) === 1 ? '🔫 Single' : (muzzleUi.bulletCount ?? 1) > 10 ? '💥 Many' : '🔫🔫 Multi' }}
+        </div>
+      </div>
+
+      <!-- Is Spread -->
+      <label class="field field--row">
+        <input type="checkbox" v-model="muzzleUi.isSpread" @change="apply" />
+        <span class="field__label">🌟 Равномерный веер (для нескольких пуль)</span>
+      </label>
+      <div class="inspector__hint" v-if="!muzzleUi.isSpread">
+        Случайный разброс для каждой пули (работает и для 1 пули!)
+      </div>
+
+      <!-- Spread Angle -->
+      <div class="inspector__group">
+        <div class="inspector__label">Макс. разброс: {{ (muzzleUi.spreadAngle ?? 45).toFixed(0) }}°</div>
+        <input type="range" v-model.number="muzzleUi.spreadAngle" min="5" max="359" step="5" @input="apply" />
+        <div class="inspector__value">
+          {{ muzzleUi.isSpread && (muzzleUi.bulletCount ?? 1) > 1 ? '📐 Равномерный веер' : '🎲 Случайный разброс' }}
+        </div>
+      </div>
+
+      <!-- Scatter Chance -->
+      <div class="inspector__group" v-if="!muzzleUi.isSpread">
+        <div class="inspector__label">Шанс разброса: {{ ((muzzleUi.scatterChance ?? 1) * 100).toFixed(0) }}%</div>
+        <input type="range" v-model.number="muzzleUi.scatterChance" min="0" max="1" step="0.05" @input="apply" />
+        <div class="inspector__value">
+          {{ (muzzleUi.scatterChance ?? 1) === 0 ? '❌ Никогда' : (muzzleUi.scatterChance ?? 1) === 1 ? '🎲 Всегда' : '🎲 Частично' }}
+        </div>
+      </div>
     </div>
 
     <!-- Debug Section -->
