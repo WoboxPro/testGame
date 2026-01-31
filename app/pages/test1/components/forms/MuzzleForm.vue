@@ -59,6 +59,21 @@
         <span class="field__hint">Пикселей (по умолчанию: 1000)</span>
       </label>
 
+      <label class="field">
+        <span class="field__label">Bullet Size (размер пули)</span>
+        <input class="field__input" type="number" step="1" min="1" max="100" v-model.number="model.bulletSize" />
+        <span class="field__hint">Пикселей (по умолчанию: 8)</span>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Bullet Color (цвет пули)</span>
+        <div class="color-input-wrapper">
+          <input type="color" v-model="model.bulletColor" class="color-input" />
+          <input type="text" v-model.trim="model.bulletColor" class="field__input color-text" placeholder="#FFFFFF" maxlength="7" />
+        </div>
+        <span class="field__hint">Hex цвет (по умолчанию: #FFFFFF)</span>
+      </label>
+
       <label class="field field--row">
         <input type="checkbox" v-model="model.autoFire" />
         <span class="field__label">Auto Fire (автоогонь)</span>
@@ -117,6 +132,24 @@ const model = defineModel();
   color: rgba(255, 255, 255, 0.92);
 }
 .field__input:focus { outline: 2px solid rgba(255, 0, 255, 0.25); border-color: rgba(255, 0, 255, 0.30); }
+.color-input-wrapper {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 8px;
+}
+.color-input {
+  height: 36px;
+  width: 100%;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}
+.color-text {
+  font-family: monospace;
+  text-transform: uppercase;
+}
 .form__section {
   padding: 10px;
   border-radius: 8px;

@@ -723,6 +723,8 @@ const muzzleUi = reactive({
   fireRate: 5,
   bulletSpeed: 500,
   bulletRange: 1000,
+  bulletSize: 8,
+  bulletColor: '#FFFFFF',
   autoFire: false,
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
@@ -1292,6 +1294,8 @@ function syncMuzzleUiFromSelected() {
   muzzleUi.fireRate = m.fireRate !== undefined ? m.fireRate : 5;
   muzzleUi.bulletSpeed = m.bulletSpeed !== undefined ? m.bulletSpeed : 500;
   muzzleUi.bulletRange = m.bulletRange !== undefined ? m.bulletRange : 1000;
+  muzzleUi.bulletSize = m.bulletSize !== undefined ? m.bulletSize : 8;
+  muzzleUi.bulletColor = m.bulletColor || '#FFFFFF';
   muzzleUi.autoFire = m.autoFire !== undefined ? m.autoFire : false;
 
   // Синхронизируем направление
@@ -1338,6 +1342,8 @@ function applySelectedMuzzleUi() {
   instance.setFireRate(muzzleUi.fireRate);
   instance.setBulletSpeed(muzzleUi.bulletSpeed);
   instance.setBulletRange(muzzleUi.bulletRange);
+  instance.setBulletSize(muzzleUi.bulletSize);
+  instance.setBulletColor(muzzleUi.bulletColor);
   instance.setAutoFire(muzzleUi.autoFire);
 
   // Применяем направление
@@ -1352,6 +1358,8 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.fireRate = muzzleUi.fireRate;
   selectedMuzzle.bulletSpeed = muzzleUi.bulletSpeed;
   selectedMuzzle.bulletRange = muzzleUi.bulletRange;
+  selectedMuzzle.bulletSize = muzzleUi.bulletSize;
+  selectedMuzzle.bulletColor = muzzleUi.bulletColor;
   selectedMuzzle.autoFire = muzzleUi.autoFire;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
@@ -2042,6 +2050,8 @@ function createMuzzleFromForm() {
     fireRate: Number(muzzleForm.fireRate) || 5,
     bulletSpeed: Number(muzzleForm.bulletSpeed) || 500,
     bulletRange: Number(muzzleForm.bulletRange) || 1000,
+    bulletSize: Number(muzzleForm.bulletSize) || 8,
+    bulletColor: muzzleForm.bulletColor?.trim() || '#FFFFFF',
     autoFire: Boolean(muzzleForm.autoFire) || false,
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
@@ -2077,6 +2087,8 @@ function createMuzzleFromForm() {
     fireRate: instance.fireRate,
     bulletSpeed: instance.bulletSpeed,
     bulletRange: instance.bulletRange,
+    bulletSize: instance.bulletSize,
+    bulletColor: instance.bulletColor,
     autoFire: instance.autoFire,
     instance,
     worldId: worldModel?.id // Store world reference

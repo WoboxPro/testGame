@@ -40,6 +40,24 @@
         </div>
       </div>
 
+      <!-- Bullet Size -->
+      <div class="inspector__group">
+        <div class="inspector__label">Bullet Size: {{ muzzleUi.bulletSize.toFixed(0) }} px</div>
+        <input type="range" v-model.number="muzzleUi.bulletSize" min="1" max="50" step="1" @input="apply" />
+        <div class="inspector__value">
+          {{ muzzleUi.bulletSize < 5 ? '🔹 Tiny' : muzzleUi.bulletSize > 20 ? '⬛ Huge' : '⚪ Normal' }}
+        </div>
+      </div>
+
+      <!-- Bullet Color -->
+      <div class="inspector__group">
+        <div class="inspector__label">Bullet Color</div>
+        <div class="color-input-wrapper">
+          <input type="color" v-model="muzzleUi.bulletColor" @input="apply" class="color-input" />
+          <div class="inspector__value">{{ muzzleUi.bulletColor }}</div>
+        </div>
+      </div>
+
       <!-- Auto Fire -->
       <label class="field field--row">
         <input type="checkbox" v-model="muzzleUi.autoFire" @change="apply" />
@@ -226,6 +244,13 @@ const fireInterval = computed(() => {
   height: 40px;
   padding: 2px;
   cursor: pointer;
+}
+
+.color-input-wrapper {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 8px;
+  align-items: center;
 }
 
 input[type="range"] {

@@ -109,6 +109,8 @@ export function useCreateFlow({
       muzzleForm.fireRate = 5;
       muzzleForm.bulletSpeed = 500;
       muzzleForm.bulletRange = 1000;
+      muzzleForm.bulletSize = 8;
+      muzzleForm.bulletColor = '#FFFFFF';
       muzzleForm.autoFire = false;
     }
   }

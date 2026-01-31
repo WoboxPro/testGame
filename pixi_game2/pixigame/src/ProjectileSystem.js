@@ -114,8 +114,8 @@ export class ProjectileSystem {
       direction: { x: dirX, y: dirY },
       speed: muzzle.bulletSpeed,
       range: muzzle.bulletRange,
-      color: '#FFFFFF',
-      size: 8
+      color: muzzle.bulletColor || '#FFFFFF',
+      size: muzzle.bulletSize || 8
     });
 
     // Добавляем пулю в мир как ECS компоненты

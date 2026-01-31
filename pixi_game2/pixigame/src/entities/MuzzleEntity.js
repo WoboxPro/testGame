@@ -23,6 +23,8 @@ export class MuzzleEntity extends Entity {
    *  fireRate?: number,
    *  bulletSpeed?: number,
    *  bulletRange?: number,
+   *  bulletSize?: number,
+   *  bulletColor?: string,
    *  autoFire?: boolean
    * }} options
    */
@@ -52,6 +54,12 @@ export class MuzzleEntity extends Entity {
 
     // Дальность полета пули (пикселей)
     this.bulletRange = options.bulletRange !== undefined ? Number(options.bulletRange) : 1000;
+
+    // Размер пули (пикселей)
+    this.bulletSize = options.bulletSize !== undefined ? Number(options.bulletSize) : 8;
+
+    // Цвет пули
+    this.bulletColor = options.bulletColor || '#FFFFFF';
 
     // Автоогонь (true = зажатая кнопка, false = одиночный выстрел при клике)
     this.autoFire = options.autoFire !== undefined ? Boolean(options.autoFire) : false;
@@ -198,6 +206,22 @@ export class MuzzleEntity extends Entity {
     this.autoFire = Boolean(auto);
   }
 
+  /**
+   * 🔫 Установить размер пули
+   * @param {number} size - Размер пули в пикселях
+   */
+  setBulletSize(size) {
+    this.bulletSize = Math.max(1, Number(size) || 8);
+  }
+
+  /**
+   * 🔫 Установить цвет пули
+   * @param {string} color - Hex цвет (#FFFFFF)
+   */
+  setBulletColor(color) {
+    this.bulletColor = color || '#FFFFFF';
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -210,6 +234,8 @@ export class MuzzleEntity extends Entity {
       fireRate: this.fireRate,
       bulletSpeed: this.bulletSpeed,
       bulletRange: this.bulletRange,
+      bulletSize: this.bulletSize,
+      bulletColor: this.bulletColor,
       autoFire: this.autoFire,
       isFiring: this._isFiring
     };
