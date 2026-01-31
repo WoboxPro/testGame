@@ -157,6 +157,22 @@ export class ProjectileSystem {
    * @param {number} dt - delta time в миллисекундах
    */
   update(dt) {
+    // ⏱️ Получаем глобальный timeScale из TimeSystem
+    let globalTimeScale = 1.0;
+    let isPaused = false;
+    try {
+      globalTimeScale = window.timeSystem?.getTimeScale() || 1.0;
+      isPaused = window.timeSystem?.isPaused() || false;
+    } catch (e) {}
+
+    // Если игра на паузе - пропускаем обновление пуль
+    if (isPaused) {
+      return;
+    }
+
+    // Применяем timeScale к dt
+    const adjustedDt = dt * globalTimeScale;
+
     const currentTime = performance.now();
 
     // 1. Проверяем все muzzle и создаем пули если нужно
@@ -173,8 +189,8 @@ export class ProjectileSystem {
     for (const [bulletId, projectileData] of this.projectiles) {
       const bullet = projectileData.bullet;
 
-      // Обновляем позицию
-      const alive = bullet.update(dt);
+      // Обновляем позицию с учётом timeScale
+      const alive = bullet.update(adjustedDt);
 
       // Синхронизируем с ECS
       const bulletComponents = this.world.entities.get(bulletId);
