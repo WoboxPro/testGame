@@ -119,6 +119,7 @@ export function useCreateFlow({
       muzzleForm.scatterChance = 0;
       muzzleForm.rangeScatterChance = 0;
       muzzleForm.rangeSpreadPercent = 10;
+      muzzleForm.bulletLifetime = 0;
     }
   }
 

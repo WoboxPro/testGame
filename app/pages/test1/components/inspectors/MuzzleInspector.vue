@@ -120,6 +120,15 @@
           Пример: при 400px → {{ (400 * (1 - (muzzleUi.rangeSpreadPercent ?? 10) / 100)).toFixed(0) }}-400px
         </div>
       </div>
+
+      <!-- Bullet Lifetime -->
+      <div class="inspector__group">
+        <div class="inspector__label">Время жизни пули: {{ (muzzleUi.bulletLifetime ?? 0).toFixed(1) }} сек</div>
+        <input type="range" v-model.number="muzzleUi.bulletLifetime" min="0" max="60" step="0.1" @input="apply" />
+        <div class="inspector__value">
+          {{ (muzzleUi.bulletLifetime ?? 0) === 0 ? '♾️ Бесконечно (по дальности)' : `⏱️ ${muzzleUi.bulletLifetime.toFixed(1)}сек` }}
+        </div>
+      </div>
     </div>
 
     <!-- Debug Section -->

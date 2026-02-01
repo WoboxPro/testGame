@@ -172,6 +172,7 @@ export class ProjectileSystem {
         direction: { x: dirX, y: dirY },
         speed: muzzle.bulletSpeed,
         range: bulletRange,
+        lifetime: muzzle.bulletLifetime || 0,
         color: muzzle.bulletColor || '#FFFFFF',
         size: muzzle.bulletSize || 8
       });

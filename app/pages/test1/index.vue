@@ -732,6 +732,7 @@ const muzzleUi = reactive({
   scatterChance: 0,
   rangeScatterChance: 0,
   rangeSpreadPercent: 10,
+  bulletLifetime: 0,
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
@@ -977,7 +978,8 @@ const muzzleForm = reactive({
   spreadAngle: 45,
   scatterChance: 0,
   rangeScatterChance: 0,
-  rangeSpreadPercent: 10
+  rangeSpreadPercent: 10,
+  bulletLifetime: 0
 });
 
  // Slot form
@@ -1323,6 +1325,7 @@ function syncMuzzleUiFromSelected() {
   muzzleUi.scatterChance = m.scatterChance !== undefined ? m.scatterChance : 0;
   muzzleUi.rangeScatterChance = m.rangeScatterChance !== undefined ? m.rangeScatterChance : 0;
   muzzleUi.rangeSpreadPercent = m.rangeSpreadPercent !== undefined ? m.rangeSpreadPercent : 10;
+  muzzleUi.bulletLifetime = m.bulletLifetime !== undefined ? m.bulletLifetime : 0;
 
   // Синхронизируем направление
   muzzleUi.direction = m.direction ? { ...m.direction } : { x: 1, y: 0 };
@@ -1377,6 +1380,7 @@ function applySelectedMuzzleUi() {
   instance.setScatterChance(muzzleUi.scatterChance);
   instance.setRangeScatterChance(muzzleUi.rangeScatterChance);
   instance.setRangeSpreadPercent(muzzleUi.rangeSpreadPercent);
+  instance.setBulletLifetime(muzzleUi.bulletLifetime);
 
   // Применяем направление
   instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
@@ -1399,6 +1403,7 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.scatterChance = muzzleUi.scatterChance;
   selectedMuzzle.rangeScatterChance = muzzleUi.rangeScatterChance;
   selectedMuzzle.rangeSpreadPercent = muzzleUi.rangeSpreadPercent;
+  selectedMuzzle.bulletLifetime = muzzleUi.bulletLifetime;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
   selectedMuzzle.showDebug = muzzleUi.showDebug;
@@ -2098,6 +2103,7 @@ function createMuzzleFromForm() {
     scatterChance: Math.max(0, Math.min(1, Number(muzzleForm.scatterChance) || 0)),
     rangeScatterChance: Math.max(0, Math.min(1, Number(muzzleForm.rangeScatterChance) || 0)),
     rangeSpreadPercent: Math.max(0, Math.min(100, Number(muzzleForm.rangeSpreadPercent) || 10)),
+    bulletLifetime: Math.max(0, Number(muzzleForm.bulletLifetime) || 0),
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }

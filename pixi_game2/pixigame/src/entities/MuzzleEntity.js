@@ -32,7 +32,8 @@ export class MuzzleEntity extends Entity {
    *  spreadAngle?: number,
    *  scatterChance?: number,
    *  rangeScatterChance?: number,
-   *  rangeSpreadPercent?: number
+   *  rangeSpreadPercent?: number,
+   *  bulletLifetime?: number
    * }} options
    */
   constructor(options = {}) {
@@ -95,6 +96,9 @@ export class MuzzleEntity extends Entity {
     // Определяет диапазон случайной дальности от максимальной
     // Например: 10% при дальности 400 = пули летят от 360 до 400
     this.rangeSpreadPercent = options.rangeSpreadPercent !== undefined ? Number(options.rangeSpreadPercent) : 10;
+
+    // Время жизни пули в секундах (0 = бесконечно, определяется расстоянием)
+    this.bulletLifetime = options.bulletLifetime !== undefined ? Number(options.bulletLifetime) : 0;
 
     // Внутреннее состояние для стрельбы
     this._lastFireTime = 0;
@@ -305,6 +309,15 @@ export class MuzzleEntity extends Entity {
     this.rangeSpreadPercent = Math.max(0, Math.min(100, isNaN(val) ? 10 : val));
   }
 
+  /**
+   * 🔫 Установить время жизни пули
+   * @param {number} lifetime - Время жизни в секундах (0 = бесконечно)
+   */
+  setBulletLifetime(lifetime) {
+    const val = Number(lifetime);
+    this.bulletLifetime = Math.max(0, isNaN(val) ? 0 : val);
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -326,6 +339,7 @@ export class MuzzleEntity extends Entity {
       scatterChance: this.scatterChance,
       rangeScatterChance: this.rangeScatterChance,
       rangeSpreadPercent: this.rangeSpreadPercent,
+      bulletLifetime: this.bulletLifetime,
       isFiring: this._isFiring
     };
   }

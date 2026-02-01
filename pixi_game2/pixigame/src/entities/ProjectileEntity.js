@@ -20,7 +20,8 @@ export class ProjectileEntity extends Entity {
    *  direction?: {x:number, y:number},
    *  speed?: number,
    *  range?: number,
-   *  damage?: number
+   *  damage?: number,
+   *  lifetime?: number
    * }} options
    */
   constructor(options = {}) {
@@ -39,8 +40,14 @@ export class ProjectileEntity extends Entity {
     // Урон (для будущего)
     this.damage = options.damage !== undefined ? Number(options.damage) : 10;
 
+    // Время жизни в секундах (0 = бесконечно, только по дальности)
+    this.lifetime = options.lifetime !== undefined ? Number(options.lifetime) : 0;
+
     // Пройденная дистанция
     this._traveledDistance = 0;
+
+    // Прожитое время в секундах
+    this._aliveTime = 0;
 
     // Внешний вид - белая кругляшка
     this.appearance = {
@@ -53,7 +60,7 @@ export class ProjectileEntity extends Entity {
   /**
    * Обновить позицию пули
    * @param {number} dt - delta time в миллисекундах
-   * @returns {boolean} - true если пуля еще жива, false если достигла лимита дальности
+   * @returns {boolean} - true если пуля еще жива, false если достигла лимита дальности или времени
    */
   update(dt) {
     // Нормализуем направление если нужно
@@ -72,8 +79,14 @@ export class ProjectileEntity extends Entity {
     // Обновляем пройденную дистанцию
     this._traveledDistance += distance;
 
-    // Проверяем достигнута ли максимальная дальность
-    return this._traveledDistance < this.range;
+    // Обновляем прожитое время
+    this._aliveTime += dtSeconds;
+
+    // Проверяем достигнута ли максимальная дальность ИЛИ истекло ли время жизни
+    // Пуля умирает если ОДНО из условий выполнено
+    if (this._traveledDistance >= this.range) return false;
+    if (this.lifetime > 0 && this._aliveTime >= this.lifetime) return false;
+    return true;
   }
 
   /**
@@ -91,10 +104,27 @@ export class ProjectileEntity extends Entity {
   }
 
   /**
-   * Проверка жива ли пуля (не достигла ли лимита дальности)
+   * Получить прожитое время
+   */
+  getAliveTime() {
+    return this._aliveTime;
+  }
+
+  /**
+   * Получить оставшееся время жизни
+   */
+  getRemainingLifetime() {
+    if (this.lifetime <= 0) return Infinity;
+    return Math.max(0, this.lifetime - this._aliveTime);
+  }
+
+  /**
+   * Проверка жива ли пуля (не достигла ли лимита дальности или времени)
    */
   isAlive() {
-    return this._traveledDistance < this.range;
+    if (this._traveledDistance >= this.range) return false;
+    if (this.lifetime > 0 && this._aliveTime >= this.lifetime) return false;
+    return true;
   }
 
   /**
@@ -124,8 +154,11 @@ export class ProjectileEntity extends Entity {
       speed: this.speed,
       range: this.range,
       damage: this.damage,
+      lifetime: this.lifetime,
       traveledDistance: this._traveledDistance,
       remainingRange: this.getRemainingRange(),
+      aliveTime: this._aliveTime,
+      remainingLifetime: this.getRemainingLifetime(),
       alive: this.isAlive()
     };
   }

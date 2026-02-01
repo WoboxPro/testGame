@@ -128,6 +128,14 @@
           Пример: при 400px дальности и 10% = пули летят от 360px до 400px (по умолчанию: 10)
         </span>
       </label>
+
+      <label class="field">
+        <span class="field__label">Время жизни пули (секунды)</span>
+        <input class="field__input" type="number" step="0.5" min="0" max="60" v-model.number="model.bulletLifetime" />
+        <span class="field__hint">
+          0 = бесконечно (пуля исчезает только по дальности), по умолчанию: 0
+        </span>
+      </label>
     </div>
 
     <div class="form__section">
