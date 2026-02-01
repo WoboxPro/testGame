@@ -30,7 +30,9 @@ export class MuzzleEntity extends Entity {
    *  bulletCount?: number,
    *  isSpread?: boolean,
    *  spreadAngle?: number,
-   *  scatterChance?: number
+   *  scatterChance?: number,
+   *  rangeScatterChance?: number,
+   *  rangeSpreadPercent?: number
    * }} options
    */
   constructor(options = {}) {
@@ -82,7 +84,17 @@ export class MuzzleEntity extends Entity {
     // Шанс разброса (0-1) для режима без равномерного веера
     // 0 = никогда не разбрасывает, все летят по центру
     // 1 = всегда разбрасывает
-    this.scatterChance = options.scatterChance !== undefined ? Number(options.scatterChance) : 1;
+    this.scatterChance = options.scatterChance !== undefined ? Number(options.scatterChance) : 0;
+
+    // Шанс разброса по дальности (0-1)
+    // 0 = все пули летят на максимальную дальность
+    // 1 = все пули имеют случайную дальность в пределах rangeSpreadPercent
+    this.rangeScatterChance = options.rangeScatterChance !== undefined ? Number(options.rangeScatterChance) : 0;
+
+    // Процент разброса по дальности (0-100)
+    // Определяет диапазон случайной дальности от максимальной
+    // Например: 10% при дальности 400 = пули летят от 360 до 400
+    this.rangeSpreadPercent = options.rangeSpreadPercent !== undefined ? Number(options.rangeSpreadPercent) : 10;
 
     // Внутреннее состояние для стрельбы
     this._lastFireTime = 0;
@@ -271,7 +283,26 @@ export class MuzzleEntity extends Entity {
    * @param {number} chance - Шанс разброса (0-1)
    */
   setScatterChance(chance) {
-    this.scatterChance = Math.max(0, Math.min(1, Number(chance) || 1));
+    const val = Number(chance);
+    this.scatterChance = Math.max(0, Math.min(1, isNaN(val) ? 0 : val));
+  }
+
+  /**
+   * 🔫 Установить шанс разброса по дальности
+   * @param {number} chance - Шанс разброса по дальности (0-1)
+   */
+  setRangeScatterChance(chance) {
+    const val = Number(chance);
+    this.rangeScatterChance = Math.max(0, Math.min(1, isNaN(val) ? 0 : val));
+  }
+
+  /**
+   * 🔫 Установить процент разброса по дальности
+   * @param {number} percent - Процент разброса (0-100)
+   */
+  setRangeSpreadPercent(percent) {
+    const val = Number(percent);
+    this.rangeSpreadPercent = Math.max(0, Math.min(100, isNaN(val) ? 10 : val));
   }
 
   getInfo() {
@@ -293,6 +324,8 @@ export class MuzzleEntity extends Entity {
       isSpread: this.isSpread,
       spreadAngle: this.spreadAngle,
       scatterChance: this.scatterChance,
+      rangeScatterChance: this.rangeScatterChance,
+      rangeSpreadPercent: this.rangeSpreadPercent,
       isFiring: this._isFiring
     };
   }

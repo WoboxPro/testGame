@@ -106,10 +106,26 @@
       </label>
 
       <label class="field" v-if="!model.isSpread">
-        <span class="field__label">Шанс разброса (0-1)</span>
+        <span class="field__label">Шанс разброса по углу (0-1)</span>
         <input class="field__input" type="number" step="0.05" min="0" max="1" v-model.number="model.scatterChance" />
         <span class="field__hint">
-          Вероятность разброса для каждой пули (0 = никогда, 1 = всегда, по умолчанию: 1)
+          Вероятность разброса по углу для каждой пули (0 = никогда, 1 = всегда, по умолчанию: 0)
+        </span>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Шанс разброса по дальности (0-1)</span>
+        <input class="field__input" type="number" step="0.05" min="0" max="1" v-model.number="model.rangeScatterChance" />
+        <span class="field__hint">
+          Вероятность разброса по дальности для каждой пули (0 = никогда, 1 = всегда, по умолчанию: 0)
+        </span>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Процент разброса дальности (0-100)</span>
+        <input class="field__input" type="number" step="5" min="0" max="100" v-model.number="model.rangeSpreadPercent" />
+        <span class="field__hint">
+          Пример: при 400px дальности и 10% = пули летят от 360px до 400px (по умолчанию: 10)
         </span>
       </label>
     </div>

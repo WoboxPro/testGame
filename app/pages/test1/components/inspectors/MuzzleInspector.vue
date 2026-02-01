@@ -96,10 +96,28 @@
 
       <!-- Scatter Chance -->
       <div class="inspector__group" v-if="!muzzleUi.isSpread">
-        <div class="inspector__label">Шанс разброса: {{ ((muzzleUi.scatterChance ?? 1) * 100).toFixed(0) }}%</div>
+        <div class="inspector__label">Шанс разброса (угол): {{ ((muzzleUi.scatterChance ?? 1) * 100).toFixed(0) }}%</div>
         <input type="range" v-model.number="muzzleUi.scatterChance" min="0" max="1" step="0.05" @input="apply" />
         <div class="inspector__value">
           {{ (muzzleUi.scatterChance ?? 1) === 0 ? '❌ Никогда' : (muzzleUi.scatterChance ?? 1) === 1 ? '🎲 Всегда' : '🎲 Частично' }}
+        </div>
+      </div>
+
+      <!-- Range Scatter Chance -->
+      <div class="inspector__group">
+        <div class="inspector__label">Шанс разброса (дальность): {{ ((muzzleUi.rangeScatterChance ?? 0) * 100).toFixed(0) }}%</div>
+        <input type="range" v-model.number="muzzleUi.rangeScatterChance" min="0" max="1" step="0.05" @input="apply" />
+        <div class="inspector__value">
+          {{ (muzzleUi.rangeScatterChance ?? 0) === 0 ? '❌ Никогда' : (muzzleUi.rangeScatterChance ?? 0) === 1 ? '📏 Всегда' : '📏 Частично' }}
+        </div>
+      </div>
+
+      <!-- Range Spread Percent -->
+      <div class="inspector__group">
+        <div class="inspector__label">Разброс дальности: {{ (muzzleUi.rangeSpreadPercent ?? 10).toFixed(0) }}%</div>
+        <input type="range" v-model.number="muzzleUi.rangeSpreadPercent" min="0" max="100" step="5" @input="apply" />
+        <div class="inspector__value">
+          Пример: при 400px → {{ (400 * (1 - (muzzleUi.rangeSpreadPercent ?? 10) / 100)).toFixed(0) }}-400px
         </div>
       </div>
     </div>

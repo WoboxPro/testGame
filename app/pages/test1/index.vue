@@ -729,7 +729,9 @@ const muzzleUi = reactive({
   bulletCount: 1,
   isSpread: false,
   spreadAngle: 45,
-  scatterChance: 1,
+  scatterChance: 0,
+  rangeScatterChance: 0,
+  rangeSpreadPercent: 10,
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
@@ -973,7 +975,9 @@ const muzzleForm = reactive({
   bulletCount: 1,
   isSpread: false,
   spreadAngle: 45,
-  scatterChance: 1
+  scatterChance: 0,
+  rangeScatterChance: 0,
+  rangeSpreadPercent: 10
 });
 
  // Slot form
@@ -1316,7 +1320,9 @@ function syncMuzzleUiFromSelected() {
   muzzleUi.bulletCount = m.bulletCount !== undefined ? m.bulletCount : 1;
   muzzleUi.isSpread = m.isSpread !== undefined ? m.isSpread : false;
   muzzleUi.spreadAngle = m.spreadAngle !== undefined ? m.spreadAngle : 45;
-  muzzleUi.scatterChance = m.scatterChance !== undefined ? m.scatterChance : 1;
+  muzzleUi.scatterChance = m.scatterChance !== undefined ? m.scatterChance : 0;
+  muzzleUi.rangeScatterChance = m.rangeScatterChance !== undefined ? m.rangeScatterChance : 0;
+  muzzleUi.rangeSpreadPercent = m.rangeSpreadPercent !== undefined ? m.rangeSpreadPercent : 10;
 
   // Синхронизируем направление
   muzzleUi.direction = m.direction ? { ...m.direction } : { x: 1, y: 0 };
@@ -1369,6 +1375,8 @@ function applySelectedMuzzleUi() {
   instance.setIsSpread(muzzleUi.isSpread);
   instance.setSpreadAngle(muzzleUi.spreadAngle);
   instance.setScatterChance(muzzleUi.scatterChance);
+  instance.setRangeScatterChance(muzzleUi.rangeScatterChance);
+  instance.setRangeSpreadPercent(muzzleUi.rangeSpreadPercent);
 
   // Применяем направление
   instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
@@ -1389,6 +1397,8 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.isSpread = muzzleUi.isSpread;
   selectedMuzzle.spreadAngle = muzzleUi.spreadAngle;
   selectedMuzzle.scatterChance = muzzleUi.scatterChance;
+  selectedMuzzle.rangeScatterChance = muzzleUi.rangeScatterChance;
+  selectedMuzzle.rangeSpreadPercent = muzzleUi.rangeSpreadPercent;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
   selectedMuzzle.showDebug = muzzleUi.showDebug;
@@ -2085,7 +2095,9 @@ function createMuzzleFromForm() {
     bulletCount: Math.min(20, Math.max(1, Number(muzzleForm.bulletCount) || 1)),
     isSpread: Boolean(muzzleForm.isSpread) || false,
     spreadAngle: Math.max(1, Math.min(359, Number(muzzleForm.spreadAngle) || 45)),
-    scatterChance: Math.max(0, Math.min(1, Number(muzzleForm.scatterChance) || 1)),
+    scatterChance: Math.max(0, Math.min(1, Number(muzzleForm.scatterChance) || 0)),
+    rangeScatterChance: Math.max(0, Math.min(1, Number(muzzleForm.rangeScatterChance) || 0)),
+    rangeSpreadPercent: Math.max(0, Math.min(100, Number(muzzleForm.rangeSpreadPercent) || 10)),
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }

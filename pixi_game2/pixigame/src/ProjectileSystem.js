@@ -131,28 +131,47 @@ export class ProjectileSystem {
 
         dirX = Math.cos(bulletAngle);
         dirY = Math.sin(bulletAngle);
-      } else if (!isSpread && Math.random() < (muzzle.scatterChance ?? 1)) {
+      } else if (!isSpread) {
         // Случайный разброс (для любого количества пуль, включая 1)
-        // Случайный угол в пределах [-spreadAngle/2, +spreadAngle/2]
-        const randomOffset = (Math.random() - 0.5) * spreadAngle;
-        const bulletAngle = baseAngle + randomOffset;
+        const chance = muzzle.scatterChance ?? 1;
+        const roll = Math.random();
+        if (roll < chance) {
+          // Случайный угол в пределах [-spreadAngle/2, +spreadAngle/2]
+          const randomOffset = (Math.random() - 0.5) * spreadAngle;
+          const bulletAngle = baseAngle + randomOffset;
 
-        dirX = Math.cos(bulletAngle);
-        dirY = Math.sin(bulletAngle);
+          dirX = Math.cos(bulletAngle);
+          dirY = Math.sin(bulletAngle);
+        } else {
+          // Разброс не сработал - по центру
+          dirX = baseDirX;
+          dirY = baseDirY;
+        }
       } else {
-        // Стрельба по центру (равномерный веер с 1 пулей или разброс не сработал)
+        // Стрельба по центру
         dirX = baseDirX;
         dirY = baseDirY;
       }
 
       // Создаем пулю
       const bulletId = `bullet_${this._projectileCounter++}`;
+
+      // Вычисляем дальность с учетом разброса
+      let bulletRange = muzzle.bulletRange;
+      if (Math.random() < (muzzle.rangeScatterChance ?? 0)) {
+        // Применяем разброс по дальности
+        const percent = muzzle.rangeSpreadPercent ?? 10;
+        const minRange = bulletRange * (1 - percent / 100);
+        // Случайная дальность от minRange до bulletRange
+        bulletRange = minRange + Math.random() * (bulletRange - minRange);
+      }
+
       const bullet = new BulletEntity({
         id: bulletId,
         position: { x: position.x, y: position.y },
         direction: { x: dirX, y: dirY },
         speed: muzzle.bulletSpeed,
-        range: muzzle.bulletRange,
+        range: bulletRange,
         color: muzzle.bulletColor || '#FFFFFF',
         size: muzzle.bulletSize || 8
       });
