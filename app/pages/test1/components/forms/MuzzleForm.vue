@@ -156,7 +156,11 @@
       <div class="field__hint">
         Muzzle крепится ТОЛЬКО через слоты к другим сущностям.<br>
         В слоте должен быть physicsMode: 'instant' (без lerp/spring).<br>
-        Стрельба пока привязана к левой кнопке мыши (хардкод).
+        🎮 Стрельба управляется через KeyActions:<br>
+        1. Создайте KeyAction в Controller (например, "fire")<br>
+        2. Привяжите клавишу к KeyAction (например, KeyF или Mouse1)<br>
+        3. Выберите KeyAction в слоте (keyActionId: "fire")<br>
+        Все muzzle в этом слоте будут реагировать на привязанную клавишу.
       </div>
     </div>
   </div>

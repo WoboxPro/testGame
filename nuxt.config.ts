@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/content',
     '@nuxt/eslint',
-    '@nuxt/fonts',
+    // '@nuxt/fonts', // не используется, вызывает warning
     '@nuxt/icon',
     '@nuxt/image',
     '@nuxt/scripts'

@@ -234,6 +234,26 @@
       <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'controller', c.id)">×</button>
     </div>
 
+    <!-- 🎮 KeyActions Section -->
+    <div class="tree__section">
+      <div class="tree__title">🎮 KeyActions</div>
+      <div class="tree__actions">
+        <button class="tree__add" @click="$emit('add', 'keyaction')">+ Add</button>
+      </div>
+    </div>
+    <div v-if="keyActions.length === 0" class="tree__empty">No key actions</div>
+    <div
+      v-for="k in keyActions"
+      :key="k.id"
+      class="tree__item"
+      :class="{ 'is-selected': selected?.type === 'keyaction' && selected?.id === k.id }"
+      @click="$emit('select', { type: 'keyaction', id: k.id })"
+    >
+      <span class="tree__name">🎮 {{ k.name || k.id }}</span>
+      <span class="tree__meta" v-if="k.defaultKey">{{ k.defaultKey }}</span>
+      <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'keyaction', k.id)">×</button>
+    </div>
+
     <!-- Collisions Section -->
     <div class="tree__section">
       <div class="tree__title">Collisions</div>
@@ -281,6 +301,7 @@
    muzzles: { type: Array, default: () => [] },
    regions: { type: Array, default: () => [] },
    controllers: { type: Array, default: () => [] },
+   keyActions: { type: Array, default: () => [] },
    collisionTypes: { type: Array, default: () => [] },
    collisionRelations: { type: Array, default: () => [] },
    selected: { type: Object, default: () => null }

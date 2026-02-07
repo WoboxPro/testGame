@@ -3,6 +3,12 @@ import { onMounted, onUnmounted } from 'vue';
 /**
  * Render loop + global input handlers for /test1 editor.
  * Lives under /test1 to avoid cross-page coupling.
+ *
+ * 🎮 KeyActions Integration:
+ * - Muzzle firing is now controlled by KeyActions through slots
+ * - Each slot can be bound to a KeyAction (e.g., "fire", "left_hand")
+ * - Controllers manage keyAction → keyCode mappings
+ * - Muzzles respond to their slot's KeyAction state
  */
 export function useRenderLoop({
   controllers,
@@ -19,9 +25,6 @@ export function useRenderLoop({
   let rafId = null;
 
   let _assetsPreloadStarted = false;
-
-  // 🔫 Состояние кнопки мыши для стрельбы
-  let _isMousePressed = false;
 
   function onWheel(e) {
     if (!selectedCamera.value) return;
@@ -52,29 +55,78 @@ export function useRenderLoop({
     applySelectedCameraUi();
   }
 
-  // 🔫 Обработка нажатия левой кнопки мыши
-  function onMouseDown(e) {
-    if (e.button !== 0) return; // Только левая кнопка
-    _isMousePressed = true;
-    updateMuzzleFiringState();
+  /**
+   * 🎮 Найти контроллер для сущности по ID
+   * @param {string} entityId - ID сущности
+   * @returns {Object|null} Контроллер или null
+   */
+  function findControllerForEntity(entityId) {
+    return controllers.find(
+      (c) => c.targetId === entityId && c.instance.enabled && c.instance.isKeyActionActive
+    ) || null;
   }
 
-  // 🔫 Обработка отпускания левой кнопки мыши
-  function onMouseUp(e) {
-    if (e.button !== 0) return; // Только левая кнопка
-    _isMousePressed = false;
-    updateMuzzleFiringState();
-  }
-
-  // 🔫 Обновление состояния стрельбы для всех muzzle
+  /**
+   * 🎮 Обновить состояние стрельбы для всех muzzle на основе KeyActions
+   * Логика:
+   * 1. Для каждого muzzle находим его слот
+   * 2. Если у слота есть keyActionId, находим контроллер родительской сущности
+   * 3. Проверяем активен ли KeyAction в контроллере
+   * 4. Устанавливаем состояние стрельбы для muzzle
+   */
   function updateMuzzleFiringState() {
     for (const world of worlds) {
-      if (world.instance?.projectileSystem) {
-        const ps = world.instance.projectileSystem;
-        // Устанавливаем состояние стрельбы для всех зарегистрированных muzzle
-        for (const [muzzleId] of ps.muzzles) {
-          ps.setMuzzleFiring(muzzleId, _isMousePressed);
+      if (!world.instance?.projectileSystem) continue;
+
+      const ps = world.instance.projectileSystem;
+
+      // Проходим по всем muzzle в системе
+      for (const [muzzleId, muzzleData] of ps.muzzles) {
+        // Находим muzzle entity components в world
+        const muzzleComponents = world.instance?.entities?.get(muzzleId);
+        if (!muzzleComponents) continue;
+
+        // Получаем ссылку на саму сущность через _entityRef
+        const muzzleRef = muzzleComponents.get('_entityRef');
+        if (!muzzleRef) continue;
+
+        // Находим слот к которому привязан muzzle
+        const slotId = muzzleRef._parentSlotId;
+        if (!slotId) continue;
+
+        // Находим родительскую сущность (владельца слота)
+        const parentEntityId = muzzleRef._parentEntityId;
+        if (!parentEntityId) continue;
+
+        // Получаем родительскую сущность
+        const parentComponents = world.instance?.entities?.get(parentEntityId);
+        if (!parentComponents) continue;
+
+        const parentRef = parentComponents.get('_entityRef');
+        if (!parentRef || !parentRef.getSlot) continue;
+
+        // Получаем слот
+        const slot = parentRef.getSlot(slotId);
+        if (!slot || !slot.keyActionId) {
+          // Если у слота нет keyActionId, muzzle не стреляет
+          ps.setMuzzleFiring(muzzleId, false);
+          continue;
         }
+
+        // Находим контроллер для родительской сущности
+        const controllerWrapper = findControllerForEntity(parentEntityId);
+        if (!controllerWrapper) {
+          // Нет активного контроллера - muzzle не стреляет
+          ps.setMuzzleFiring(muzzleId, false);
+          continue;
+        }
+
+        // Проверяем активен ли KeyAction
+        const keyActionId = slot.keyActionId;
+        const shouldFire = controllerWrapper.instance.isKeyActionActive(keyActionId);
+
+        // Устанавливаем состояние стрельбы для muzzle
+        ps.setMuzzleFiring(muzzleId, shouldFire);
       }
     }
   }
@@ -94,6 +146,9 @@ export function useRenderLoop({
     for (const world of worlds) {
       world.instance.update(dt * 1000); // Convert to milliseconds
     }
+
+    // 🎮 Обновляем состояние стрельбы для всех muzzle на основе KeyActions
+    updateMuzzleFiringState();
 
     // Sync cameraUi from selected camera if there's an active controller
     if (selectedCamera.value) {
@@ -130,12 +185,11 @@ export function useRenderLoop({
   }
 
   onMounted(() => {
-    // Pass wheel only, controllers handle their own keyboard events
+    // Pass wheel only, controllers handle their own keyboard and mouse events
     window.addEventListener('wheel', onWheel, { passive: false });
 
-    // 🔫 Добавляем обработчики мыши для стрельбы
-    window.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onMouseUp);
+    // 🎮 Больше не нужно глобально обрабатывать mouseup/mousedown для стрельбы
+    // Контроллеры сами обрабатывают мышь через KeyActions
 
     // Preload textures from public/assets manifest into PIXI.Assets cache
     preloadPublicAssetsToCache();
@@ -145,10 +199,6 @@ export function useRenderLoop({
 
   onUnmounted(() => {
     window.removeEventListener('wheel', onWheel);
-
-    // 🔫 Удаляем обработчики мыши
-    window.removeEventListener('mousedown', onMouseDown);
-    window.removeEventListener('mouseup', onMouseUp);
 
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
@@ -167,4 +217,3 @@ export function useRenderLoop({
     }
   };
 }
-

@@ -223,6 +223,44 @@
       </div>
     </div>
 
+    <!-- 🎮 KeyActions Editor -->
+    <div v-if="model.inputType === 'keyboard'" class="keyactions-section">
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.showKeyActions" />
+        <span class="field__label">🎮 Configure KeyActions (for Slots/Muzzles)</span>
+      </label>
+
+      <div v-if="model.showKeyActions" class="keyactions-editor">
+        <div class="info-box" style="margin-bottom: 12px;">
+          <strong>🎮 KeyActions bind custom keys to slots (e.g., muzzle fire)</strong><br>
+          Create slots with keyActionId, then bind keys here.
+        </div>
+
+        <div class="keyaction-row" v-for="action in availableKeyActions" :key="action.name || action.id">
+          <span class="keyaction-name">{{ action.displayName || action.name || action.id }}</span>
+          <span class="keyaction-hint">{{ action.description || '' }}</span>
+          <div class="binding-input-wrapper">
+            <input
+              class="binding-input"
+              :class="{ 'is-recording': keyActionRecording.action === (action.name || action.id) }"
+              :value="model.keyActions?.[action.name || action.id] || ''"
+              :placeholder="keyActionRecording.action === (action.name || action.id) ? 'Press key or mouse...' : 'Not bound'"
+              readonly
+              @focus="startKeyActionRecording(action.name || action.id)"
+              @blur="stopKeyActionRecording"
+              @keydown="handleKeyActionRecording"
+            />
+            <button
+              v-if="model.keyActions?.[action.name || action.id]"
+              class="binding-clear"
+              @click="delete model.keyActions[action.name || action.id]"
+              title="Clear"
+            >×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-else-if="model.inputType === 'keyboard'" class="info-box">
       <strong>🎮 Default controls:</strong><br>
       Movement: WASD (entity) or Numpad 5213 (camera)<br>
@@ -239,11 +277,12 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, computed } from 'vue';
 
-defineProps({
+const props = defineProps({
   cameras: Array,
-  gameEntities: Array
+  gameEntities: Array,
+  keyActions: Array
 });
 
 const model = defineModel();
@@ -253,6 +292,21 @@ const keyRecording = reactive({
   action: null,
   field: null
 });
+
+// 🎮 KeyActions recording state
+const keyActionRecording = reactive({
+  action: null
+});
+
+// 🎮 Доступные KeyActions - берём из пропсов (из меню)
+const availableKeyActions = computed(() => {
+  return props.keyActions || [];
+});
+
+// Инициализируем keyActions если не существует
+if (!model.value.keyActions) {
+  model.value.keyActions = {};
+}
 
 function startKeyRecording(action, field) {
   keyRecording.action = action;
@@ -273,6 +327,39 @@ function handleKeyRecording(e) {
   model.bindings[keyRecording.action][keyRecording.field] = keyCode;
   stopKeyRecording();
   emit('handleKeyRecording', e);
+  e.target.blur();
+}
+
+// 🎮 KeyActions recording functions
+function startKeyActionRecording(actionName) {
+  keyActionRecording.action = actionName;
+}
+
+function stopKeyActionRecording() {
+  keyActionRecording.action = null;
+}
+
+function handleKeyActionRecording(e) {
+  if (!keyActionRecording.action) return;
+
+  e.preventDefault();
+
+  // Поддерживаем как клавиатуру так и мышь
+  let keyCode;
+  if (e.type === 'keydown') {
+    keyCode = e.code;
+  } else if (e.type === 'mousedown') {
+    keyCode = `Mouse${e.button}`;
+  } else {
+    return;
+  }
+
+  if (!model.value.keyActions) {
+    model.value.keyActions = {};
+  }
+  model.value.keyActions[keyActionRecording.action] = keyCode;
+
+  stopKeyActionRecording();
   e.target.blur();
 }
 
@@ -399,5 +486,36 @@ function getControllerActions(type) {
 .binding-clear:hover {
   background: rgba(255, 100, 100, 0.2);
   color: rgba(255, 100, 100, 0.9);
+}
+
+/* 🎮 KeyActions Styles */
+.keyactions-section {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 165, 0, 0.05);
+  border: 1px solid rgba(255, 165, 0, 0.20);
+}
+.keyactions-editor {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.keyaction-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 180px;
+  gap: 8px;
+  align-items: center;
+}
+.keyaction-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+.keyaction-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(grep:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(dir \"C:\\\\dev\\\\govue\\\\govue-app\\\\pixi_game2\")"
     ]
   }
 }

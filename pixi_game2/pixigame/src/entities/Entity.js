@@ -128,6 +128,7 @@ export class Entity {
    * @param {number} slotData.springStiffness - Spring stiffness (0.1-10)
    * @param {number} slotData.springDamping - Spring damping (0.7-0.99)
    * @param {number} slotData.springMaxLength - Max spring length (10-500px)
+   * @param {string|null} slotData.keyActionId - KeyAction to bind to this slot (e.g., "fire", "left_hand")
    * @returns {Object} The created slot
    */
    addSlot(slotData = {}) {
@@ -152,7 +153,10 @@ export class Entity {
        // 🌊 SPRING PARAMETERS
        springStiffness: slotData.springStiffness !== undefined ? slotData.springStiffness : 3.0,
        springDamping: slotData.springDamping !== undefined ? slotData.springDamping : 0.9,
-       springMaxLength: slotData.springMaxLength !== undefined ? slotData.springMaxLength : 100
+       springMaxLength: slotData.springMaxLength !== undefined ? slotData.springMaxLength : 100,
+
+       // 🎮 KEY ACTION BINDING
+       keyActionId: slotData.keyActionId || null // KeyAction name (e.g., "fire", "left_hand")
      };
 
      this.slots.push(slot);

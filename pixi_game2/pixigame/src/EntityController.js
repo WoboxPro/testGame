@@ -17,6 +17,7 @@
 import { Controller } from './Controller.js';
 import { timeSystem } from './TimeSystem.js';
 import { inputSystem } from './input/InputSystem.js';
+import { keyActionRegistry } from './input/KeyActionRegistry.js';
 
 export class EntityController extends Controller {
   constructor(options = {}) {
@@ -38,8 +39,15 @@ export class EntityController extends Controller {
     // Привязка клавиш (только для keyboard)
     this.bindings = options.bindings || this._getDefaultBindings();
 
+    // 🎮 KeyActions - кастомные действия для слотов (muzzle и т.д.)
+    // Map<actionName, keyCode> например: { "fire": "KeyF", "left_hand": "Mouse1" }
+    this.keyActions = options.keyActions || {};
+
     // Состояние нажатых клавиш
     this._pressedKeys = new Set();
+
+    // Состояние нажатых кнопок мыши для KeyActions
+    this._pressedMouseButtons = new Set();
 
     // Ссылка на все сущности (для переключения)
     this.allEntities = options.allEntities || [];
@@ -132,6 +140,78 @@ export class EntityController extends Controller {
     return this.bindings[action];
   }
 
+  // ==================== 🎮 KeyActions Methods ====================
+
+  /**
+   * 🎮 Установить клавишу для KeyAction
+   * @param {string} actionName - Имя KeyAction (например, "fire", "left_hand")
+   * @param {string|null} keyCode - Код клавиши (например, "KeyF", "Mouse1") или null для сброса
+   */
+  setKeyAction(actionName, keyCode) {
+    if (!keyActionRegistry.has(actionName)) {
+      console.warn(`⚠️ KeyAction "${actionName}" не найден в реестре`);
+      return;
+    }
+
+    if (keyCode === null || keyCode === '') {
+      delete this.keyActions[actionName];
+    } else {
+      this.keyActions[actionName] = keyCode;
+    }
+    console.log(`🎮 KeyAction "${actionName}" привязан к "${keyCode}"`);
+  }
+
+  /**
+   * 🎮 Получить клавишу для KeyAction
+   * @param {string} actionName - Имя KeyAction
+   * @returns {string|null} Код клавиши или null
+   */
+  getKeyAction(actionName) {
+    // Сначала проверяем кастомную привязку в контроллере
+    if (this.keyActions[actionName]) {
+      return this.keyActions[actionName];
+    }
+
+    // Если нет кастомной, возвращаем дефолтную из реестра
+    return keyActionRegistry.getDefaultKey(actionName);
+  }
+
+  /**
+   * 🎮 Проверить активен ли KeyAction (нажата ли привязанная клавиша)
+   * @param {string} actionName - Имя KeyAction
+   * @returns {boolean} True если клавиша нажата
+   */
+  isKeyActionActive(actionName) {
+    const keyCode = this.getKeyAction(actionName);
+    if (!keyCode) return false;
+
+    // Проверяем кнопки мыши
+    if (keyCode.startsWith('Mouse')) {
+      return this._pressedMouseButtons.has(keyCode);
+    }
+
+    // Проверяем клавиатуру
+    return this._pressedKeys.has(keyCode);
+  }
+
+  /**
+   * 🎮 Получить все KeyActions контроллера
+   * @returns {Object} Маппинг actionName → keyCode
+   */
+  getAllKeyActions() {
+    return { ...this.keyActions };
+  }
+
+  /**
+   * 🎮 Установить все KeyActions сразу
+   * @param {Object} keyActions - Маппинг actionName → keyCode
+   */
+  setAllKeyActions(keyActions) {
+    this.keyActions = { ...keyActions };
+  }
+
+  // ==================== End KeyActions Methods ====================
+
   /**
    * Проверить нажата ли клавиша действия
    */
@@ -205,7 +285,14 @@ export class EntityController extends Controller {
     this._keyupHandler = (e) => this.handleKeyUp(e.code);
     window.addEventListener('keydown', this._keydownHandler);
     window.addEventListener('keyup', this._keyupHandler);
-    console.log(`⌨️ EntityController ${this.id} подписан на keyboard`);
+
+    // 🎮 Добавляем обработчики мыши для KeyActions
+    this._mousedownHandler = (e) => this.handleMouseDown(e.button);
+    this._mouseupHandler = (e) => this.handleMouseUp(e.button);
+    window.addEventListener('mousedown', this._mousedownHandler);
+    window.addEventListener('mouseup', this._mouseupHandler);
+
+    console.log(`⌨️ EntityController ${this.id} подписан на keyboard + mouse`);
   }
 
   _setupMouseTracking() {
@@ -236,7 +323,36 @@ export class EntityController extends Controller {
       window.removeEventListener('keyup', this._keyupHandler);
       this._keyupHandler = null;
     }
-    console.log(`⌨️ EntityController ${this.id} отписан от keyboard`);
+
+    // 🎮 Удаляем обработчики мыши для KeyActions
+    if (this._mousedownHandler) {
+      window.removeEventListener('mousedown', this._mousedownHandler);
+      this._mousedownHandler = null;
+    }
+    if (this._mouseupHandler) {
+      window.removeEventListener('mouseup', this._mouseupHandler);
+      this._mouseupHandler = null;
+    }
+
+    console.log(`⌨️ EntityController ${this.id} отписан от keyboard + mouse`);
+  }
+
+  /**
+   * 🎮 Обработать нажатие кнопки мыши для KeyActions
+   * @param {number} button - Номер кнопки (0=левая, 1=средняя, 2=правая)
+   */
+  handleMouseDown(button) {
+    const buttonCode = `Mouse${button}`;
+    this._pressedMouseButtons.add(buttonCode);
+  }
+
+  /**
+   * 🎮 Обработать отпускание кнопки мыши для KeyActions
+   * @param {number} button - Номер кнопки (0=левая, 1=средняя, 2=правая)
+   */
+  handleMouseUp(button) {
+    const buttonCode = `Mouse${button}`;
+    this._pressedMouseButtons.delete(buttonCode);
   }
 
   /**
@@ -707,6 +823,7 @@ export class EntityController extends Controller {
       inputType: this.inputType,
       rotationMode: this.rotationMode,
       bindings: this.inputType === 'keyboard' ? this.bindings : undefined,
+      keyActions: this.keyActions || {},
       touchConfig: this.touchConfig,
       activeEntityId: this.target?.id,
       entityMovement: this.target?.movement || null,

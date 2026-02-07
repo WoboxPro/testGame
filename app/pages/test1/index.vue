@@ -27,6 +27,7 @@
             :muzzles="muzzles"
             :regions="regions"
             :controllers="controllers"
+            :key-actions="keyActions"
             :collision-types="getCollisionTypes()"
             :collision-relations="getCollisionRelations()"
             :selected="selected"
@@ -225,6 +226,9 @@
                      <span class="slot-item__mode">
                        Physics: {{ getPhysicsModeLabel(slot.physicsMode) }}
                      </span>
+                     <span class="slot-item__keyaction" v-if="slot.keyActionId">
+                       🎮 {{ slot.keyActionId }}
+                     </span>
                      <span class="slot-item__attachments" v-if="slot.attachedEntities && slot.attachedEntities.length > 0">
                        ({{ slot.attachedEntities.length }} attached)
                      </span>
@@ -357,6 +361,38 @@
             </template>
           </div>
         </div>
+
+        <!-- 🎮 KeyAction Inspector -->
+        <div v-else-if="selected.type === 'keyaction' && selectedKeyAction" class="inspector__content">
+          <div class="inspector__title">🎮 KeyAction: {{ selectedKeyAction.name }}</div>
+          <div class="kv">
+            <div class="kv__row"><div class="kv__k">ID</div><div class="kv__v">{{ selectedKeyAction.id }}</div></div>
+            <div class="kv__row"><div class="kv__k">Name</div><div class="kv__v">{{ selectedKeyAction.name }}</div></div>
+            <div class="kv__row" v-if="selectedKeyAction.displayName"><div class="kv__k">Display</div><div class="kv__v">{{ selectedKeyAction.displayName }}</div></div>
+            <div class="kv__row" v-if="selectedKeyAction.description"><div class="kv__k">Description</div><div class="kv__v">{{ selectedKeyAction.description }}</div></div>
+            <div class="kv__row" v-if="selectedKeyAction.defaultKey"><div class="kv__k">Default Key</div><div class="kv__v">{{ selectedKeyAction.defaultKey }}</div></div>
+          </div>
+          <div class="inspector__section">
+            <div class="inspector__section-title">Edit</div>
+            <label class="field">
+              <span class="field__label">Name</span>
+              <input class="field__input" v-model.trim="selectedKeyAction.name" placeholder="fire" />
+            </label>
+            <label class="field">
+              <span class="field__label">Display Name</span>
+              <input class="field__input" v-model.trim="selectedKeyAction.displayName" placeholder="🔫 Fire" />
+            </label>
+            <label class="field">
+              <span class="field__label">Description</span>
+              <input class="field__input" v-model.trim="selectedKeyAction.description" placeholder="Стрельба из оружия" />
+            </label>
+            <label class="field">
+              <span class="field__label">Default Key (optional)</span>
+              <input class="field__input" v-model.trim="selectedKeyAction.defaultKey" placeholder="KeyF, Mouse1, etc." />
+              <span class="field__hint">Оставьте пустым чтобы настроить в контроллере</span>
+            </label>
+          </div>
+        </div>
       </aside>
     </div>
 
@@ -428,7 +464,29 @@
             v-model="controllerForm"
             :cameras="cameras"
             :gameEntities="gameEntities"
+            :key-actions="keyActions"
           />
+
+          <!-- 🎮 KeyAction Form -->
+          <div v-else-if="createModal.type === 'keyaction'" class="form">
+            <label class="field">
+              <span class="field__label">ID</span>
+              <input class="field__input" v-model.trim="keyActionForm.id" placeholder="fire" />
+            </label>
+            <label class="field">
+              <span class="field__label">Display Name</span>
+              <input class="field__input" v-model.trim="keyActionForm.displayName" placeholder="🔫 Fire" />
+            </label>
+            <label class="field">
+              <span class="field__label">Description</span>
+              <input class="field__input" v-model.trim="keyActionForm.description" placeholder="Стрельба из оружия" />
+            </label>
+            <label class="field">
+              <span class="field__label">Default Key (optional)</span>
+              <input class="field__input" v-model.trim="keyActionForm.defaultKey" placeholder="KeyF, Mouse1, etc." />
+              <span class="field__hint">Оставьте пустым чтобы настроить в контроллере</span>
+            </label>
+          </div>
 
           <!-- Collision Type Form -->
           <CollisionTypeForm
@@ -541,6 +599,20 @@
              <span class="field__label">Max Attachments (optional)</span>
              <input class="field__input" type="number" v-model.number="slotForm.maxAttachments" placeholder="Empty = unlimited" min="1" />
              <span class="field__hint">Leave empty for unlimited attachments</span>
+           </label>
+
+           <!-- 🎮 KeyAction Binding -->
+           <label class="field">
+             <span class="field__label">🎮 KeyAction (for Muzzles)</span>
+             <select class="field__input" v-model="slotForm.keyActionId">
+               <option value="">None</option>
+               <option v-for="ka in keyActions" :key="ka.id" :value="ka.name || ka.id">
+                 {{ ka.displayName || ka.name || ka.id }}
+               </option>
+             </select>
+             <span class="field__hint">
+               Bind this slot to a KeyAction. All muzzles in this slot will respond to the key bound in the controller.
+             </span>
            </label>
 
            <!-- 🎯 PHYSICS MODE -->
@@ -707,6 +779,7 @@ const unattachedEntities = reactive([]); // { id, subtype, instance }
 const muzzles = reactive([]); // { id, direction, showDebug, debugColor, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
+const keyActions = reactive([]); // 🎮 { id, name, displayName, description, defaultKey }
 
 // Collision types (managed per world for now)
 const collisionTypes = reactive([]); // { id, name, defaultShape, worldId }
@@ -944,6 +1017,14 @@ const controllerForm = reactive({
   touchRightStickY: null
 });
 
+// 🎮 KeyAction form
+const keyActionForm = reactive({
+  id: '', // Уникальный ID (например, "fire")
+  displayName: '', // Отображаемое имя (например, "🔫 Fire")
+  description: '', // Описание (например, "Стрельба из оружия")
+  defaultKey: '' // Дефолтная клавиша (опционально)
+});
+
 const collisionTypeForm = reactive({
   id: '',      // Type ID (e.g., 'unit', 'build', 'projectile')
   name: '',    // Display name (e.g., 'Unit', 'Building')
@@ -992,6 +1073,9 @@ const muzzleForm = reactive({
    color: '#00FFFF',
    maxAttachments: null,
 
+   // 🎮 KeyAction Binding
+   keyActionId: '', // KeyAction name (e.g., "fire", "left_hand")
+
    // 🎯 PHYSICS MODE
    physicsMode: 'instant', // 'instant' | 'lerp' | 'spring'
 
@@ -1021,6 +1105,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   muzzles,
   regions,
   controllers,
+  keyActions,
   worldForm,
   canvasForm,
   cameraForm,
@@ -1030,6 +1115,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   muzzleForm,
   regionForm,
   controllerForm,
+  keyActionForm,
   collisionTypeForm,
   collisionRelationForm,
   createHandlers: {
@@ -1042,6 +1128,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
     muzzle: () => createMuzzleFromForm(),
     region: () => createRegionFromForm(),
     controller: () => createControllerFromForm(),
+    keyaction: () => createKeyActionFromForm(),
     collision_type: () => createCollisionTypeFromForm(),
     collision_relation: () => createCollisionRelationFromForm()
   }
@@ -1249,20 +1336,22 @@ function updateAllControllersEntityList() {
   }
 }
 
-const { removeWorld, removeCanvas, removeCamera, removeSelected, handleTreeDelete, resetAll } = useRemovalActions({
+const { removeWorld, removeCanvas, removeCamera, removeSelected, handleTreeDelete, resetAll, removeKeyAction: removeKeyActionFromUtils } = useRemovalActions({
   worlds,
   canvases,
   cameras,
   uiEntities,
   muzzles,
   regions,
+  keyActions,
   selected,
   canvasHosts,
   removeUI,
   removeGameEntity,
   removeMuzzle,
   removeRegion,
-  removeController
+  removeController,
+  removeKeyAction
 });
 
 // ---------------------------
@@ -1286,6 +1375,7 @@ const isUnattachedEntitySelected = computed(() => selectedUnattachedEntity.value
 const selectedMuzzle = computed(() => (selected.value?.type === 'muzzle' ? muzzles.find((m) => m.id === selected.value.id) : null));
 const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
 const selectedController = computed(() => (selected.value?.type === 'controller' ? controllers.find((c) => c.id === selected.value.id) : null));
+const selectedKeyAction = computed(() => (selected.value?.type === 'keyaction' ? keyActions.find((k) => k.id === selected.value.id) : null));
 
 function syncCameraUiFromSelected() {
   if (!selectedCamera.value) return;
@@ -1588,6 +1678,9 @@ function closeSlotModal() {
      visualEnabled: slotForm.visualEnabled,
      color: slotForm.color || '#00FFFF',
      maxAttachments: slotForm.maxAttachments,
+
+     // 🎮 KeyAction Binding
+     keyActionId: slotForm.keyActionId || null,
 
      // 🎯 Physics mode parameters
      physicsMode: slotForm.physicsMode,
@@ -2336,7 +2429,8 @@ function createControllerFromForm() {
         return camModel?.instance || null;
       },
       touchConfig: touchConfig,
-      bindings: bindings // Pass custom bindings or undefined (uses defaults)
+      bindings: bindings, // Pass custom bindings or undefined (uses defaults)
+      keyActions: controllerForm.keyActions || {} // 🎮 Pass KeyActions
     }));
 
     // Передаём все сущности для переключения
@@ -2354,6 +2448,22 @@ function createControllerFromForm() {
   }
 }
 
+// 🎮 Создать KeyAction из формы
+function createKeyActionFromForm() {
+  const id = keyActionForm.id?.trim() || suggestId('keyaction', keyActions);
+
+  const model = {
+    id,
+    name: keyActionForm.id?.trim() || id, // Уникальное имя для использования в коде
+    displayName: keyActionForm.displayName?.trim() || keyActionForm.id?.trim() || id,
+    description: keyActionForm.description?.trim() || '',
+    defaultKey: keyActionForm.defaultKey?.trim() || null
+  };
+
+  keyActions.push(model);
+  select({ type: 'keyaction', id });
+}
+
 function removeController(controllerId) {
   const idx = controllers.findIndex((c) => c.id === controllerId);
   if (idx >= 0) {
@@ -2364,6 +2474,18 @@ function removeController(controllerId) {
 
   // Reset selection if this controller was selected
   if (selected.value?.id === controllerId) {
+    selected.value = null;
+  }
+}
+
+function removeKeyAction(keyActionId) {
+  const idx = keyActions.findIndex((k) => k.id === keyActionId);
+  if (idx >= 0) {
+    keyActions.splice(idx, 1);
+  }
+
+  // Reset selection if this keyaction was selected
+  if (selected.value?.id === keyActionId) {
     selected.value = null;
   }
 }
@@ -2815,6 +2937,24 @@ watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
   border-radius: 4px;
   background: rgba(79, 195, 247, 0.10);
   font-size: 11px;
+}
+
+.slot-item__mode {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.10);
+  font-size: 11px;
+}
+
+.slot-item__keyaction {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 165, 0, 0.15);
+  color: #ffd700;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .slot-item__delete {

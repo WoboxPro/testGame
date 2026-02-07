@@ -9,13 +9,15 @@ export function useRemovalActions({
   uiEntities,
   muzzles,
   regions,
+  keyActions,
   selected,
   canvasHosts,
   removeUI,
   removeGameEntity,
   removeMuzzle,
   removeRegion,
-  removeController
+  removeController,
+  removeKeyAction
 }) {
   function removeWorld(worldId) {
     // remove cameras referencing this world
@@ -109,6 +111,7 @@ export function useRemovalActions({
     else if (type === 'muzzle') removeMuzzle(id);
     else if (type === 'region') removeRegion(id);
     else if (type === 'controller') removeController(id);
+    else if (type === 'keyaction') removeKeyAction(id);
   }
 
   function resetAll() {
@@ -128,7 +131,8 @@ export function useRemovalActions({
     removeCamera,
     removeSelected,
     handleTreeDelete,
-    resetAll
+    resetAll,
+    removeKeyAction
   };
 }
 
