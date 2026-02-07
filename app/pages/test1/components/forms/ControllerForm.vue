@@ -249,6 +249,7 @@
               @focus="startKeyActionRecording(action.name || action.id)"
               @blur="stopKeyActionRecording"
               @keydown="handleKeyActionRecording"
+              @mousedown="handleKeyActionRecording"
             />
             <button
               v-if="model.keyActions?.[action.name || action.id]"
