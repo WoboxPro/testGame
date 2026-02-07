@@ -387,8 +387,26 @@
               <input class="field__input" v-model.trim="selectedKeyAction.description" placeholder="Стрельба из оружия" />
             </label>
             <label class="field">
-              <span class="field__label">Default Key (optional)</span>
-              <input class="field__input" v-model.trim="selectedKeyAction.defaultKey" placeholder="KeyF, Mouse1, etc." />
+              <span class="field__label">🎮 Default Key (click to record)</span>
+              <div class="binding-input-wrapper">
+                <input
+                  class="binding-input"
+                  :class="{ 'is-recording': keyActionRecordingForDefault.action === selectedKeyAction.id }"
+                  :value="selectedKeyAction.defaultKey || ''"
+                  :placeholder="keyActionRecordingForDefault.action === selectedKeyAction.id ? 'Press key or click mouse...' : 'Not set'"
+                  readonly
+                  @focus="startKeyActionRecordingForDefault(selectedKeyAction.id)"
+                  @blur="stopKeyActionRecordingForDefault"
+                  @keydown="handleKeyActionRecordingForDefault"
+                  @mousedown="handleKeyActionRecordingForDefault"
+                />
+                <button
+                  v-if="selectedKeyAction.defaultKey"
+                  class="binding-clear"
+                  @click="selectedKeyAction.defaultKey = ''"
+                  title="Clear"
+                >×</button>
+              </div>
               <span class="field__hint">Оставьте пустым чтобы настроить в контроллере</span>
             </label>
           </div>
@@ -1093,6 +1111,44 @@ const slotModal = reactive({ open: false });
 // Хранилище для выбора сущности в форме прикрепления к слоту
 // key: slotId, value: entityId для прикрепления
 const slotAttachmentForm = reactive({});
+
+// 🎮 KeyAction recording state для Inspector
+const keyActionRecordingForDefault = reactive({
+  action: null
+});
+
+// 🎮 Функции для записи Default Key в Inspector KeyAction
+function startKeyActionRecordingForDefault(keyActionId) {
+  keyActionRecordingForDefault.action = keyActionId;
+}
+
+function stopKeyActionRecordingForDefault() {
+  keyActionRecordingForDefault.action = null;
+}
+
+function handleKeyActionRecordingForDefault(e) {
+  if (!keyActionRecordingForDefault.action) return;
+
+  e.preventDefault();
+
+  // Получаем selectedKeyAction
+  const keyAction = keyActions.find(k => k.id === keyActionRecordingForDefault.action);
+  if (!keyAction) return;
+
+  // Поддерживаем как клавиатуру так и мышь
+  let keyCode;
+  if (e.type === 'keydown') {
+    keyCode = e.code;
+  } else if (e.type === 'mousedown') {
+    keyCode = `Mouse${e.button}`;
+  } else {
+    return;
+  }
+
+  keyAction.defaultKey = keyCode;
+  stopKeyActionRecordingForDefault();
+  e.target.blur();
+}
 
 const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   createModal,
@@ -2430,7 +2486,8 @@ function createControllerFromForm() {
       },
       touchConfig: touchConfig,
       bindings: bindings, // Pass custom bindings or undefined (uses defaults)
-      keyActions: controllerForm.keyActions || {} // 🎮 Pass KeyActions
+      keyActions: controllerForm.keyActions || {}, // 🎮 Pass KeyActions (bindings)
+      allKeyActions: keyActions // 🎮 Pass all KeyActions (for defaultKey lookup)
     }));
 
     // Передаём все сущности для переключения
@@ -2834,6 +2891,62 @@ watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
   color: rgba(255, 255, 255, 0.92);
 }
 .field__input:focus { outline: 2px solid rgba(79, 195, 247, 0.25); border-color: rgba(79, 195, 247, 0.30); }
+
+/* 🎮 Binding Input (for KeyActions) */
+.binding-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+.binding-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+  padding-right: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.binding-input:focus {
+  outline: 2px solid rgba(79, 195, 247, 0.25);
+  border-color: rgba(79, 195, 247, 0.30);
+}
+.binding-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.binding-input.is-recording {
+  border-color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+.binding-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.binding-clear:hover {
+  background: rgba(255, 100, 100, 0.2);
+  color: rgba(255, 100, 100, 0.9);
+}
 
 /* JSON Modal */
 .modal--json {

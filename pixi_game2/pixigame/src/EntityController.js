@@ -17,7 +17,6 @@
 import { Controller } from './Controller.js';
 import { timeSystem } from './TimeSystem.js';
 import { inputSystem } from './input/InputSystem.js';
-import { keyActionRegistry } from './input/KeyActionRegistry.js';
 
 export class EntityController extends Controller {
   constructor(options = {}) {
@@ -42,6 +41,10 @@ export class EntityController extends Controller {
     // 🎮 KeyActions - кастомные действия для слотов (muzzle и т.д.)
     // Map<actionName, keyCode> например: { "fire": "KeyF", "left_hand": "Mouse1" }
     this.keyActions = options.keyActions || {};
+
+    // 🎮 Глобальный массив всех KeyActions (из UI) для поиска defaultKey
+    // Array<{id, name, displayName, description, defaultKey}>
+    this.allKeyActions = options.allKeyActions || [];
 
     // Состояние нажатых клавиш
     this._pressedKeys = new Set();
@@ -167,13 +170,19 @@ export class EntityController extends Controller {
    * @returns {string|null} Код клавиши или null
    */
   getKeyAction(actionName) {
-    // Сначала проверяем кастомную привязку в контроллере
+    // 1. Сначала проверяем кастомную привязку в контроллере (ПРИОРИТЕТ)
     if (this.keyActions[actionName]) {
       return this.keyActions[actionName];
     }
 
-    // Если нет кастомной, возвращаем дефолтную из реестра
-    return keyActionRegistry.getDefaultKey(actionName);
+    // 2. Иначе ищем defaultKey в глобальном массиве KeyActions
+    const keyAction = this.allKeyActions.find(ka => (ka.name === actionName || ka.id === actionName));
+    if (keyAction && keyAction.defaultKey) {
+      return keyAction.defaultKey;
+    }
+
+    // 3. Не найдено - возвращаем null
+    return null;
   }
 
   /**
