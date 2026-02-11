@@ -192,6 +192,27 @@
       <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'muzzle', m.id)">×</button>
     </div>
 
+    <!-- Vision Section -->
+    <div class="tree__section">
+      <div class="tree__title">👁️ Vision</div>
+      <div class="tree__actions">
+        <button class="tree__add" @click="$emit('add', 'vision')">+ Add</button>
+        <button class="tree__json" @click="$emit('json', 'vision')" title="Export JSON">{ }</button>
+      </div>
+    </div>
+    <div v-if="visions.length === 0" class="tree__empty">No vision</div>
+    <div
+      v-for="v in visions"
+      :key="v.id"
+      class="tree__item"
+      :class="{ 'is-selected': selected?.type === 'vision' && selected?.id === v.id }"
+      @click="$emit('select', { type: 'vision', id: v.id })"
+    >
+      <span class="tree__name tree__name--vision">👁️ {{ v.id }}</span>
+      <span class="tree__meta">{{ v.shape }} • {{ v.range }}px {{ v.showDebug ? '• visible' : '' }}</span>
+      <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'vision', v.id)">×</button>
+    </div>
+
     <!-- Regions Section -->
     <div class="tree__section">
       <div class="tree__title">Regions</div>
@@ -292,20 +313,21 @@
 
 <script setup>
  const props = defineProps({
-   worlds: { type: Array, default: () => [] },
-   canvases: { type: Array, default: () => [] },
-   cameras: { type: Array, default: () => [] },
-   uiEntities: { type: Array, default: () => [] },
-   gameEntities: { type: Array, default: () => [] },
-   unattachedEntities: { type: Array, default: () => [] },
-   muzzles: { type: Array, default: () => [] },
-   regions: { type: Array, default: () => [] },
-   controllers: { type: Array, default: () => [] },
-   keyActions: { type: Array, default: () => [] },
-   collisionTypes: { type: Array, default: () => [] },
-   collisionRelations: { type: Array, default: () => [] },
-   selected: { type: Object, default: () => null }
-  });
+    worlds: { type: Array, default: () => [] },
+    canvases: { type: Array, default: () => [] },
+    cameras: { type: Array, default: () => [] },
+    uiEntities: { type: Array, default: () => [] },
+    gameEntities: { type: Array, default: () => [] },
+    unattachedEntities: { type: Array, default: () => [] },
+    muzzles: { type: Array, default: () => [] },
+    visions: { type: Array, default: () => [] },
+    regions: { type: Array, default: () => [] },
+    controllers: { type: Array, default: () => [] },
+    keyActions: { type: Array, default: () => [] },
+    collisionTypes: { type: Array, default: () => [] },
+    collisionRelations: { type: Array, default: () => [] },
+    selected: { type: Object, default: () => null }
+   });
 
  defineEmits(['select', 'add', 'delete', 'json', 'delete-collision-type', 'detach-entity']);
 
@@ -323,6 +345,18 @@ function getEntityLabel(entityId) {
   const unattachedEntity = props.unattachedEntities.find(e => e.id === entityId);
   if (unattachedEntity) {
     return `${unattachedEntity.id} (${unattachedEntity.subtype})`;
+  }
+
+  // Search in muzzles
+  const muzzle = props.muzzles.find(m => m.id === entityId);
+  if (muzzle) {
+    return `🔫 ${muzzle.id}`;
+  }
+
+  // Search in visions
+  const vision = props.visions.find(v => v.id === entityId);
+  if (vision) {
+    return `👁️ ${vision.id}`;
   }
 
   return entityId;
@@ -493,10 +527,15 @@ function getEntityLabel(entityId) {
    color: #00ffff;
  }
 
- /* Muzzle Item Styling */
- .tree__name--muzzle {
-   color: #ff88ff;
- }
+  /* Muzzle Item Styling */
+  .tree__name--muzzle {
+    color: #ff88ff;
+  }
+
+  /* Vision Item Styling */
+  .tree__name--vision {
+    color: #00ff88;
+  }
 
  /* Attached Entity Styling */
  .tree__item--attached {

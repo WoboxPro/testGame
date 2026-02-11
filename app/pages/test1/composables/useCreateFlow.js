@@ -13,6 +13,7 @@ export function useCreateFlow({
   gameEntities,
   unattachedEntities,
   muzzles,
+  visions,
   regions,
   controllers,
   worldForm,
@@ -22,6 +23,7 @@ export function useCreateFlow({
   uiButtonForm,
   gameEntityForm,
   muzzleForm,
+  visionForm,
   regionForm,
   controllerForm,
   collisionTypeForm,
@@ -120,6 +122,15 @@ export function useCreateFlow({
       muzzleForm.rangeScatterChance = 0;
       muzzleForm.rangeSpreadPercent = 10;
       muzzleForm.bulletLifetime = 0;
+    } else if (type === 'vision') {
+      visionForm.id = suggestId('vision', visions);
+      visionForm.shape = 'arc';
+      visionForm.range = 500;
+      visionForm.fovAngle = 90;
+      visionForm.direction = { x: 1, y: 0 };
+      visionForm.directionMode = 'relative';
+      visionForm.showDebug = true;
+      visionForm.debugColor = '#00FF00';
     }
   }
 

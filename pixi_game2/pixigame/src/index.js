@@ -21,3 +21,4 @@ export { GameEntity, UnitEntity, BuildEntity, PropEntity } from './entities/Game
 export { UITextEntity } from './entities/UIEntities.js';
 export { UIButtonEntity } from './entities/UIEntities.js';
 export { ProjectileEntity, BulletEntity } from './entities/ProjectileEntity.js';
+export { VisionEntity } from './entities/VisionEntity.js';

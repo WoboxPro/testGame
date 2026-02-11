@@ -5,15 +5,16 @@ import { reactive, watch } from 'vue';
  * Lives under /test1 to avoid cross-page coupling.
  */
  export function useJsonExport({
-   worlds,
-   canvases,
-   cameras,
-   uiEntities,
-   gameEntities,
-   muzzles,
-   regions,
-   controllers
- }) {
+    worlds,
+    canvases,
+    cameras,
+    uiEntities,
+    gameEntities,
+    muzzles,
+    visions,
+    regions,
+    controllers
+  }) {
   // JSON Export Modal
   const jsonModal = reactive({
     open: false,
@@ -96,14 +97,22 @@ import { reactive, watch } from 'vue';
          }));
          break;
        case 'muzzle':
-         jsonModal.title = 'Muzzles';
-         jsonModal.items = muzzles.map((m) => ({
-           id: m.id,
-           name: `Muzzle: ${m.id}`,
-           json: JSON.stringify(getMuzzleJsonConfig(m), null, 2)
-         }));
-         break;
-       case 'region':
+          jsonModal.title = 'Muzzles';
+          jsonModal.items = muzzles.map((m) => ({
+            id: m.id,
+            name: `Muzzle: ${m.id}`,
+            json: JSON.stringify(getMuzzleJsonConfig(m), null, 2)
+          }));
+          break;
+        case 'vision':
+          jsonModal.title = 'Vision';
+          jsonModal.items = visions.map((v) => ({
+            id: v.id,
+            name: `Vision: ${v.id}`,
+            json: JSON.stringify(getVisionJsonConfig(v), null, 2)
+          }));
+          break;
+        case 'region':
         jsonModal.title = 'Regions';
         jsonModal.items = regions.map((r) => ({
           id: r.id,
@@ -318,30 +327,49 @@ import { reactive, watch } from 'vue';
     };
   }
 
+  function getVisionJsonConfig(visionModel) {
+    const v = visionModel.instance;
+    return {
+      id: visionModel.id,
+      shape: v.shape,
+      range: v.range,
+      fovAngle: v.fovAngle,
+      direction: v.direction,
+      directionMode: v.directionMode,
+      showDebug: v.showDebug,
+      debugColor: v.debugColor,
+      position: v.position,
+      rotation: v.rotation,
+      scale: v.scale
+    };
+  }
+
    function getAllProjectJson() {
-     return {
-       version: '1.0',
-       timestamp: new Date().toISOString(),
-       worlds: worlds.map((w) => getWorldJsonConfig(w)),
-       canvases: canvases.map((c) => getCanvasJsonConfig(c)),
-       cameras: cameras.map((c) => getCameraJsonConfig(c)),
-       uiEntities: uiEntities.map((u) => getUIJsonConfig(u)),
-       gameEntities: gameEntities.map((e) => getEntityJsonConfig(e)),
-       muzzles: muzzles.map((m) => getMuzzleJsonConfig(m)),
-       regions: regions.map((r) => getRegionJsonConfig(r)),
-       controllers: controllers.map((c) => getControllerJsonConfig(c)),
-       summary: {
-         worldCount: worlds.length,
-         canvasCount: canvases.length,
-         cameraCount: cameras.length,
-         uiEntityCount: uiEntities.length,
-         gameEntityCount: gameEntities.length,
-         muzzleCount: muzzles.length,
-         regionCount: regions.length,
-         controllerCount: controllers.length
-       }
-     };
-   }
+      return {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        worlds: worlds.map((w) => getWorldJsonConfig(w)),
+        canvases: canvases.map((c) => getCanvasJsonConfig(c)),
+        cameras: cameras.map((c) => getCameraJsonConfig(c)),
+        uiEntities: uiEntities.map((u) => getUIJsonConfig(u)),
+        gameEntities: gameEntities.map((e) => getEntityJsonConfig(e)),
+        muzzles: muzzles.map((m) => getMuzzleJsonConfig(m)),
+        visions: visions.map((v) => getVisionJsonConfig(v)),
+        regions: regions.map((r) => getRegionJsonConfig(r)),
+        controllers: controllers.map((c) => getControllerJsonConfig(c)),
+        summary: {
+          worldCount: worlds.length,
+          canvasCount: canvases.length,
+          cameraCount: cameras.length,
+          uiEntityCount: uiEntities.length,
+          gameEntityCount: gameEntities.length,
+          muzzleCount: muzzles.length,
+          visionCount: visions.length,
+          regionCount: regions.length,
+          controllerCount: controllers.length
+        }
+      };
+    }
 
   return {
     jsonModal,

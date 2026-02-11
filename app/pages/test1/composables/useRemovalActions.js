@@ -8,6 +8,7 @@ export function useRemovalActions({
   cameras,
   uiEntities,
   muzzles,
+  visions,
   regions,
   keyActions,
   selected,
@@ -15,6 +16,7 @@ export function useRemovalActions({
   removeUI,
   removeGameEntity,
   removeMuzzle,
+  removeVision,
   removeRegion,
   removeController,
   removeKeyAction
@@ -98,6 +100,7 @@ export function useRemovalActions({
     else if (type === 'ui') removeUI(id);
     else if (type === 'game_entity') removeGameEntity(id);
     else if (type === 'muzzle') removeMuzzle(id);
+    else if (type === 'vision') removeVision(id);
     else if (type === 'region') removeRegion(id);
     else if (type === 'controller') removeController(id);
   }
@@ -109,14 +112,16 @@ export function useRemovalActions({
     else if (type === 'ui') removeUI(id);
     else if (type === 'game_entity') removeGameEntity(id);
     else if (type === 'muzzle') removeMuzzle(id);
+    else if (type === 'vision') removeVision(id);
     else if (type === 'region') removeRegion(id);
     else if (type === 'controller') removeController(id);
     else if (type === 'keyaction') removeKeyAction(id);
   }
 
   function resetAll() {
-    // remove everything in safe order: muzzles -> regions -> ui -> cameras -> canvases -> worlds
+    // remove everything in safe order: muzzles -> visions -> regions -> ui -> cameras -> canvases -> worlds
     for (const m of [...muzzles]) removeMuzzle(m.id);
+    for (const v of [...visions]) removeVision(v.id);
     for (const r of [...regions]) removeRegion(r.id);
     for (const u of [...uiEntities]) removeUI(u.id);
     for (const cam of [...cameras]) removeCamera(cam.id);

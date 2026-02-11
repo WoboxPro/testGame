@@ -25,6 +25,7 @@
             :game-entities="gameEntities"
             :unattached-entities="unattachedEntities"
             :muzzles="muzzles"
+            :visions="visions"
             :regions="regions"
             :controllers="controllers"
             :key-actions="keyActions"
@@ -326,6 +327,13 @@
           @apply="applySelectedMuzzleUi"
         />
 
+        <!-- Vision Inspector -->
+        <VisionInspector
+          v-else-if="selected.type === 'vision' && selectedVision"
+          :vision="selectedVision"
+          @apply="applySelectedVisionUi"
+        />
+
         <!-- Region Inspector -->
         <div v-else-if="selected.type === 'region' && selectedRegion" class="inspector__content">
           <div class="inspector__title">Region: {{ selectedRegion.displayName }}</div>
@@ -467,6 +475,12 @@
           <MuzzleForm
             v-else-if="createModal.type === 'muzzle'"
             v-model="muzzleForm"
+          />
+
+          <!-- Vision Form -->
+          <VisionForm
+            v-else-if="createModal.type === 'vision'"
+            v-model="visionForm"
           />
 
           <!-- Region Form -->
@@ -723,9 +737,10 @@
  import { Canvas, Camera } from '../../../pixi_game2/pixigame-renderer/src/index.js';
  import { createPixiDisplayObjectForUI } from '../../../pixi_game2/pixigame-renderer/src/UIRenderer.js';
  import * as PIXI from 'pixi.js';
- import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
- import { MuzzleEntity } from '../../../pixi_game2/pixigame/src/entities/MuzzleEntity.js';
- import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
+  import { GameEntity } from '../../../pixi_game2/pixigame/src/entities/GameEntity.js';
+  import { MuzzleEntity } from '../../../pixi_game2/pixigame/src/entities/MuzzleEntity.js';
+  import { VisionEntity } from '../../../pixi_game2/pixigame/src/entities/VisionEntity.js';
+  import { UITextEntity, UIButtonEntity } from '../../../pixi_game2/pixigame/src/entities/UIEntities.js';
  import { CameraController } from '../../../pixi_game2/pixigame/src/CameraController.js';
  import { EntityController } from '../../../pixi_game2/pixigame/src/EntityController.js';
  import { timeSystem } from '../../../pixi_game2/pixigame/src/TimeSystem.js';
@@ -743,11 +758,13 @@
   import ControllerForm from './components/forms/ControllerForm.vue';
   import GameEntityForm from './components/forms/GameEntityForm.vue';
   import MuzzleForm from './components/forms/MuzzleForm.vue';
+  import VisionForm from './components/forms/VisionForm.vue';
   import CollisionTypeForm from './components/forms/CollisionTypeForm.vue';
   import CollisionRelationForm from './components/forms/CollisionRelationForm.vue';
   import WorldInspector from './components/inspectors/WorldInspector.vue';
   import CanvasInspector from './components/inspectors/CanvasInspector.vue';
   import MuzzleInspector from './components/inspectors/MuzzleInspector.vue';
+  import VisionInspector from './components/inspectors/VisionInspector.vue';
   import { useJsonExport } from './composables/useJsonExport.js';
   import { useRenderLoop } from './composables/useRenderLoop.js';
   import { useRemovalActions } from './composables/useRemovalActions.js';
@@ -795,6 +812,7 @@ const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const gameEntities = reactive([]); // { id, subtype, worldId, instance }
 const unattachedEntities = reactive([]); // { id, subtype, instance }
 const muzzles = reactive([]); // { id, direction, showDebug, debugColor, instance }
+const visions = reactive([]); // { id, shape, range, fovAngle, direction, directionMode, showDebug, debugColor, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
 const keyActions = reactive([]); // 🎮 { id, name, displayName, description, defaultKey }
@@ -858,6 +876,7 @@ const createModal = reactive({ open: false, type: null });
   gameEntities,
   unattachedEntities,
   muzzles,
+  visions,
   regions,
   controllers
 });
@@ -1081,6 +1100,17 @@ const muzzleForm = reactive({
   bulletLifetime: 0
 });
 
+const visionForm = reactive({
+  id: '',
+  shape: 'arc',
+  range: 500,
+  fovAngle: 90,
+  direction: { x: 1, y: 0 },
+  directionMode: 'relative',
+  showDebug: true,
+  debugColor: '#00FF00'
+});
+
  // Slot form
  const slotForm = reactive({
    id: '',
@@ -1159,6 +1189,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   gameEntities,
   unattachedEntities,
   muzzles,
+  visions,
   regions,
   controllers,
   keyActions,
@@ -1169,6 +1200,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
   uiButtonForm,
   gameEntityForm,
   muzzleForm,
+  visionForm,
   regionForm,
   controllerForm,
   keyActionForm,
@@ -1182,6 +1214,7 @@ const { openCreate, closeCreate, confirmCreate } = useCreateFlow({
     ui_button: () => createUIButtonFromForm(),
     game_entity: () => createGameEntityFromForm(),
     muzzle: () => createMuzzleFromForm(),
+    vision: () => createVisionFromForm(),
     region: () => createRegionFromForm(),
     controller: () => createControllerFromForm(),
     keyaction: () => createKeyActionFromForm(),
@@ -1398,6 +1431,7 @@ const { removeWorld, removeCanvas, removeCamera, removeSelected, handleTreeDelet
   cameras,
   uiEntities,
   muzzles,
+  visions,
   regions,
   keyActions,
   selected,
@@ -1405,6 +1439,7 @@ const { removeWorld, removeCanvas, removeCamera, removeSelected, handleTreeDelet
   removeUI,
   removeGameEntity,
   removeMuzzle,
+  removeVision,
   removeRegion,
   removeController,
   removeKeyAction
@@ -1429,6 +1464,7 @@ const selectedUnattachedEntity = computed(() => {
 });
 const isUnattachedEntitySelected = computed(() => selectedUnattachedEntity.value !== null);
 const selectedMuzzle = computed(() => (selected.value?.type === 'muzzle' ? muzzles.find((m) => m.id === selected.value.id) : null));
+const selectedVision = computed(() => (selected.value?.type === 'vision' ? visions.find((v) => v.id === selected.value.id) : null));
 const selectedRegion = computed(() => (selected.value?.type === 'region' ? regions.find((r) => r.id === selected.value.id) : null));
 const selectedController = computed(() => (selected.value?.type === 'controller' ? controllers.find((c) => c.id === selected.value.id) : null));
 const selectedKeyAction = computed(() => (selected.value?.type === 'keyaction' ? keyActions.find((k) => k.id === selected.value.id) : null));
@@ -1557,6 +1593,23 @@ function applySelectedMuzzleUi() {
 
   console.log('🔫 Muzzle settings applied:', selectedMuzzle.id);
 }
+
+function applySelectedVisionUi(data) {
+  const selectedVisionEntity = visions.find(v => v.id === selected.value?.id);
+  if (!selectedVisionEntity) return;
+
+  // Обновляем модель
+  selectedVisionEntity.shape = data.shape;
+  selectedVisionEntity.range = data.range;
+  selectedVisionEntity.fovAngle = data.fovAngle;
+  selectedVisionEntity.direction = { ...data.direction };
+  selectedVisionEntity.directionMode = data.directionMode;
+  selectedVisionEntity.showDebug = data.showDebug;
+  selectedVisionEntity.debugColor = data.debugColor;
+
+  console.log('👁️ Vision settings applied:', selectedVisionEntity.id);
+}
+
 
 // ---------------------------
 // UI Entities (Entity + UI)
@@ -1695,6 +1748,30 @@ function removeMuzzle(muzzleId) {
   if (selected.value?.type === 'muzzle' && selected.value.id === muzzleId) selected.value = null;
 }
 
+function removeVision(visionId) {
+  const idx = visions.findIndex((v) => v.id === visionId);
+  if (idx < 0) return;
+
+  const visionModel = visions[idx];
+
+  // Detach vision from any slots it's attached to
+  detachEntityFromAllSlots(visionModel.id);
+
+  // Remove from world's ECS
+  if (visionModel.worldId) {
+    const worldModel = worlds.find((w) => w.id === visionModel.worldId);
+    if (worldModel?.instance) {
+      worldModel.instance.entities.delete(visionId);
+      console.log(`👁️ Vision "${visionId}" removed from world "${visionModel.worldId}"`);
+    }
+  }
+
+  // Remove from visions array
+  visions.splice(idx, 1);
+
+  if (selected.value?.type === 'vision' && selected.value.id === visionId) selected.value = null;
+}
+
 // ---------------------------
 // Slots System
 // ---------------------------
@@ -1827,7 +1904,8 @@ function getAttachableEntities() {
   const attachable = [
     ...gameEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id),
     ...unattachedEntities.filter(e => !alreadyAttachedIds.has(e.id) && e.id !== selectedGameEntity.value.id),
-    ...muzzles.filter(m => !alreadyAttachedIds.has(m.id))
+    ...muzzles.filter(m => !alreadyAttachedIds.has(m.id)),
+    ...visions.filter(v => !alreadyAttachedIds.has(v.id))
   ];
 
   return attachable;
@@ -1843,6 +1921,7 @@ function attachEntity(slotId, entityId) {
   // Find the entity to attach
   let entityToAttach = null;
   let isMuzzle = false;
+  let isVision = false;
 
   // Search in gameEntities
   entityToAttach = gameEntities.find(e => e.id === entityId);
@@ -1855,6 +1934,11 @@ function attachEntity(slotId, entityId) {
     entityToAttach = muzzles.find(m => m.id === entityId);
     if (entityToAttach) isMuzzle = true;
   }
+  if (!entityToAttach) {
+    // Search in visions
+    entityToAttach = visions.find(v => v.id === entityId);
+    if (entityToAttach) isVision = true;
+  }
 
   if (!entityToAttach) {
     console.error(`Entity "${entityId}" not found for attachment`);
@@ -1866,6 +1950,15 @@ function attachEntity(slotId, entityId) {
     const result = selectedGameEntity.value.instance.attachEntityToSlot(entityToAttach.instance, slotId);
     if (result.success) {
       console.log(`🔫 Muzzle "${entityId}" attached to slot "${slotId}"`);
+    }
+    return;
+  }
+
+  // Visions attach directly without adding to world
+  if (isVision) {
+    const result = selectedGameEntity.value.instance.attachEntityToSlot(entityToAttach.instance, slotId);
+    if (result.success) {
+      console.log(`👁️ Vision "${entityId}" attached to slot "${slotId}"`);
     }
     return;
   }
@@ -2295,6 +2388,79 @@ function createMuzzleFromForm() {
   };
   muzzles.push(model);
   select({ type: 'muzzle', id });
+}
+
+function createVisionFromForm() {
+  // Generate unique ID
+  let id = visionForm.id?.trim() || suggestId('vision', visions);
+
+  // Ensure ID uniqueness
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  while (attempts < maxAttempts) {
+    const isDuplicate = visions.some((v) => v.id === id);
+    if (!isDuplicate) {
+      break;
+    }
+    const prefix = id.match(/^[a-z_]+/i)?.[0] || 'vision';
+    const currentNum = parseInt(id.match(/\d+$/)?.[0] || '0');
+    id = `${prefix}_${currentNum + 1}`;
+    attempts++;
+  }
+
+  if (attempts >= maxAttempts) {
+    alert(`Could not generate unique ID after ${maxAttempts} attempts.`);
+    return;
+  }
+
+  // Create VisionEntity instance
+  const instance = markRaw(new VisionEntity({
+    id,
+    shape: visionForm.shape || 'arc',
+    range: Number(visionForm.range) || 500,
+    fovAngle: Number(visionForm.fovAngle) || 90,
+    direction: {
+      x: visionForm.direction.x != null ? Number(visionForm.direction.x) : 1,
+      y: visionForm.direction.y != null ? Number(visionForm.direction.y) : 0
+    },
+    directionMode: visionForm.directionMode || 'relative',
+    showDebug: visionForm.showDebug !== false,
+    debugColor: visionForm.debugColor?.trim() || '#00FF00',
+    position: { x: 0, y: 0 },
+    rotation: 0,
+    scale: { x: 1, y: 1 }
+  }));
+
+  // Find first world to add vision to ECS system
+  const worldModel = worlds[0];
+  if (worldModel && worldModel.instance) {
+    // Add vision to world with minimal components for ECS
+    const components = new Map();
+    components.set('_entityRef', instance);
+    components.set('position', instance.position);
+    components.set('rotation', instance.rotation);
+    components.set('scale', instance.scale);
+    worldModel.instance.entities.set(id, components);
+
+    console.log(`👁️ Vision "${id}" added to world "${worldModel.id}"`);
+  }
+
+  // Vision model
+  const model = {
+    id,
+    shape: instance.shape,
+    range: instance.range,
+    fovAngle: instance.fovAngle,
+    direction: instance.direction,
+    directionMode: instance.directionMode,
+    showDebug: instance.showDebug,
+    debugColor: instance.debugColor,
+    instance,
+    worldId: worldModel?.id
+  };
+  visions.push(model);
+  select({ type: 'vision', id });
 }
 
 function createRegionFromForm() {

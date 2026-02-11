@@ -11,6 +11,7 @@ export class EntityRenderer {
     this._collisionBoundsCache = new Map(); // Кеш для границ коллизии
     this._slotsCache = new Map(); // Кеш для визуализации слотов
     this._muzzleCache = new Map(); // Кеш для визуализации muzzle
+    this._visionCache = new Map(); // Кеш для визуализации vision
   }
   
   renderEntities(camera, world, container) {
@@ -32,7 +33,10 @@ export class EntityRenderer {
       // 🔫 Special handling for muzzle - no appearance component required
       const isMuzzle = entityRef?.subtype === 'muzzle';
 
-      if (!position || (!appearance && !isMuzzle)) continue;
+      // 👁️ Special handling for vision - no appearance component required
+      const isVision = entityRef?.subtype === 'vision';
+
+      if (!position || (!appearance && !isMuzzle && !isVision)) continue;
 
       // Rotation can be stored as:
       // - number (radians)
@@ -48,7 +52,8 @@ export class EntityRenderer {
       const entityScale = entityRef?.scale || { x: 1, y: 1 };
 
       // 🔫 For muzzle, always consider visible (no culling based on appearance size)
-      const isVisible = isMuzzle || this._isEntityVisible(
+      // 👁️ For vision, always consider visible (no culling based on appearance size)
+      const isVisible = isMuzzle || isVision || this._isEntityVisible(
         { x: position.x, y: position.y },
         appearance?.size || 0,
         visibleBounds
@@ -82,6 +87,13 @@ export class EntityRenderer {
           container.removeChild(muzzleGraphics);
         }
 
+        // Remove vision graphics
+        const visionKey = `${cachePrefix}vision::${entityId}`;
+        const visionGraphics = this._visionCache.get(visionKey);
+        if (visionGraphics && visionGraphics.parent === container) {
+          container.removeChild(visionGraphics);
+        }
+
         continue;
       }
 
@@ -90,6 +102,12 @@ export class EntityRenderer {
       // 🔫 Muzzle rendering - skip appearance-based rendering
       if (isMuzzle) {
         this._renderMuzzle(camera, entityId, components, container);
+        continue;
+      }
+
+      // 👁️ Vision rendering - skip appearance-based rendering
+      if (isVision) {
+        this._renderVision(camera, entityId, components, container);
         continue;
       }
 
@@ -168,6 +186,20 @@ export class EntityRenderer {
           }
           muzzleGraphics.destroy({ children: true });
           this._muzzleCache.delete(muzzleKey);
+        }
+      }
+    }
+
+    // Очистка неактивных vision
+    for (const [visionKey, visionGraphics] of this._visionCache) {
+      if (visionKey.startsWith(cachePrefix + 'vision::')) {
+        const entityId = visionKey.substring((cachePrefix + 'vision::').length);
+        if (!activeEntityIds.has(entityId)) {
+          if (visionGraphics.parent === container) {
+            container.removeChild(visionGraphics);
+          }
+          visionGraphics.destroy({ children: true });
+          this._visionCache.delete(visionKey);
         }
       }
     }
@@ -615,6 +647,147 @@ export class EntityRenderer {
     }
     }
 
+  /**
+   * 👁️ Отрисовка vision (обзора) - круг или сектор
+   */
+  _renderVision(camera, entityId, components, container) {
+    const entityRef = components.get('_entityRef');
+    const position = components.get('position');
+    const rotationComp = components.get('rotation');
+
+    // Проверяем, что это vision
+    if (!entityRef || entityRef.subtype !== 'vision') {
+      // Если не vision - удаляем графику если есть
+      const visionKey = `${camera.id}::vision::${entityId}`;
+      const visionGraphics = this._visionCache.get(visionKey);
+      if (visionGraphics && visionGraphics.parent === container) {
+        container.removeChild(visionGraphics);
+      }
+      return;
+    }
+
+    // Если выключена debug визуализация - не рисуем
+    if (!entityRef.showDebug) {
+      const visionKey = `${camera.id}::vision::${entityId}`;
+      const visionGraphics = this._visionCache.get(visionKey);
+      if (visionGraphics && visionGraphics.parent === container) {
+        container.removeChild(visionGraphics);
+      }
+      return;
+    }
+
+    // Rotation can be stored as:
+    // - number (radians)
+    // - { value: number }
+    // - or on a linked _entityRef
+    const rotation =
+      rotationComp != null
+        ? (typeof rotationComp === 'number'
+            ? rotationComp
+            : (Number(rotationComp?.value) || 0))
+        : (Number(entityRef?.rotation) || 0);
+
+    // Mirror direction - используем родительский mirrorDirection для attached vision
+    const mirrorDirectionComp = components.get('mirrorDirection');
+    const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
+
+    const visionKey = `${camera.id}::vision::${entityId}`;
+    let visionGraphics = this._visionCache.get(visionKey);
+
+    if (!visionGraphics) {
+      visionGraphics = new PIXI.Graphics();
+      this._visionCache.set(visionKey, visionGraphics);
+    }
+
+    // Очистка и перерисовка
+    visionGraphics.clear();
+
+    const debugColor = entityRef.debugColor || '#00FF00';
+    const colorInt = parseInt(debugColor.replace('#', ''), 16);
+    const range = entityRef.range || 500;
+    const shape = entityRef.shape || 'arc';
+
+    if (shape === 'circle') {
+      // Круговой обзор (360°)
+      visionGraphics
+        .circle(0, 0, range)
+        .stroke({
+          width: 2,
+          color: colorInt,
+          alpha: 0.4
+        });
+    } else {
+      // Секторный обзор (arc)
+      const fovAngle = entityRef.fovAngle || 90;
+      const direction = entityRef.direction || { x: 1, y: 0 };
+      const directionMode = entityRef.directionMode || 'relative';
+
+      // Вычисляем направление с учетом поворота и отражения
+      let dirX = direction.x;
+      let dirY = direction.y;
+
+      // Применяем rotation к direction ТОЛЬКО для relative режима
+      if (directionMode === 'relative') {
+        // Применяем rotation к direction
+        const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+        const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+
+        // Применяем mirror
+        dirX = rotatedDirX * mirrorDirection.x;
+        dirY = rotatedDirY * mirrorDirection.y;
+      }
+      // Для static режима rotation НЕ применяется - direction остается как есть
+
+      // Получаем базовый угол направления
+      const baseAngle = Math.atan2(dirY, dirX);
+
+      // Преобразуем fovAngle в радианы
+      const fovRad = (fovAngle * Math.PI) / 180;
+
+      // Вычисляем начальный и конечный углы дуги
+      const startAngle = baseAngle - fovRad / 2;
+      const endAngle = baseAngle + fovRad / 2;
+
+      // Рисуем сектор
+      visionGraphics
+        .moveTo(0, 0)
+        .arc(0, 0, range, startAngle, endAngle)
+        .closePath()
+        .stroke({
+          width: 2,
+          color: colorInt,
+          alpha: 0.4
+        });
+
+      // Рисуем линии от центра к краям дуги
+      visionGraphics
+        .moveTo(0, 0)
+        .lineTo(range * Math.cos(startAngle), range * Math.sin(startAngle))
+        .stroke({
+          width: 2,
+          color: colorInt,
+          alpha: 0.4
+        });
+
+      visionGraphics
+        .moveTo(0, 0)
+        .lineTo(range * Math.cos(endAngle), range * Math.sin(endAngle))
+        .stroke({
+          width: 2,
+          color: colorInt,
+          alpha: 0.4
+        });
+    }
+
+    // Позиционируем vision graphics на позицию сущности
+    visionGraphics.position.set(position.x, position.y);
+
+    // Добавляем в контейнер если еще не добавлен
+    if (visionGraphics.parent !== container) {
+      container.addChild(visionGraphics);
+    }
+  }
+
   clearCameraCache(cameraId) {
     const cachePrefix = `${cameraId}::`;
 
@@ -648,6 +821,14 @@ export class EntityRenderer {
         this._muzzleCache.delete(muzzleKey);
       }
     }
+
+    // Очистка кеша vision
+    for (const [visionKey, visionGraphics] of this._visionCache) {
+      if (visionKey.startsWith(cachePrefix + 'vision::')) {
+        visionGraphics.destroy({ children: true });
+        this._visionCache.delete(visionKey);
+      }
+    }
   }
 
   _clearAllCache() {
@@ -670,6 +851,11 @@ export class EntityRenderer {
       muzzleGraphics.destroy({ children: true });
     }
     this._muzzleCache.clear();
+
+    for (const visionGraphics of this._visionCache.values()) {
+      visionGraphics.destroy({ children: true });
+    }
+    this._visionCache.clear();
   }
   
   getCacheSize() {
