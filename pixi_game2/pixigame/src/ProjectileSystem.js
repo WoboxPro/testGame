@@ -207,8 +207,6 @@ export class ProjectileSystem {
       createdBulletIds.push(bulletId);
     }
 
-    const modeText = isSpread ? 'равномерный веер' : (bulletCount > 1 ? 'случайный разброс' : 'одиночная');
-    console.log(`🔫 Создано ${createdBulletIds.length} пуль из muzzle ${muzzleId} (${modeText})`);
     return createdBulletIds;
   }
 
@@ -296,11 +294,8 @@ export class ProjectileSystem {
   removeProjectile(bulletId) {
     const projectileData = this.projectiles.get(bulletId);
     if (projectileData) {
-      // Удаляем из мира
       this.world.entities.delete(bulletId);
-      // Удаляем из системы
       this.projectiles.delete(bulletId);
-      console.log(`🗑️ Пуля удалена: ${bulletId}`);
     }
   }
 
@@ -312,7 +307,6 @@ export class ProjectileSystem {
       this.world.entities.delete(bulletId);
     }
     this.projectiles.clear();
-    console.log('🧹 Все пули удалены');
   }
 
   /**

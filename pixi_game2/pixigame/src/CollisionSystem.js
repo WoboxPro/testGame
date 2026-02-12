@@ -199,12 +199,8 @@ export class CollisionSystem {
       }
       
       if (bullet?._hitTargets?.has(targetId)) {
-        // Уже попадали в эту цель - пропускаем
         return;
       }
-
-      console.log(`💥 BULLET HIT: ${bulletId} → ${targetId} (${targetType})`);
-      console.log(`   Point: (${intersect.point.x.toFixed(1)}, ${intersect.point.y.toFixed(1)})`);
 
       // Регистрируем попадание
       if (bullet) {
@@ -218,7 +214,6 @@ export class CollisionSystem {
 
       // Remove bullet if block mode
       if (relation.block) {
-        console.log(`   🚫 BLOCKED - bullet destroyed`);
         bullet?.kill('block');
         this.world.projectileSystem?.removeProjectile(bulletId);
         return;
@@ -227,22 +222,13 @@ export class CollisionSystem {
       // Trigger mode - check piercing
       const canPierce = bullet?.registerHit?.() ?? false;
       if (!canPierce) {
-        // Piercing limit reached
-        console.log(`   🎯 PIERCING limit reached (${bullet?.piercing}) - bullet destroyed`);
         bullet?.kill('piercing');
         this.world.projectileSystem?.removeProjectile(bulletId);
-      } else {
-        console.log(`   🎯 PIERCING: ${bullet?.getRemainingPiercing?.()} hits remaining`);
       }
       return;
     }
 
-    console.log(`🎯 COLLISION ENTER: ${typeA}(${idA}) ↔ ${typeB}(${idB})`);
-    console.log(`   Режим: ${JSON.stringify(relation)}`);
-    console.log(`   Точка: (${intersect.point.x.toFixed(1)}, ${intersect.point.y.toFixed(1)})`);
-
     if (relation.trigger) {
-      console.log(`   📡 TRIGGER: вызов события`);
       // TODO: emit event
     }
   }
@@ -271,9 +257,7 @@ export class CollisionSystem {
    * 📤 Обработка выхода из коллизии
    */
   _handleCollisionExit(idA, compA, idB, compB, relation) {
-    const typeA = compA.get('collision')?.type;
-    const typeB = compB.get('collision')?.type;
-    console.log(`📤 COLLISION EXIT: ${typeA}(${idA}) ↔ ${typeB}(${idB})`);
+    // Можно добавить callback если нужно
   }
 
   /**

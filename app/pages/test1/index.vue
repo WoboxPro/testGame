@@ -99,11 +99,59 @@
 
       <!-- Inspector -->
       <aside class="panel inspector">
-        <div class="panel__header">
-          <span class="panel__title">Inspector</span>
+        <div class="panel__header panel__header--tabs">
+          <button 
+            class="tab-btn" 
+            :class="{ 'tab-btn--active': rightPanelMode === 'inspector' }"
+            @click="rightPanelMode = 'inspector'"
+          >Inspector</button>
+          <button 
+            class="tab-btn" 
+            :class="{ 'tab-btn--active': rightPanelMode === 'debug' }"
+            @click="rightPanelMode = 'debug'"
+          >Debug</button>
         </div>
 
-        <div v-if="!selected" class="inspector__empty">Select an item in the Hierarchy.</div>
+        <!-- Debug Panel -->
+        <div v-if="rightPanelMode === 'debug'" class="inspector__content">
+          <div class="inspector__title">🐛 Debug Panel</div>
+
+          <!-- Bullet Count -->
+          <div class="inspector__section">
+            <div class="inspector__section-title">🔫 Bullets</div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="debugSettings.trackBullets" />
+              <span class="field__label">Track bullet count</span>
+            </label>
+            <div class="debug-value" v-if="debugSettings.trackBullets">
+              <span class="debug-label">Active bullets:</span>
+              <span class="debug-number">{{ bulletCount }}</span>
+            </div>
+            <div class="inspector__hint" v-if="!debugSettings.trackBullets">
+              Enable to track (may impact performance)
+            </div>
+          </div>
+
+          <!-- FPS -->
+          <div class="inspector__section">
+            <div class="inspector__section-title">📊 Performance</div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="debugSettings.trackFps" />
+              <span class="field__label">Track FPS</span>
+            </label>
+            <div class="debug-value" v-if="debugSettings.trackFps">
+              <span class="debug-label">FPS:</span>
+              <span class="debug-number" :class="{ 'fps--low': fps < 30, 'fps--medium': fps >= 30 && fps < 60, 'fps--good': fps >= 60 }">{{ fps }}</span>
+            </div>
+            <div class="inspector__hint" v-if="!debugSettings.trackFps">
+              Enable to track (may impact performance)
+            </div>
+          </div>
+        </div>
+
+        <!-- Inspector Panel -->
+        <template v-else>
+          <div v-if="!selected" class="inspector__empty">Select an item in the Hierarchy.</div>
 
         <!-- World Inspector -->
         <WorldInspector v-else-if="selected.type === 'world' && selectedWorld" :world="selectedWorld" />
@@ -419,6 +467,7 @@
             </label>
           </div>
         </div>
+        </template>
       </aside>
     </div>
 
@@ -795,6 +844,17 @@ const gameSettingsUi = {
 // Форсируем реактивность Vue через trigger
 const gameSettingsTrigger = ref(0);
 
+// 🐛 Debug panel
+const rightPanelMode = ref('inspector');
+const debugSettings = reactive({
+  trackBullets: false,
+  trackFps: false
+});
+const bulletCount = ref(0);
+const fps = ref(0);
+let fpsLastTime = performance.now();
+let fpsFrameCount = 0;
+
 // Подписываемся на изменения в глобальной TimeSystem для обновления UI
 onMounted(() => {
   // Делаем timeSystem доступным глобально для AnimationSystem
@@ -804,6 +864,45 @@ onMounted(() => {
     gameSettingsTrigger.value++;
   });
   onUnmounted(unsubscribe);
+
+  // 🐛 Debug update loop
+  let debugAnimationId = null;
+  
+  function updateDebugStats() {
+    // FPS calculation
+    if (debugSettings.trackFps) {
+      fpsFrameCount++;
+      const now = performance.now();
+      const delta = now - fpsLastTime;
+      if (delta >= 1000) {
+        fps.value = Math.round((fpsFrameCount * 1000) / delta);
+        fpsFrameCount = 0;
+        fpsLastTime = now;
+      }
+    }
+
+    // Bullet count
+    if (debugSettings.trackBullets) {
+      let total = 0;
+      for (const world of worlds) {
+        if (world.instance?.projectileSystem) {
+          total += world.instance.projectileSystem.projectiles.size;
+        }
+      }
+      bulletCount.value = total;
+    }
+
+    debugAnimationId = requestAnimationFrame(updateDebugStats);
+  }
+
+  // Start debug loop
+  updateDebugStats();
+
+  onUnmounted(() => {
+    if (debugAnimationId) {
+      cancelAnimationFrame(debugAnimationId);
+    }
+  });
 });
 const worlds = reactive([]);   // { id, type, width, height, backgroundColor, instance }
 const canvases = reactive([]); // { id, sizeMode, width, height, backgroundColor, antialias, resolution, instance }
@@ -2973,6 +3072,65 @@ watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.panel__header--tabs {
+  padding: 6px 8px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tab-btn--active {
+  background: rgba(79, 195, 247, 0.15);
+  color: #7bd3ff;
+}
+
+.debug-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.debug-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.debug-number {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #7bd3ff;
+}
+
+.fps--low { color: #f87171; }
+.fps--medium { color: #fbbf24; }
+.fps--good { color: #34d399; }
+
+.inspector__hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 4px;
 }
 .panel__json-btn:hover { background: rgba(79, 195, 247, 0.25); }
 
