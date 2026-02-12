@@ -147,6 +147,36 @@
               Enable to track (may impact performance)
             </div>
           </div>
+
+          <!-- Spatial Hash -->
+          <div class="inspector__section">
+            <div class="inspector__section-title">🗜️ Spatial Hash</div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="debugSettings.trackSpatialHash" />
+              <span class="field__label">Track spatial hash</span>
+            </label>
+            <div v-if="debugSettings.trackSpatialHash && spatialHashInfo" class="debug-grid">
+              <div class="debug-row">
+                <span class="debug-label">Cell size:</span>
+                <span class="debug-val">{{ spatialHashInfo.cellSize }}px</span>
+              </div>
+              <div class="debug-row">
+                <span class="debug-label">Cells used:</span>
+                <span class="debug-val">{{ spatialHashInfo.cellCount }}</span>
+              </div>
+              <div class="debug-row">
+                <span class="debug-label">Entities in hash:</span>
+                <span class="debug-val">{{ spatialHashInfo.totalEntitiesInHash }}</span>
+              </div>
+              <div class="debug-row">
+                <span class="debug-label">Avg per cell:</span>
+                <span class="debug-val">{{ spatialHashInfo.avgEntitiesPerCell }}</span>
+              </div>
+            </div>
+            <div class="inspector__hint" v-if="!debugSettings.trackSpatialHash">
+              Enable to track (may impact performance)
+            </div>
+          </div>
         </div>
 
         <!-- Inspector Panel -->
@@ -848,10 +878,12 @@ const gameSettingsTrigger = ref(0);
 const rightPanelMode = ref('inspector');
 const debugSettings = reactive({
   trackBullets: false,
-  trackFps: false
+  trackFps: false,
+  trackSpatialHash: false
 });
 const bulletCount = ref(0);
 const fps = ref(0);
+const spatialHashInfo = ref(null);
 let fpsLastTime = performance.now();
 let fpsFrameCount = 0;
 
@@ -890,6 +922,15 @@ onMounted(() => {
         }
       }
       bulletCount.value = total;
+    }
+
+    // Spatial hash info
+    if (debugSettings.trackSpatialHash) {
+      const firstWorld = worlds[0];
+      if (firstWorld?.instance?.collisionSystem) {
+        const info = firstWorld.instance.collisionSystem.getInfo();
+        spatialHashInfo.value = info.spatialHash;
+      }
     }
 
     debugAnimationId = requestAnimationFrame(updateDebugStats);
@@ -3131,6 +3172,25 @@ watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
   margin-top: 4px;
+}
+
+.debug-grid {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.debug-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #7bd3ff;
 }
 .panel__json-btn:hover { background: rgba(79, 195, 247, 0.25); }
 

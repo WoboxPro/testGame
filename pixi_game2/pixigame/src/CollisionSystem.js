@@ -5,15 +5,20 @@
  * - Типы коллизий (unit, build, ...)
  * - Матрицу отношений между типами
  * - Режимы: block, trigger
- * - Формы: circle, rect
+ * - Формы: circle, rect, point
+ * - Spatial Hashing для оптимизации
  */
 
 export class CollisionSystem {
   constructor(world, options = {}) {
     this.world = world;
     this.enabled = options.enabled !== false;
-    // Small slop to reduce jitter when resolving overlap
     this.separationSlop = Number.isFinite(options.separationSlop) ? options.separationSlop : 0.001;
+
+    // 🗜️ Spatial Hashing
+    this.cellSize = options.cellSize || 100; // размер ячейки в пикселях
+    this.spatialHash = new Map(); // cellKey -> Set<entityId>
+    this.useSpatialHash = options.useSpatialHash !== false; // по умолчанию включён
 
     // 📋 Типы коллизий
     this.collisionTypes = {
@@ -44,13 +49,73 @@ export class CollisionSystem {
         unit: { block: false, trigger: true },
         build: { block: true, trigger: false }
       }
-      // build: {} - не указано = нет проверки
     };
 
     // 🔑 Активные коллизии (для enter/exit событий)
-    this.activeCollisions = new Set(); // 'entityA_id:entityB_id'
+    this.activeCollisions = new Set();
 
-    console.log('🎯 CollisionSystem создана');
+    console.log('🎯 CollisionSystem создана (spatialHash: ' + this.cellSize + 'px)');
+  }
+
+  // ==================== Spatial Hashing ====================
+
+  /**
+   * 🗜️ Получить ключ ячейки по позиции
+   */
+  _getCellKey(x, y) {
+    const cellX = Math.floor(x / this.cellSize);
+    const cellY = Math.floor(y / this.cellSize);
+    return `${cellX}:${cellY}`;
+  }
+
+  /**
+   * 🗜️ Добавить entity в spatial hash
+   */
+  _addToSpatialHash(entityId, position, collision) {
+    if (!position || !collision) return;
+
+    const x = position.x + (collision.offset?.x || 0);
+    const y = position.y + (collision.offset?.y || 0);
+    const cellKey = this._getCellKey(x, y);
+
+    if (!this.spatialHash.has(cellKey)) {
+      this.spatialHash.set(cellKey, new Set());
+    }
+    this.spatialHash.get(cellKey).add(entityId);
+  }
+
+  /**
+   * 🗜️ Получить candidate entities для позиции
+   * Возвращает entities из 9 соседних ячеек (3x3)
+   */
+  _getCandidates(x, y) {
+    const candidates = new Set();
+    const cellX = Math.floor(x / this.cellSize);
+    const cellY = Math.floor(y / this.cellSize);
+
+    // Проверяем 3x3 область вокруг ячейки
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const key = `${cellX + dx}:${cellY + dy}`;
+        const cellEntities = this.spatialHash.get(key);
+        if (cellEntities) {
+          for (const entityId of cellEntities) {
+            candidates.add(entityId);
+          }
+        }
+      }
+    }
+
+    return candidates;
+  }
+
+  /**
+   * 🗜️ Очистить spatial hash (вызывать перед каждым checkCollisions)
+   */
+  _clearSpatialHash() {
+    for (const cell of this.spatialHash.values()) {
+      cell.clear();
+    }
   }
 
   /**
@@ -62,7 +127,6 @@ export class CollisionSystem {
       description: config.description || '',
       defaultShape: config.defaultShape || 'circle'
     };
-    console.log(`📝 Добавлен тип коллизии: ${typeId}`);
   }
 
   /**
@@ -70,7 +134,6 @@ export class CollisionSystem {
    */
   removeCollisionType(typeId) {
     delete this.collisionTypes[typeId];
-    // Очистить матрицу от этого типа
     if (this.collisionMatrix[typeId]) {
       delete this.collisionMatrix[typeId];
     }
@@ -79,7 +142,6 @@ export class CollisionSystem {
         delete this.collisionMatrix[type][typeId];
       }
     }
-    console.log(`🗑️ Удален тип коллизии: ${typeId}`);
   }
 
   /**
@@ -90,10 +152,6 @@ export class CollisionSystem {
       this.collisionMatrix[typeA] = {};
     }
     this.collisionMatrix[typeA][typeB] = modes;
-
-    // Сортированный ключ для двунаправленного поиска
-    const sortedKey = [typeA, typeB].sort().join(':');
-    console.log(`🔗 Отношение: ${typeA} ↔ ${typeB} = ${JSON.stringify(modes)}`);
   }
 
   /**
@@ -112,18 +170,83 @@ export class CollisionSystem {
 
   /**
    * 🎯 Проверить все коллизии в мире
+   * Использует Spatial Hashing для оптимизации projectile проверок
    */
   checkCollisions() {
     if (!this.enabled) return;
 
     const entities = Array.from(this.world.entities.entries());
 
-    // Проверяем каждую пару
+    // 🗜️ Если spatial hash включён - используем оптимизацию
+    if (this.useSpatialHash) {
+      this._checkCollisionsWithSpatialHash(entities);
+    } else {
+      this._checkCollisionsBruteForce(entities);
+    }
+  }
+
+  /**
+   * 🗜️ Проверка коллизий с Spatial Hashing (оптимизировано для projectile)
+   */
+  _checkCollisionsWithSpatialHash(entities) {
+    // 1. Очищаем и заполняем spatial hash non-projectile entities
+    this._clearSpatialHash();
+    
+    const projectileEntities = []; // [{id, components}]
+    const nonProjectileEntities = []; // [{id, components}]
+
+    for (const [entityId, components] of entities) {
+      const collision = components.get('collision');
+      const position = components.get('position');
+      
+      if (!collision || !position) continue;
+
+      if (collision.type === 'projectile') {
+        projectileEntities.push({ id: entityId, components });
+      } else {
+        nonProjectileEntities.push({ id: entityId, components });
+        this._addToSpatialHash(entityId, position, collision);
+      }
+    }
+
+    // 2. Проверяем projectile vs candidates из spatial hash
+    for (const { id: bulletId, components: bulletComponents } of projectileEntities) {
+      const bulletPos = bulletComponents.get('position');
+      if (!bulletPos) continue;
+
+      const candidates = this._getCandidates(bulletPos.x, bulletPos.y);
+
+      for (const targetId of candidates) {
+        if (targetId === bulletId) continue;
+        
+        const targetComponents = this.world.entities.get(targetId);
+        if (!targetComponents) continue;
+
+        this._checkEntityPair(bulletId, bulletComponents, targetId, targetComponents);
+      }
+    }
+
+    // 3. Проверяем non-projectile между собой (обычно их мало)
+    for (let i = 0; i < nonProjectileEntities.length; i++) {
+      for (let j = i + 1; j < nonProjectileEntities.length; j++) {
+        this._checkEntityPair(
+          nonProjectileEntities[i].id,
+          nonProjectileEntities[i].components,
+          nonProjectileEntities[j].id,
+          nonProjectileEntities[j].components
+        );
+      }
+    }
+  }
+
+  /**
+   * 🐌 Проверка коллизий без оптимизации (brute force)
+   */
+  _checkCollisionsBruteForce(entities) {
     for (let i = 0; i < entities.length; i++) {
       for (let j = i + 1; j < entities.length; j++) {
         const [idA, componentsA] = entities[i];
         const [idB, componentsB] = entities[j];
-
         this._checkEntityPair(idA, componentsA, idB, componentsB);
       }
     }
@@ -677,7 +800,21 @@ export class CollisionSystem {
    */
   setEnabled(enabled) {
     this.enabled = enabled;
-    console.log(`🎯 CollisionSystem ${enabled ? 'включена' : 'выключена'}`);
+  }
+
+  /**
+   * 🗜️ Включить/выключить Spatial Hashing
+   */
+  setSpatialHashEnabled(enabled) {
+    this.useSpatialHash = enabled;
+  }
+
+  /**
+   * 🗜️ Установить размер ячейки для Spatial Hashing
+   */
+  setCellSize(size) {
+    this.cellSize = Math.max(10, Math.min(1000, Number(size) || 100));
+    this.spatialHash.clear();
   }
 
   /**
@@ -691,11 +828,25 @@ export class CollisionSystem {
    * 📊 Получить информацию о системе
    */
   getInfo() {
+    let cellCount = 0;
+    let totalEntitiesInHash = 0;
+    for (const cell of this.spatialHash.values()) {
+      cellCount++;
+      totalEntitiesInHash += cell.size;
+    }
+
     return {
       enabled: this.enabled,
       types: this.collisionTypes,
       matrix: this.collisionMatrix,
-      activeCollisionsCount: this.activeCollisions.size
+      activeCollisionsCount: this.activeCollisions.size,
+      spatialHash: {
+        enabled: this.useSpatialHash,
+        cellSize: this.cellSize,
+        cellCount,
+        totalEntitiesInHash,
+        avgEntitiesPerCell: cellCount > 0 ? (totalEntitiesInHash / cellCount).toFixed(1) : 0
+      }
     };
   }
 }
