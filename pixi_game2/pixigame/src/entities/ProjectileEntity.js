@@ -9,7 +9,11 @@
  * Особенности:
  * - Движется по прямой в заданном направлении
  * - Удаляется по достижению максимальной дистанции
- * - Белая кругляшка (пока без коллизии)
+ * - Поддерживает коллизию (point/circle)
+ *
+ * События:
+ * - onHit(targetComp, point, targetId) - попадание во что-то
+ * - onDeath(reason) - смерть пули (range/lifetime/block)
  */
 
 import { Entity } from './Entity.js';
@@ -21,7 +25,9 @@ export class ProjectileEntity extends Entity {
    *  speed?: number,
    *  range?: number,
    *  damage?: number,
-   *  lifetime?: number
+   *  lifetime?: number,
+   *  onHit?: Function,
+   *  onDeath?: Function
    * }} options
    */
   constructor(options = {}) {
@@ -49,12 +55,36 @@ export class ProjectileEntity extends Entity {
     // Прожитое время в секундах
     this._aliveTime = 0;
 
+    // Флаг внешнего уничтожения
+    this._killed = false;
+
     // Внешний вид - белая кругляшка
     this.appearance = {
       shape: 'circle',
       color: options.color || '#FFFFFF',
       size: options.size || 8
     };
+
+    // Collision настройки
+    this.collisionType = 'projectile';
+    this.collisionShape = 'point';  // 'point' | 'circle'
+    this.hasCollision = true;
+
+    // 📡 События (callbacks)
+    this.onHit = options.onHit || null;        // (targetComp, point, targetId) => void
+    this.onDeath = options.onDeath || null;    // (reason) => void  reason: 'range' | 'lifetime' | 'block'
+  }
+
+  /**
+   * Убить пулю внешне
+   * @param {string} reason - причина смерти ('block' | 'range' | 'lifetime' | 'manual')
+   */
+  kill(reason = 'manual') {
+    if (this._killed) return;  // уже мертва
+    this._killed = true;
+    if (this.onDeath) {
+      this.onDeath(reason);
+    }
   }
 
   /**
@@ -63,6 +93,9 @@ export class ProjectileEntity extends Entity {
    * @returns {boolean} - true если пуля еще жива, false если достигла лимита дальности или времени
    */
   update(dt) {
+    // Если уже убита внешне
+    if (this._killed) return false;
+
     // Нормализуем направление если нужно
     const { x, y } = this.direction;
     const length = Math.sqrt(x * x + y * y);
@@ -82,10 +115,18 @@ export class ProjectileEntity extends Entity {
     // Обновляем прожитое время
     this._aliveTime += dtSeconds;
 
-    // Проверяем достигнута ли максимальная дальность ИЛИ истекло ли время жизни
-    // Пуля умирает если ОДНО из условий выполнено
-    if (this._traveledDistance >= this.range) return false;
-    if (this.lifetime > 0 && this._aliveTime >= this.lifetime) return false;
+    // Проверяем достигнута ли максимальная дальность
+    if (this._traveledDistance >= this.range) {
+      this.kill('range');
+      return false;
+    }
+
+    // Проверяем истекло ли время жизни
+    if (this.lifetime > 0 && this._aliveTime >= this.lifetime) {
+      this.kill('lifetime');
+      return false;
+    }
+
     return true;
   }
 
@@ -159,7 +200,10 @@ export class ProjectileEntity extends Entity {
       remainingRange: this.getRemainingRange(),
       aliveTime: this._aliveTime,
       remainingLifetime: this.getRemainingLifetime(),
-      alive: this.isAlive()
+      alive: this.isAlive(),
+      killed: this._killed,
+      collisionType: this.collisionType,
+      collisionShape: this.collisionShape
     };
   }
 }

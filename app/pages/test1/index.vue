@@ -1264,6 +1264,13 @@ function createWorldFromForm() {
     boundsColor: worldForm.boundsColor || '#FF4444'
   }));
 
+  // 🎯 Добавляем дефолтные collision relations для projectile
+  // projectile → unit: trigger (пролетает, событие)
+  // projectile → build: block (блокируется, удаляется)
+  instance.collisionSystem.setCollisionRelation('projectile', 'unit', { block: false, trigger: true });
+  instance.collisionSystem.setCollisionRelation('projectile', 'build', { block: true, trigger: false });
+  console.log(`🎯 Default collision relations set for world "${id}"`);
+
   const model = {
     id,
     type: worldForm.type,

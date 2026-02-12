@@ -100,6 +100,9 @@ export class MuzzleEntity extends Entity {
     // Время жизни пули в секундах (0 = бесконечно, определяется расстоянием)
     this.bulletLifetime = options.bulletLifetime !== undefined ? Number(options.bulletLifetime) : 0;
 
+    // 📡 События (callbacks)
+    this.onFire = options.onFire || null;  // (bulletIds) => void - вызывается при создании пуль
+
     // Внутреннее состояние для стрельбы
     this._lastFireTime = 0;
     this._isFiring = false;
@@ -340,7 +343,8 @@ export class MuzzleEntity extends Entity {
       rangeScatterChance: this.rangeScatterChance,
       rangeSpreadPercent: this.rangeSpreadPercent,
       bulletLifetime: this.bulletLifetime,
-      isFiring: this._isFiring
+      isFiring: this._isFiring,
+      hasOnFire: !!this.onFire
     };
   }
 }

@@ -185,6 +185,13 @@ export class ProjectileSystem {
       bulletComponents.set('appearance', bullet.appearance);
       bulletComponents.set('subtype', bullet.subtype);
 
+      // 🎯 Collision component for bullet (point shape)
+      bulletComponents.set('collision', {
+        type: 'projectile',
+        shape: 'point',
+        size: 0
+      });
+
       this.world.entities.set(bulletId, bulletComponents);
 
       // Регистрируем в системе
@@ -241,8 +248,13 @@ export class ProjectileSystem {
     // 1. Проверяем все muzzle и создаем пули если нужно
     for (const [muzzleId, muzzle] of this.muzzles) {
       if (muzzle.shouldFire(currentTime)) {
-        this.fireFromMuzzle(muzzleId);
+        const bulletIds = this.fireFromMuzzle(muzzleId);
         muzzle.fire(currentTime);
+        
+        // 📡 Вызываем onFire callback если есть
+        if (muzzle.onFire && bulletIds.length > 0) {
+          muzzle.onFire(bulletIds);
+        }
       }
     }
 

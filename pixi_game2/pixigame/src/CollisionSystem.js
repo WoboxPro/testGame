@@ -26,6 +26,11 @@ export class CollisionSystem {
         name: 'Build',
         description: 'Здания, стены, препятствия',
         defaultShape: 'rect'
+      },
+      projectile: {
+        name: 'Projectile',
+        description: 'Снаряды, пули',
+        defaultShape: 'point'
       }
     };
 
@@ -34,6 +39,10 @@ export class CollisionSystem {
       unit: {
         build: { block: true, trigger: true },
         unit: { block: false, trigger: true }
+      },
+      projectile: {
+        unit: { block: false, trigger: true },
+        build: { block: true, trigger: false }
       }
       // build: {} - не указано = нет проверки
     };
@@ -167,6 +176,35 @@ export class CollisionSystem {
     const typeA = compA.get('collision')?.type;
     const typeB = compB.get('collision')?.type;
 
+    // 💥 Projectile hit something
+    if (typeA === 'projectile' || typeB === 'projectile') {
+      const isABullet = typeA === 'projectile';
+      const bulletId = isABullet ? idA : idB;
+      const bulletComp = isABullet ? compA : compB;
+      const targetId = isABullet ? idB : idA;
+      const targetComp = isABullet ? compB : compA;
+      const targetType = isABullet ? typeB : typeA;
+
+      const bullet = bulletComp.get('_entityRef');
+
+      console.log(`💥 BULLET HIT: ${bulletId} → ${targetId} (${targetType})`);
+      console.log(`   Point: (${intersect.point.x.toFixed(1)}, ${intersect.point.y.toFixed(1)})`);
+
+      // Call onHit callback
+      if (bullet?.onHit) {
+        bullet.onHit(targetComp, intersect.point, targetId);
+      }
+
+      // Remove bullet if block mode
+      if (relation.block) {
+        console.log(`   🚫 BLOCKED - bullet destroyed`);
+        bullet?.kill('block');
+        this.world.projectileSystem?.removeProjectile(bulletId);
+      }
+      // Trigger mode - bullet continues flying
+      return;
+    }
+
     console.log(`🎯 COLLISION ENTER: ${typeA}(${idA}) ↔ ${typeB}(${idB})`);
     console.log(`   Режим: ${JSON.stringify(relation)}`);
     console.log(`   Точка: (${intersect.point.x.toFixed(1)}, ${intersect.point.y.toFixed(1)})`);
@@ -217,16 +255,41 @@ export class CollisionSystem {
     const cPosA = this._getColliderCenter(posA, collisionA);
     const cPosB = this._getColliderCenter(posB, collisionB);
 
+    // Point + Point - не имеет смысла для пуль
+    if (shapeA === 'point' && shapeB === 'point') {
+      return null;
+    }
+
+    // Point + Circle
+    if (shapeA === 'point' && shapeB === 'circle') {
+      return this._pointCircle(cPosA, collisionB, cPosB);
+    }
+    if (shapeA === 'circle' && shapeB === 'point') {
+      return this._pointCircle(cPosB, collisionA, cPosA);
+    }
+
+    // Point + Rect
+    if (shapeA === 'point' && shapeB === 'rect') {
+      return this._pointRect(cPosA, collisionB, cPosB);
+    }
+    if (shapeA === 'rect' && shapeB === 'point') {
+      return this._pointRect(cPosB, collisionA, cPosA);
+    }
+
+    // Circle + Circle
     if (shapeA === 'circle' && shapeB === 'circle') {
       return this._circleCircle(collisionA, cPosA, collisionB, cPosB);
-    } else if (shapeA === 'rect' && shapeB === 'rect') {
-      return this._rectRect(collisionA, cPosA, collisionB, cPosB);
-    } else {
-      // circle + rect
-      const circle = shapeA === 'circle' ? { collision: collisionA, pos: cPosA } : { collision: collisionB, pos: cPosB };
-      const rect = shapeA === 'rect' ? { collision: collisionA, pos: cPosA } : { collision: collisionB, pos: cPosB };
-      return this._circleRect(circle.collision, circle.pos, rect.collision, rect.pos);
     }
+
+    // Rect + Rect
+    if (shapeA === 'rect' && shapeB === 'rect') {
+      return this._rectRect(collisionA, cPosA, collisionB, cPosB);
+    }
+
+    // Circle + Rect
+    const circle = shapeA === 'circle' ? { collision: collisionA, pos: cPosA } : { collision: collisionB, pos: cPosB };
+    const rect = shapeA === 'rect' ? { collision: collisionA, pos: cPosA } : { collision: collisionB, pos: cPosB };
+    return this._circleRect(circle.collision, circle.pos, rect.collision, rect.pos);
   }
 
   /**
@@ -323,6 +386,50 @@ export class CollisionSystem {
       intersect: true,
       point: { x: closestX, y: closestY }
     };
+  }
+
+  /**
+   * 📍⭕ Пересечение точка-круг
+   */
+  _pointCircle(pointPos, circleColl, circlePos) {
+    const cx = circlePos.x + (circleColl.offset?.x || 0);
+    const cy = circlePos.y + (circleColl.offset?.y || 0);
+    const radius = this._getRadius(circleColl);
+
+    const dx = pointPos.x - cx;
+    const dy = pointPos.y - cy;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq <= radius * radius) {
+      return {
+        intersect: true,
+        point: { x: pointPos.x, y: pointPos.y }
+      };
+    }
+    return null;
+  }
+
+  /**
+   * 📍🔲 Пересечение точка-прямоугольник
+   */
+  _pointRect(pointPos, rectColl, rectPos) {
+    const rx = rectPos.x + (rectColl.offset?.x || 0);
+    const ry = rectPos.y + (rectColl.offset?.y || 0);
+    const sizeRect = this._getRectSize(rectColl);
+
+    const left = rx - sizeRect.width / 2;
+    const right = rx + sizeRect.width / 2;
+    const top = ry - sizeRect.height / 2;
+    const bottom = ry + sizeRect.height / 2;
+
+    if (pointPos.x >= left && pointPos.x <= right &&
+        pointPos.y >= top && pointPos.y <= bottom) {
+      return {
+        intersect: true,
+        point: { x: pointPos.x, y: pointPos.y }
+      };
+    }
+    return null;
   }
 
   /**
