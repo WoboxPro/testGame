@@ -135,6 +135,55 @@ export class World {
   }
 
   /**
+   * 🌳 Get all entity IDs in the hierarchy of a root entity
+   * Returns root ID + all attached entity IDs recursively
+   * @param {string} rootEntityId - The root entity ID
+   * @returns {string[]} Array of all entity IDs in hierarchy (including root)
+   */
+  getHierarchyEntityIds(rootEntityId) {
+    const result = [rootEntityId];
+    
+    // Get root entity
+    const rootComponents = this.entities.get(rootEntityId);
+    if (!rootComponents) return result;
+    
+    const rootEntity = rootComponents.get('_entityRef');
+    if (!rootEntity) return result;
+    
+    // Recursively collect all attached entities
+    this._collectAttachedEntityIds(rootEntity, result);
+    
+    return result;
+  }
+
+  /**
+   * 🌳 Recursively collect all attached entity IDs
+   * @param {Entity} entity - The entity to collect from
+   * @param {string[]} result - Array to collect IDs into
+   */
+  _collectAttachedEntityIds(entity, result) {
+    if (!entity.slots) return;
+    
+    for (const slot of entity.slots) {
+      if (!slot.attachedEntities) continue;
+      
+      for (const attachedEntityId of slot.attachedEntities) {
+        // Add to result
+        result.push(attachedEntityId);
+        
+        // Get attached entity and recurse
+        const attachedComponents = this.entities.get(attachedEntityId);
+        if (attachedComponents) {
+          const attachedEntity = attachedComponents.get('_entityRef');
+          if (attachedEntity) {
+            this._collectAttachedEntityIds(attachedEntity, result);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * 🔄 Обновление мира (вызывается каждый кадр)
    */
    update(dt) {

@@ -122,6 +122,7 @@ export function useCreateFlow({
       muzzleForm.rangeScatterChance = 0;
       muzzleForm.rangeSpreadPercent = 10;
       muzzleForm.bulletLifetime = 0;
+      muzzleForm.bulletPiercing = 1;
     } else if (type === 'vision') {
       visionForm.id = suggestId('vision', visions);
       visionForm.shape = 'arc';

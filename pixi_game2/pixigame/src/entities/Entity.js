@@ -36,7 +36,12 @@ export class Entity {
     this.type = options.type || 'game';
     this.subtype = options.subtype;
 
-     // Transform
+    // 🌳 Hierarchy - по умолчанию root = сам себе
+    this._rootEntityId = this.id;
+    this._parentEntityId = null;
+    this._parentSlotId = null;
+
+    // Transform
      this.position = options.position ? { x: Number(options.position.x) || 0, y: Number(options.position.y) || 0 } : { x: 0, y: 0 };
      this.rotation = Number(options.rotation) || 0;
      this.baseScale = options.baseScale ? { x: Number(options.baseScale.x) || 1, y: Number(options.baseScale.y) || 1 } : { x: 1, y: 1 };
@@ -266,6 +271,9 @@ export class Entity {
     entity._parentEntityId = this.id;
     entity._parentSlotId = slotId;
 
+    // 🌳 Set root entity ID - наследуем от родителя
+    entity._rootEntityId = this._rootEntityId;
+
     // 🎯 Initialize spring physics state if needed
     if (slot.physicsMode === 'spring') {
       entity._springPhysics = {
@@ -383,6 +391,59 @@ export class Entity {
 
     console.log(`🔓 Entity "${entityId}" detached from all slots: ${results.join(', ')}`);
     return { success: true, message: `Entity "${entityId}" detached from ${results.length} slot(s)`, slots: results };
+  }
+
+  // ==================== Hierarchy System ====================
+
+  /**
+   * Get root entity ID
+   * @returns {string} Root entity ID
+   */
+  getRootEntityId() {
+    return this._rootEntityId;
+  }
+
+  /**
+   * Get parent entity ID
+   * @returns {string|null} Parent entity ID or null if no parent
+   */
+  getParentEntityId() {
+    return this._parentEntityId;
+  }
+
+  /**
+   * Check if this entity is a root entity (not attached to any other entity)
+   * @returns {boolean}
+   */
+  isRootEntity() {
+    return this._rootEntityId === this.id;
+  }
+
+  /**
+   * Get all directly attached entity IDs from all slots
+   * @returns {string[]} Array of attached entity IDs
+   */
+  getAllAttachedEntityIds() {
+    const ids = [];
+    for (const slot of this.slots) {
+      if (slot.attachedEntities) {
+        ids.push(...slot.attachedEntities);
+      }
+    }
+    return ids;
+  }
+
+  /**
+   * Get info about hierarchy
+   */
+  getHierarchyInfo() {
+    return {
+      rootEntityId: this._rootEntityId || null,
+      parentEntityId: this._parentEntityId || null,
+      parentSlotId: this._parentSlotId || null,
+      isRoot: this.isRootEntity(),
+      attachedEntityIds: this.getAllAttachedEntityIds()
+    };
   }
 }
 

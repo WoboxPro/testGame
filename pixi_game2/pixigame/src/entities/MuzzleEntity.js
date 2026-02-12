@@ -100,6 +100,13 @@ export class MuzzleEntity extends Entity {
     // Время жизни пули в секундах (0 = бесконечно, определяется расстоянием)
     this.bulletLifetime = options.bulletLifetime !== undefined ? Number(options.bulletLifetime) : 0;
 
+    // 🎯 Пробитие пули
+    // 1 = только первая цель (по умолчанию)
+    // 2-100 = пробивает N целей
+    // 0 = бесконечное пробитие
+    this.bulletPiercing = options.bulletPiercing !== undefined ? 
+      Math.max(0, Math.min(100, Number(options.bulletPiercing))) : 1;
+
     // 📡 События (callbacks)
     this.onFire = options.onFire || null;  // (bulletIds) => void - вызывается при создании пуль
 
@@ -321,6 +328,15 @@ export class MuzzleEntity extends Entity {
     this.bulletLifetime = Math.max(0, isNaN(val) ? 0 : val);
   }
 
+  /**
+   * 🎯 Установить пробитие пули
+   * @param {number} piercing - Пробитие (0 = бесконечно, 1-100 = количество целей)
+   */
+  setBulletPiercing(piercing) {
+    const val = Number(piercing);
+    this.bulletPiercing = Math.max(0, Math.min(100, isNaN(val) ? 1 : val));
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -343,6 +359,7 @@ export class MuzzleEntity extends Entity {
       rangeScatterChance: this.rangeScatterChance,
       rangeSpreadPercent: this.rangeSpreadPercent,
       bulletLifetime: this.bulletLifetime,
+      bulletPiercing: this.bulletPiercing,
       isFiring: this._isFiring,
       hasOnFire: !!this.onFire
     };

@@ -70,9 +70,51 @@ export class ProjectileEntity extends Entity {
     this.collisionShape = 'point';  // 'point' | 'circle'
     this.hasCollision = true;
 
+    // 🌳 Root entity ID - чтобы не попадать в свою же иерархию
+    this._rootEntityId = options._rootEntityId || null;
+
+    // 🎯 Пробитие (piercing)
+    // 0 = бесконечное пробитие (только по дальности/времени/блоку)
+    // 1-100 = пробивает N целей
+    this.piercing = Math.max(0, Math.min(100, Number(options.piercing) !== undefined ? Number(options.piercing) : 1));
+
+    // Счётчик попаданий
+    this._hitCount = 0;
+
     // 📡 События (callbacks)
     this.onHit = options.onHit || null;        // (targetComp, point, targetId) => void
-    this.onDeath = options.onDeath || null;    // (reason) => void  reason: 'range' | 'lifetime' | 'block'
+    this.onDeath = options.onDeath || null;    // (reason) => void  reason: 'range' | 'lifetime' | 'block' | 'piercing'
+  }
+
+  /**
+   * 🎯 Зарегистрировать попадание
+   * @returns {boolean} - true если пуля ещё может пробивать, false если достигнут лимит
+   */
+  registerHit() {
+    this._hitCount++;
+    
+    // 0 = бесконечное пробитие
+    if (this.piercing === 0) {
+      return true;
+    }
+    
+    // Проверяем достигнут ли лимит пробития
+    return this._hitCount < this.piercing;
+  }
+
+  /**
+   * 🎯 Получить количество попаданий
+   */
+  getHitCount() {
+    return this._hitCount;
+  }
+
+  /**
+   * 🎯 Получить оставшееся пробитие
+   */
+  getRemainingPiercing() {
+    if (this.piercing === 0) return Infinity;
+    return Math.max(0, this.piercing - this._hitCount);
   }
 
   /**
@@ -203,7 +245,11 @@ export class ProjectileEntity extends Entity {
       alive: this.isAlive(),
       killed: this._killed,
       collisionType: this.collisionType,
-      collisionShape: this.collisionShape
+      collisionShape: this.collisionShape,
+      piercing: this.piercing,
+      hitCount: this._hitCount,
+      remainingPiercing: this.getRemainingPiercing(),
+      rootEntityId: this._rootEntityId
     };
   }
 }

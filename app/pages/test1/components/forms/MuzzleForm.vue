@@ -136,6 +136,14 @@
           0 = бесконечно (пуля исчезает только по дальности), по умолчанию: 0
         </span>
       </label>
+
+      <label class="field">
+        <span class="field__label">🎯 Пробитие (0-100)</span>
+        <input class="field__input" type="number" step="1" min="0" max="100" v-model.number="model.bulletPiercing" />
+        <span class="field__hint">
+          1 = только первая цель (по умолчанию) • 2+ = пробивает N целей • 0 = бесконечное пробитие
+        </span>
+      </label>
     </div>
 
     <div class="form__section">

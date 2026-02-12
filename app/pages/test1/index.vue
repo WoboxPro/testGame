@@ -842,6 +842,7 @@ const muzzleUi = reactive({
   rangeScatterChance: 0,
   rangeSpreadPercent: 10,
   bulletLifetime: 0,
+  bulletPiercing: 1,
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
@@ -1570,6 +1571,7 @@ function applySelectedMuzzleUi() {
   instance.setRangeScatterChance(muzzleUi.rangeScatterChance);
   instance.setRangeSpreadPercent(muzzleUi.rangeSpreadPercent);
   instance.setBulletLifetime(muzzleUi.bulletLifetime);
+  instance.setBulletPiercing(muzzleUi.bulletPiercing);
 
   // Применяем направление
   instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
@@ -1593,6 +1595,7 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.rangeScatterChance = muzzleUi.rangeScatterChance;
   selectedMuzzle.rangeSpreadPercent = muzzleUi.rangeSpreadPercent;
   selectedMuzzle.bulletLifetime = muzzleUi.bulletLifetime;
+  selectedMuzzle.bulletPiercing = muzzleUi.bulletPiercing;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
   selectedMuzzle.showDebug = muzzleUi.showDebug;
@@ -2353,6 +2356,7 @@ function createMuzzleFromForm() {
     rangeScatterChance: Math.max(0, Math.min(1, Number(muzzleForm.rangeScatterChance) || 0)),
     rangeSpreadPercent: Math.max(0, Math.min(100, Number(muzzleForm.rangeSpreadPercent) || 10)),
     bulletLifetime: Math.max(0, Number(muzzleForm.bulletLifetime) || 0),
+    bulletPiercing: Math.max(0, Math.min(100, Number(muzzleForm.bulletPiercing) || 1)),
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }

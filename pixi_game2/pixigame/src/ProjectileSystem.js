@@ -174,7 +174,9 @@ export class ProjectileSystem {
         range: bulletRange,
         lifetime: muzzle.bulletLifetime || 0,
         color: muzzle.bulletColor || '#FFFFFF',
-        size: muzzle.bulletSize || 8
+        size: muzzle.bulletSize || 8,
+        piercing: muzzle.bulletPiercing !== undefined ? muzzle.bulletPiercing : 1,
+        _rootEntityId: muzzle._rootEntityId || null
       });
 
       // Добавляем пулю в мир как ECS компоненты

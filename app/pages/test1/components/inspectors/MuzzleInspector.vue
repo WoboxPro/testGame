@@ -129,6 +129,15 @@
           {{ (muzzleUi.bulletLifetime ?? 0) === 0 ? '♾️ Бесконечно (по дальности)' : `⏱️ ${muzzleUi.bulletLifetime.toFixed(1)}сек` }}
         </div>
       </div>
+
+      <!-- Bullet Piercing -->
+      <div class="inspector__group">
+        <div class="inspector__label">🎯 Пробитие: {{ muzzleUi.bulletPiercing ?? 1 }}</div>
+        <input type="range" v-model.number="muzzleUi.bulletPiercing" min="0" max="100" step="1" @input="apply" />
+        <div class="inspector__value">
+          {{ (muzzleUi.bulletPiercing ?? 1) === 0 ? '♾️ Бесконечное' : (muzzleUi.bulletPiercing ?? 1) === 1 ? '🎯 1 цель' : `🎯 ${muzzleUi.bulletPiercing} целей` }}
+        </div>
+      </div>
     </div>
 
     <!-- Debug Section -->

@@ -186,9 +186,30 @@ export class CollisionSystem {
       const targetType = isABullet ? typeB : typeA;
 
       const bullet = bulletComp.get('_entityRef');
+      const targetEntity = targetComp.get('_entityRef');
+
+      // 🌳 Проверяем общий root - не попадаем в свою иерархию
+      if (bullet?._rootEntityId && targetEntity?._rootEntityId === bullet._rootEntityId) {
+        return;
+      }
+
+      // 🎯 Проверяем не была ли эта цель уже поражена этой пулей
+      if (bullet && !bullet._hitTargets) {
+        bullet._hitTargets = new Set();
+      }
+      
+      if (bullet?._hitTargets?.has(targetId)) {
+        // Уже попадали в эту цель - пропускаем
+        return;
+      }
 
       console.log(`💥 BULLET HIT: ${bulletId} → ${targetId} (${targetType})`);
       console.log(`   Point: (${intersect.point.x.toFixed(1)}, ${intersect.point.y.toFixed(1)})`);
+
+      // Регистрируем попадание
+      if (bullet) {
+        bullet._hitTargets.add(targetId);
+      }
 
       // Call onHit callback
       if (bullet?.onHit) {
@@ -200,8 +221,19 @@ export class CollisionSystem {
         console.log(`   🚫 BLOCKED - bullet destroyed`);
         bullet?.kill('block');
         this.world.projectileSystem?.removeProjectile(bulletId);
+        return;
       }
-      // Trigger mode - bullet continues flying
+
+      // Trigger mode - check piercing
+      const canPierce = bullet?.registerHit?.() ?? false;
+      if (!canPierce) {
+        // Piercing limit reached
+        console.log(`   🎯 PIERCING limit reached (${bullet?.piercing}) - bullet destroyed`);
+        bullet?.kill('piercing');
+        this.world.projectileSystem?.removeProjectile(bulletId);
+      } else {
+        console.log(`   🎯 PIERCING: ${bullet?.getRemainingPiercing?.()} hits remaining`);
+      }
       return;
     }
 
