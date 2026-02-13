@@ -5,9 +5,24 @@
       <input class="field__input" v-model.trim="model.id" placeholder="muzzle_1" />
     </label>
 
+    <div class="form__section form__section--firetype">
+      <div class="form__section-title">🔫 Fire Type (тип огня)</div>
+      <label class="field">
+        <span class="field__label">Тип</span>
+        <select class="field__input" v-model="model.fireType">
+          <option value="projectile">🎯 Projectile (снаряды)</option>
+          <option value="ray">⚡ Ray (мгновенные лучи)</option>
+        </select>
+        <span class="field__hint">
+          • Projectile - летящие пули с физикой<br>
+          • Ray - мгновенные лучи (raycast)
+        </span>
+      </label>
+    </div>
+
     <div class="form__section">
       <div class="form__section-title">Direction (направление выстрела)</div>
-      <div class="field__hint">Вектор, указывающий направление откуда будут вылетать пули</div>
+      <div class="field__hint">Вектор, указывающий направление откуда будут вылетать пули/лучи</div>
       <div class="grid2">
         <label class="field">
           <span class="field__label">X</span>
@@ -47,32 +62,81 @@
         <span class="field__hint">Выстрелов в секунду (по умолчанию: 5)</span>
       </label>
 
-      <label class="field">
-        <span class="field__label">Bullet Speed (скорость пули)</span>
-        <input class="field__input" type="number" step="10" min="1" v-model.number="model.bulletSpeed" />
-        <span class="field__hint">Пикселей в секунду (по умолчанию: 500)</span>
-      </label>
+      <!-- Projectile-only fields -->
+      <template v-if="model.fireType !== 'ray'">
+        <label class="field">
+          <span class="field__label">Bullet Speed (скорость пули)</span>
+          <input class="field__input" type="number" step="10" min="1" v-model.number="model.bulletSpeed" />
+          <span class="field__hint">Пикселей в секунду (по умолчанию: 500)</span>
+        </label>
+      </template>
 
       <label class="field">
-        <span class="field__label">Bullet Range (дальность пули)</span>
+        <span class="field__label">{{ model.fireType === 'ray' ? 'Ray Range' : 'Bullet Range' }} (дальность)</span>
         <input class="field__input" type="number" step="10" min="1" v-model.number="model.bulletRange" />
         <span class="field__hint">Пикселей (по умолчанию: 1000)</span>
       </label>
 
-      <label class="field">
-        <span class="field__label">Bullet Size (размер пули)</span>
-        <input class="field__input" type="number" step="1" min="1" max="100" v-model.number="model.bulletSize" />
-        <span class="field__hint">Пикселей (по умолчанию: 8)</span>
-      </label>
+      <!-- Projectile-only: size and color -->
+      <template v-if="model.fireType !== 'ray'">
+        <label class="field">
+          <span class="field__label">Bullet Size (размер пули)</span>
+          <input class="field__input" type="number" step="1" min="1" max="100" v-model.number="model.bulletSize" />
+          <span class="field__hint">Пикселей (по умолчанию: 8)</span>
+        </label>
 
-      <label class="field">
-        <span class="field__label">Bullet Color (цвет пули)</span>
-        <div class="color-input-wrapper">
-          <input type="color" v-model="model.bulletColor" class="color-input" />
-          <input type="text" v-model.trim="model.bulletColor" class="field__input color-text" placeholder="#FFFFFF" maxlength="7" />
-        </div>
-        <span class="field__hint">Hex цвет (по умолчанию: #FFFFFF)</span>
-      </label>
+        <label class="field">
+          <span class="field__label">Bullet Color (цвет пули)</span>
+          <div class="color-input-wrapper">
+            <input type="color" v-model="model.bulletColor" class="color-input" />
+            <input type="text" v-model.trim="model.bulletColor" class="field__input color-text" placeholder="#FFFFFF" maxlength="7" />
+          </div>
+          <span class="field__hint">Hex цвет (по умолчанию: #FFFFFF)</span>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Время жизни пули (секунды)</span>
+          <input class="field__input" type="number" step="0.5" min="0" max="60" v-model.number="model.bulletLifetime" />
+          <span class="field__hint">
+            0 = бесконечно (пуля исчезает только по дальности), по умолчанию: 0
+          </span>
+        </label>
+      </template>
+
+      <!-- Ray-only fields -->
+      <template v-if="model.fireType === 'ray'">
+        <label class="field field--row">
+          <input type="checkbox" v-model="model.showRay" />
+          <span class="field__label">Show Ray (показывать луч)</span>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Ray Color (цвет луча)</span>
+          <div class="color-input-wrapper">
+            <input type="color" v-model="model.rayColor" class="color-input" />
+            <input type="text" v-model.trim="model.rayColor" class="field__input color-text" placeholder="#FF0000" maxlength="7" />
+          </div>
+          <span class="field__hint">Hex цвет (по умолчанию: #FF0000)</span>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Ray Thickness (толщина визуальная)</span>
+          <input class="field__input" type="number" step="1" min="1" max="50" v-model.number="model.rayThickness" />
+          <span class="field__hint">Пикселей (по умолчанию: 3)</span>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Ray Collision Thickness (толщина коллизии)</span>
+          <input class="field__input" type="number" step="1" min="1" max="100" v-model.number="model.rayCollisionThickness" />
+          <span class="field__hint">Пикселей (по умолчанию: 10) - может отличаться от визуальной</span>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Ray Duration (длительность отображения)</span>
+          <input class="field__input" type="number" step="10" min="10" max="1000" v-model.number="model.rayDuration" />
+          <span class="field__hint">Миллисекунды (по умолчанию: 100)</span>
+        </label>
+      </template>
 
       <label class="field field--row">
         <input type="checkbox" v-model="model.autoFire" />
@@ -84,17 +148,17 @@
       </span>
 
       <label class="field">
-        <span class="field__label">Bullet Count (количество пуль)</span>
+        <span class="field__label">{{ model.fireType === 'ray' ? 'Ray Count' : 'Bullet Count' }} (количество)</span>
         <input class="field__input" type="number" step="1" min="1" max="20" v-model.number="model.bulletCount" />
-        <span class="field__hint">Пуль за выстрел (1-20, по умолчанию: 1)</span>
+        <span class="field__hint">{{ model.fireType === 'ray' ? 'Лучей' : 'Пуль' }} за выстрел (1-20, по умолчанию: 1)</span>
       </label>
 
       <label class="field field--row">
         <input type="checkbox" v-model="model.isSpread" />
-        <span class="field__label">🌟 Равномерный веер (для нескольких пуль)</span>
+        <span class="field__label">🌟 Равномерный веер (для нескольких {{ model.fireType === 'ray' ? 'лучей' : 'пуль' }})</span>
       </label>
       <span class="field__hint" v-if="!model.isSpread">
-        Случайный разброс для каждой пули (работает и для 1 пули!)
+        Случайный разброс для каждого {{ model.fireType === 'ray' ? 'луча' : 'выстрела' }} (работает и для 1!)
       </span>
 
       <label class="field">
@@ -109,15 +173,16 @@
         <span class="field__label">Шанс разброса по углу (0-1)</span>
         <input class="field__input" type="number" step="0.05" min="0" max="1" v-model.number="model.scatterChance" />
         <span class="field__hint">
-          Вероятность разброса по углу для каждой пули (0 = никогда, 1 = всегда, по умолчанию: 0)
+          Вероятность разброса по углу (0 = никогда, 1 = всегда, по умолчанию: 0)
         </span>
       </label>
 
+      <!-- Range scatter (projectile and ray) -->
       <label class="field">
         <span class="field__label">Шанс разброса по дальности (0-1)</span>
         <input class="field__input" type="number" step="0.05" min="0" max="1" v-model.number="model.rangeScatterChance" />
         <span class="field__hint">
-          Вероятность разброса по дальности для каждой пули (0 = никогда, 1 = всегда, по умолчанию: 0)
+          Вероятность разброса по дальности (0 = никогда, 1 = всегда, по умолчанию: 0)
         </span>
       </label>
 
@@ -125,15 +190,7 @@
         <span class="field__label">Процент разброса дальности (0-100)</span>
         <input class="field__input" type="number" step="5" min="0" max="100" v-model.number="model.rangeSpreadPercent" />
         <span class="field__hint">
-          Пример: при 400px дальности и 10% = пули летят от 360px до 400px (по умолчанию: 10)
-        </span>
-      </label>
-
-      <label class="field">
-        <span class="field__label">Время жизни пули (секунды)</span>
-        <input class="field__input" type="number" step="0.5" min="0" max="60" v-model.number="model.bulletLifetime" />
-        <span class="field__hint">
-          0 = бесконечно (пуля исчезает только по дальности), по умолчанию: 0
+          Пример: при 400px дальности и 10% = {{ model.fireType === 'ray' ? 'лучи' : 'пули' }} летят от 360px до 400px (по умолчанию: 10)
         </span>
       </label>
 
@@ -225,6 +282,10 @@ const model = defineModel();
 .form__section--fire {
   background: rgba(255, 165, 0, 0.08);
   border: 1px solid rgba(255, 165, 0, 0.25);
+}
+.form__section--firetype {
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.25);
 }
 .form__section--info {
   background: rgba(123, 211, 255, 0.05);

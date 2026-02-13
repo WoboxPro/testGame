@@ -10,6 +10,22 @@
       <div class="kv__row"><div class="kv__k">Debug</div><div class="kv__v">{{ muzzle.showDebug ? 'enabled' : 'disabled' }}</div></div>
     </div>
 
+    <!-- Fire Type Section -->
+    <div class="inspector__section inspector__section--firetype">
+      <div class="inspector__section-title">🔫 Fire Type</div>
+
+      <label class="field">
+        <span class="field__label">Тип огня</span>
+        <select class="field__input" v-model="muzzleUi.fireType" @change="apply">
+          <option value="projectile">🎯 Projectile (снаряды)</option>
+          <option value="ray">⚡ Ray (мгновенные лучи)</option>
+        </select>
+      </label>
+      <div class="inspector__hint">
+        {{ muzzleUi.fireType === 'ray' ? '⚡ Мгновенные лучи (raycast)' : '🎯 Летящие снаряды' }}
+      </div>
+    </div>
+
     <div class="inspector__section inspector__section--fire">
       <div class="inspector__section-title">🔫 Fire Parameters</div>
 
@@ -22,8 +38,8 @@
         </div>
       </div>
 
-      <!-- Bullet Speed -->
-      <div class="inspector__group">
+      <!-- Projectile-only: Speed -->
+      <div class="inspector__group" v-if="muzzleUi.fireType !== 'ray'">
         <div class="inspector__label">Bullet Speed: {{ muzzleUi.bulletSpeed.toFixed(0) }} px/s</div>
         <input type="range" v-model.number="muzzleUi.bulletSpeed" min="10" max="2000" step="10" @input="apply" />
         <div class="inspector__value">
@@ -31,32 +47,81 @@
         </div>
       </div>
 
-      <!-- Bullet Range -->
+      <!-- Range (shared) -->
       <div class="inspector__group">
-        <div class="inspector__label">Bullet Range: {{ muzzleUi.bulletRange.toFixed(0) }} px</div>
+        <div class="inspector__label">{{ muzzleUi.fireType === 'ray' ? 'Ray Range' : 'Bullet Range' }}: {{ muzzleUi.bulletRange.toFixed(0) }} px</div>
         <input type="range" v-model.number="muzzleUi.bulletRange" min="100" max="3000" step="50" @input="apply" />
         <div class="inspector__value">
           {{ muzzleUi.bulletRange < 500 ? '📍 Short' : muzzleUi.bulletRange > 1500 ? '🎯 Long' : '📏 Medium' }}
         </div>
       </div>
 
-      <!-- Bullet Size -->
-      <div class="inspector__group">
-        <div class="inspector__label">Bullet Size: {{ muzzleUi.bulletSize.toFixed(0) }} px</div>
-        <input type="range" v-model.number="muzzleUi.bulletSize" min="1" max="50" step="1" @input="apply" />
-        <div class="inspector__value">
-          {{ muzzleUi.bulletSize < 5 ? '🔹 Tiny' : muzzleUi.bulletSize > 20 ? '⬛ Huge' : '⚪ Normal' }}
+      <!-- Projectile-only: Size, Color, Lifetime -->
+      <template v-if="muzzleUi.fireType !== 'ray'">
+        <div class="inspector__group">
+          <div class="inspector__label">Bullet Size: {{ muzzleUi.bulletSize.toFixed(0) }} px</div>
+          <input type="range" v-model.number="muzzleUi.bulletSize" min="1" max="50" step="1" @input="apply" />
+          <div class="inspector__value">
+            {{ muzzleUi.bulletSize < 5 ? '🔹 Tiny' : muzzleUi.bulletSize > 20 ? '⬛ Huge' : '⚪ Normal' }}
+          </div>
         </div>
-      </div>
 
-      <!-- Bullet Color -->
-      <div class="inspector__group">
-        <div class="inspector__label">Bullet Color</div>
-        <div class="color-input-wrapper">
-          <input type="color" v-model="muzzleUi.bulletColor" @input="apply" class="color-input" />
-          <div class="inspector__value">{{ muzzleUi.bulletColor }}</div>
+        <div class="inspector__group">
+          <div class="inspector__label">Bullet Color</div>
+          <div class="color-input-wrapper">
+            <input type="color" v-model="muzzleUi.bulletColor" @input="apply" class="color-input" />
+            <div class="inspector__value">{{ muzzleUi.bulletColor }}</div>
+          </div>
         </div>
-      </div>
+
+        <div class="inspector__group">
+          <div class="inspector__label">Время жизни пули: {{ (muzzleUi.bulletLifetime ?? 0).toFixed(1) }} сек</div>
+          <input type="range" v-model.number="muzzleUi.bulletLifetime" min="0" max="60" step="0.1" @input="apply" />
+          <div class="inspector__value">
+            {{ (muzzleUi.bulletLifetime ?? 0) === 0 ? '♾️ Бесконечно (по дальности)' : `⏱️ ${muzzleUi.bulletLifetime.toFixed(1)}сек` }}
+          </div>
+        </div>
+      </template>
+
+      <!-- Ray-only fields -->
+      <template v-if="muzzleUi.fireType === 'ray'">
+        <label class="field field--row">
+          <input type="checkbox" v-model="muzzleUi.showRay" @change="apply" />
+          <span class="field__label">Show Ray (показывать луч)</span>
+        </label>
+
+        <div class="inspector__group">
+          <div class="inspector__label">Ray Color</div>
+          <div class="color-input-wrapper">
+            <input type="color" v-model="muzzleUi.rayColor" @input="apply" class="color-input" />
+            <div class="inspector__value">{{ muzzleUi.rayColor }}</div>
+          </div>
+        </div>
+
+        <div class="inspector__group">
+          <div class="inspector__label">Ray Thickness (визуальная): {{ (muzzleUi.rayThickness ?? 3).toFixed(0) }} px</div>
+          <input type="range" v-model.number="muzzleUi.rayThickness" min="1" max="50" step="1" @input="apply" />
+          <div class="inspector__value">
+            {{ (muzzleUi.rayThickness ?? 3) < 3 ? '〰️ Тонкий' : (muzzleUi.rayThickness ?? 3) > 10 ? '➖ Толстый' : '― Нормальный' }}
+          </div>
+        </div>
+
+        <div class="inspector__group">
+          <div class="inspector__label">Ray Collision Thickness: {{ (muzzleUi.rayCollisionThickness ?? 10).toFixed(0) }} px</div>
+          <input type="range" v-model.number="muzzleUi.rayCollisionThickness" min="1" max="100" step="1" @input="apply" />
+          <div class="inspector__value">
+            {{ (muzzleUi.rayCollisionThickness ?? 10) < 5 ? '🎯 Точный' : (muzzleUi.rayCollisionThickness ?? 10) > 30 ? '📦 Широкий' : '⚖️ Нормальный' }}
+          </div>
+        </div>
+
+        <div class="inspector__group">
+          <div class="inspector__label">Ray Duration: {{ (muzzleUi.rayDuration ?? 100).toFixed(0) }} ms</div>
+          <input type="range" v-model.number="muzzleUi.rayDuration" min="10" max="1000" step="10" @input="apply" />
+          <div class="inspector__value">
+            {{ (muzzleUi.rayDuration ?? 100) < 50 ? '⚡ Мгновенно' : (muzzleUi.rayDuration ?? 100) > 500 ? '👁️ Долго' : '✨ Нормально' }}
+          </div>
+        </div>
+      </template>
 
       <!-- Auto Fire -->
       <label class="field field--row">
@@ -67,9 +132,9 @@
         {{ muzzleUi.autoFire ? '🔥 Стрельба при зажатой ЛКМ' : '🎯 Одиночный выстрел при клике' }}
       </div>
 
-      <!-- Bullet Count -->
+      <!-- Bullet/Ray Count -->
       <div class="inspector__group">
-        <div class="inspector__label">Bullet Count: {{ muzzleUi.bulletCount ?? 1 }}</div>
+        <div class="inspector__label">{{ muzzleUi.fireType === 'ray' ? 'Ray Count' : 'Bullet Count' }}: {{ muzzleUi.bulletCount ?? 1 }}</div>
         <input type="range" v-model.number="muzzleUi.bulletCount" min="1" max="20" step="1" @input="apply" />
         <div class="inspector__value">
           {{ (muzzleUi.bulletCount ?? 1) === 1 ? '🔫 Single' : (muzzleUi.bulletCount ?? 1) > 10 ? '💥 Many' : '🔫🔫 Multi' }}
@@ -79,10 +144,10 @@
       <!-- Is Spread -->
       <label class="field field--row">
         <input type="checkbox" v-model="muzzleUi.isSpread" @change="apply" />
-        <span class="field__label">🌟 Равномерный веер (для нескольких пуль)</span>
+        <span class="field__label">🌟 Равномерный веер</span>
       </label>
       <div class="inspector__hint" v-if="!muzzleUi.isSpread">
-        Случайный разброс для каждой пули (работает и для 1 пули!)
+        Случайный разброс для каждого {{ muzzleUi.fireType === 'ray' ? 'луча' : 'выстрела' }}
       </div>
 
       <!-- Spread Angle -->
@@ -103,7 +168,7 @@
         </div>
       </div>
 
-      <!-- Range Scatter Chance -->
+      <!-- Range Scatter (projectile and ray) -->
       <div class="inspector__group">
         <div class="inspector__label">Шанс разброса (дальность): {{ ((muzzleUi.rangeScatterChance ?? 0) * 100).toFixed(0) }}%</div>
         <input type="range" v-model.number="muzzleUi.rangeScatterChance" min="0" max="1" step="0.05" @input="apply" />
@@ -112,7 +177,6 @@
         </div>
       </div>
 
-      <!-- Range Spread Percent -->
       <div class="inspector__group">
         <div class="inspector__label">Разброс дальности: {{ (muzzleUi.rangeSpreadPercent ?? 10).toFixed(0) }}%</div>
         <input type="range" v-model.number="muzzleUi.rangeSpreadPercent" min="0" max="100" step="5" @input="apply" />
@@ -121,16 +185,7 @@
         </div>
       </div>
 
-      <!-- Bullet Lifetime -->
-      <div class="inspector__group">
-        <div class="inspector__label">Время жизни пули: {{ (muzzleUi.bulletLifetime ?? 0).toFixed(1) }} сек</div>
-        <input type="range" v-model.number="muzzleUi.bulletLifetime" min="0" max="60" step="0.1" @input="apply" />
-        <div class="inspector__value">
-          {{ (muzzleUi.bulletLifetime ?? 0) === 0 ? '♾️ Бесконечно (по дальности)' : `⏱️ ${muzzleUi.bulletLifetime.toFixed(1)}сек` }}
-        </div>
-      </div>
-
-      <!-- Bullet Piercing -->
+      <!-- Piercing -->
       <div class="inspector__group">
         <div class="inspector__label">🎯 Пробитие: {{ muzzleUi.bulletPiercing ?? 1 }}</div>
         <input type="range" v-model.number="muzzleUi.bulletPiercing" min="0" max="100" step="1" @input="apply" />
@@ -196,6 +251,7 @@
         <div class="kv__row"><div class="kv__k">Firing</div><div class="kv__v">{{ muzzle.instance._isFiring ? '🔥 Yes' : '❌ No' }}</div></div>
         <div class="kv__row"><div class="kv__k">Last Fire</div><div class="kv__v">{{ lastFireTime }} ms ago</div></div>
         <div class="kv__row"><div class="kv__k">Fire Interval</div><div class="kv__v">{{ fireInterval }} ms</div></div>
+        <div class="kv__row" v-if="muzzleUi.fireType === 'ray'"><div class="kv__k">Active Rays</div><div class="kv__v">{{ muzzle.instance._activeRays?.length || 0 }}</div></div>
       </div>
     </div>
   </div>
@@ -254,6 +310,11 @@ const fireInterval = computed(() => {
 .inspector__section--fire {
   background: rgba(255, 165, 0, 0.08);
   border: 1px solid rgba(255, 165, 0, 0.25);
+}
+
+.inspector__section--firetype {
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.25);
 }
 
 .inspector__section--info {

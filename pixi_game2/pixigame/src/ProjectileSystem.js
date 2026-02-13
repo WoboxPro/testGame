@@ -63,6 +63,11 @@ export class ProjectileSystem {
       return [];
     }
 
+    // ⚡ Если тип огня - ray, используем raycast
+    if (muzzle.fireType === 'ray') {
+      return this.fireRayFromMuzzle(muzzleId);
+    }
+
     // Получаем позицию muzzle из world
     const muzzleComponents = this.world.entities.get(muzzleId);
     if (!muzzleComponents) {
@@ -208,6 +213,217 @@ export class ProjectileSystem {
     }
 
     return createdBulletIds;
+  }
+
+  /**
+   * ⚡ Выпустить луч(и) из muzzle (raycast)
+   * @param {string} muzzleId - ID muzzle
+   * @returns {string[]} - Массив ID "лучей" (ray_${id}) для совместимости с callbacks
+   */
+  fireRayFromMuzzle(muzzleId) {
+    const muzzle = this.muzzles.get(muzzleId);
+    if (!muzzle) {
+      console.warn(`ProjectileSystem.fireRayFromMuzzle(): muzzle not found: ${muzzleId}`);
+      return [];
+    }
+
+    // Получаем позицию muzzle из world
+    const muzzleComponents = this.world.entities.get(muzzleId);
+    if (!muzzleComponents) {
+      console.warn(`ProjectileSystem.fireRayFromMuzzle(): muzzle not in world: ${muzzleId}`);
+      return [];
+    }
+
+    const position = muzzleComponents.get('position');
+    if (!position) {
+      console.warn(`ProjectileSystem.fireRayFromMuzzle(): muzzle has no position: ${muzzleId}`);
+      return [];
+    }
+
+    // Получаем направление с учетом поворота и mirrorDirection
+    const rotationComp = muzzleComponents.get('rotation');
+    const mirrorDirectionComp = muzzleComponents.get('mirrorDirection');
+    const rotation = rotationComp != null
+      ? (typeof rotationComp === 'number' ? rotationComp : Number(rotationComp?.value) || 0)
+      : (Number(muzzle.rotation) || 0);
+
+    const mirrorDirection = mirrorDirectionComp || muzzle.mirrorDirection || { x: 1, y: 1 };
+
+    // Вычисляем направление с учетом muzzle settings
+    const directionMode = muzzle.directionMode || 'relative';
+    let baseDirX = muzzle.direction.x;
+    let baseDirY = muzzle.direction.y;
+
+    // Применяем rotation к direction ТОЛЬКО для relative режима
+    if (directionMode === 'relative') {
+      const rotatedDirX = baseDirX * Math.cos(rotation) - baseDirY * Math.sin(rotation);
+      const rotatedDirY = baseDirX * Math.sin(rotation) + baseDirY * Math.cos(rotation);
+      baseDirX = rotatedDirX * mirrorDirection.x;
+      baseDirY = rotatedDirY * mirrorDirection.y;
+    }
+
+    // Нормализуем базовое направление
+    const dirLength = Math.sqrt(baseDirX * baseDirX + baseDirY * baseDirY);
+    if (dirLength === 0) {
+      baseDirX = 1;
+      baseDirY = 0;
+    } else {
+      baseDirX /= dirLength;
+      baseDirY /= dirLength;
+    }
+
+    // Вычисляем базовый угол направления
+    const baseAngle = Math.atan2(baseDirY, baseDirX);
+
+    // Получаем параметры стрельбы
+    const rayCount = muzzle.bulletCount || 1;
+    const isSpread = muzzle.isSpread || false;
+    const spreadAngle = (muzzle.spreadAngle || 45) * (Math.PI / 180);
+    let maxRange = muzzle.bulletRange || 1000;
+    const piercing = muzzle.bulletPiercing !== undefined ? muzzle.bulletPiercing : 1;
+    
+    // Разброс по дальности
+    const rangeScatterChance = muzzle.rangeScatterChance ?? 0;
+    const rangeSpreadPercent = muzzle.rangeSpreadPercent ?? 10;
+
+    const createdRayIds = [];
+    const allHits = [];
+
+    // Создаём лучи
+    for (let i = 0; i < rayCount; i++) {
+      let dirX, dirY;
+      
+      // Вычисляем дальность с разбросом для этого луча
+      let rayRange = maxRange;
+      if (Math.random() < rangeScatterChance) {
+        const minRange = maxRange * (1 - rangeSpreadPercent / 100);
+        rayRange = minRange + Math.random() * (maxRange - minRange);
+      }
+
+      if (isSpread && rayCount > 1) {
+        // Веерная стрельба - распределяем лучи по углу веера равномерно
+        const startAngle = baseAngle - spreadAngle / 2;
+        const angleStep = spreadAngle / (rayCount - 1);
+        const rayAngle = startAngle + (i * angleStep);
+
+        dirX = Math.cos(rayAngle);
+        dirY = Math.sin(rayAngle);
+      } else if (!isSpread) {
+        // Случайный разброс
+        const chance = muzzle.scatterChance ?? 1;
+        const roll = Math.random();
+        if (roll < chance) {
+          const randomOffset = (Math.random() - 0.5) * spreadAngle;
+          const rayAngle = baseAngle + randomOffset;
+
+          dirX = Math.cos(rayAngle);
+          dirY = Math.sin(rayAngle);
+        } else {
+          dirX = baseDirX;
+          dirY = baseDirY;
+        }
+      } else {
+        dirX = baseDirX;
+        dirY = baseDirY;
+      }
+
+      // Выполняем raycast
+      const hits = this.world.collisionSystem.raycast(
+        { x: position.x, y: position.y },
+        { x: dirX, y: dirY },
+        rayRange,
+        {
+          thickness: muzzle.rayCollisionThickness || 10,
+          excludeEntityId: muzzleId,
+          rootEntityId: muzzle._rootEntityId || null
+        }
+      );
+
+      // Ограничиваем количество попаданий по piercing
+      // piercing = 0 означает бесконечное пробитие
+      // piercing = 1 означает только первая цель
+      // piercing = 2+ означает N целей
+      const maxHits = piercing === 0 ? hits.length : Math.min(piercing, hits.length);
+      const limitedHits = hits.slice(0, maxHits);
+
+      // Вычисляем конечную точку луча
+      let endX, endY;
+      
+      if (piercing === 0) {
+        // Бесконечное пробитие - луч всегда идёт до rayRange
+        endX = position.x + dirX * rayRange;
+        endY = position.y + dirY * rayRange;
+      } else if (limitedHits.length >= piercing) {
+        // Достигли лимита piercing - луч останавливается на последней поражённой цели
+        const lastHit = limitedHits[limitedHits.length - 1];
+        endX = lastHit.point.x;
+        endY = lastHit.point.y;
+      } else if (limitedHits.length > 0) {
+        // Есть попадания, но не достигли лимита piercing - луч идёт до rayRange
+        // (прошли сквозь все цели на пути)
+        endX = position.x + dirX * rayRange;
+        endY = position.y + dirY * rayRange;
+      } else {
+        // Нет попаданий - луч идёт до rayRange
+        endX = position.x + dirX * rayRange;
+        endY = position.y + dirY * rayRange;
+      }
+
+      // Добавляем активный луч для визуализации
+      if (muzzle.showRay) {
+        muzzle.addActiveRay({
+          startX: position.x,
+          startY: position.y,
+          endX,
+          endY
+        });
+      }
+
+      // Обрабатываем попадания
+      for (const hit of limitedHits) {
+        const targetComponents = this.world.entities.get(hit.entityId);
+        if (targetComponents) {
+          // Вызываем обработку попадания
+          this._handleRayHit(muzzle, hit, targetComponents);
+        }
+      }
+
+      // Debug: логируем попадания луча
+      if (hits.length > 0) {
+        console.log(`⚡ Ray hits: ${hits.length} total, piercing=${piercing}, limited=${limitedHits.length}, end=(${endX.toFixed(0)}, ${endY.toFixed(0)})`);
+      }
+
+      // Сохраняем попадания
+      allHits.push(...limitedHits);
+
+      // Создаём ID луча для callback'ов
+      const rayId = `ray_${this._projectileCounter++}`;
+      createdRayIds.push(rayId);
+    }
+
+    // 📡 Вызываем onRayHit callback если есть попадания
+    if (muzzle.onRayHit && allHits.length > 0) {
+      muzzle.onRayHit(allHits);
+    }
+
+    return createdRayIds;
+  }
+
+  /**
+   * ⚡ Обработать попадание луча
+   * @private
+   */
+  _handleRayHit(muzzle, hit, targetComponents) {
+    const targetEntity = targetComponents.get('_entityRef');
+    
+    // Вызываем onHit callback на цели если есть
+    if (targetEntity?.onHit) {
+      targetEntity.onHit(
+        { type: 'ray', muzzle },
+        hit.point,
+        muzzle.id
+      );
+    }
   }
 
   /**

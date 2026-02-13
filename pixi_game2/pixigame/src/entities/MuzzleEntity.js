@@ -1,15 +1,15 @@
 /**
- * MuzzleEntity - Стволы оружия (точки спавна пуль)
+ * MuzzleEntity - Стволы оружия (точки спавна пуль/лучей)
  *
  * Отдельный тип сущности для определения позиции и направления,
- * откуда будут вылетать пули.
+ * откуда будут вылетать пули или мгновенные лучи.
  *
  * Особенности:
  * - Крепится ТОЛЬКО через слоты к другим сущностям
  * - В слотах работает только с physicsMode: 'instant'
  * - Имеет направление (direction) - вектор куда направлен ствол
- * - Может стрелять пулями с заданными параметрами
- * - Поддерживает веерную стрельбу несколькими пулями
+ * - Поддерживает два типа огня: projectile (снаряды) и ray (мгновенные лучи)
+ * - Поддерживает веерную стрельбу несколькими пулями/лучами
  */
 
 import { Entity } from './Entity.js';
@@ -21,6 +21,7 @@ export class MuzzleEntity extends Entity {
    *  directionMode?: 'static' | 'relative',
    *  showDebug?: boolean,
    *  debugColor?: string,
+   *  fireType?: 'projectile' | 'ray',
    *  fireRate?: number,
    *  bulletSpeed?: number,
    *  bulletRange?: number,
@@ -33,7 +34,12 @@ export class MuzzleEntity extends Entity {
    *  scatterChance?: number,
    *  rangeScatterChance?: number,
    *  rangeSpreadPercent?: number,
-   *  bulletLifetime?: number
+   *  bulletLifetime?: number,
+   *  bulletPiercing?: number,
+   *  rayColor?: string,
+   *  rayThickness?: number,
+   *  rayCollisionThickness?: number,
+   *  showRay?: boolean
    * }} options
    */
   constructor(options = {}) {
@@ -52,6 +58,9 @@ export class MuzzleEntity extends Entity {
     // Debug визуализация
     this.showDebug = options.showDebug !== false; // default: true
     this.debugColor = options.debugColor || '#FF00FF'; // magenta по умолчанию
+
+    // 🔫 Тип огня: 'projectile' (снаряды) или 'ray' (мгновенные лучи)
+    this.fireType = options.fireType || 'projectile';
 
     // 🔫 Параметры стрельбы
     // Скорострельность (выстрелов в секунду)
@@ -100,19 +109,38 @@ export class MuzzleEntity extends Entity {
     // Время жизни пули в секундах (0 = бесконечно, определяется расстоянием)
     this.bulletLifetime = options.bulletLifetime !== undefined ? Number(options.bulletLifetime) : 0;
 
-    // 🎯 Пробитие пули
+    // 🎯 Пробитие пули/луча
     // 1 = только первая цель (по умолчанию)
     // 2-100 = пробивает N целей
     // 0 = бесконечное пробитие
     this.bulletPiercing = options.bulletPiercing !== undefined ? 
       Math.max(0, Math.min(100, Number(options.bulletPiercing))) : 1;
 
+    // ⚡ Параметры для raycast (только для fireType: 'ray')
+    // Показывать луч визуально
+    this.showRay = options.showRay !== undefined ? Boolean(options.showRay) : true;
+    // Цвет луча (hex)
+    this.rayColor = options.rayColor || '#FF0000';
+    // Толщина визуального луча (пиксели)
+    this.rayThickness = options.rayThickness !== undefined ? 
+      Math.max(1, Math.min(50, Number(options.rayThickness))) : 3;
+    // Толщина коллизии луча (пиксели) - может отличаться от визуальной
+    this.rayCollisionThickness = options.rayCollisionThickness !== undefined ? 
+      Math.max(1, Math.min(100, Number(options.rayCollisionThickness))) : 10;
+    // Длительность отображения луча (мс) - для визуального эффекта
+    this.rayDuration = options.rayDuration !== undefined ? 
+      Math.max(10, Math.min(1000, Number(options.rayDuration))) : 100;
+
     // 📡 События (callbacks)
     this.onFire = options.onFire || null;  // (bulletIds) => void - вызывается при создании пуль
+    this.onRayHit = options.onRayHit || null;  // (hits) => void - вызывается при попадании луча
 
     // Внутреннее состояние для стрельбы
     this._lastFireTime = 0;
     this._isFiring = false;
+    
+    // Внутреннее состояние для raycast визуализации
+    this._activeRays = []; // [{startX, startY, endX, endY, color, thickness, endTime}]
   }
 
   /**
@@ -329,12 +357,92 @@ export class MuzzleEntity extends Entity {
   }
 
   /**
-   * 🎯 Установить пробитие пули
+   * 🎯 Установить пробитие пули/луча
    * @param {number} piercing - Пробитие (0 = бесконечно, 1-100 = количество целей)
    */
   setBulletPiercing(piercing) {
     const val = Number(piercing);
     this.bulletPiercing = Math.max(0, Math.min(100, isNaN(val) ? 1 : val));
+  }
+
+  /**
+   * ⚡ Установить тип огня
+   * @param {'projectile' | 'ray'} fireType - Тип огня
+   */
+  setFireType(fireType) {
+    if (fireType === 'projectile' || fireType === 'ray') {
+      this.fireType = fireType;
+    }
+  }
+
+  /**
+   * ⚡ Установить цвет луча
+   * @param {string} color - Hex цвет (#FF0000)
+   */
+  setRayColor(color) {
+    this.rayColor = color || '#FF0000';
+  }
+
+  /**
+   * ⚡ Установить толщину визуального луча
+   * @param {number} thickness - Толщина в пикселях (1-50)
+   */
+  setRayThickness(thickness) {
+    this.rayThickness = Math.max(1, Math.min(50, Number(thickness) || 3));
+  }
+
+  /**
+   * ⚡ Установить толщину коллизии луча
+   * @param {number} thickness - Толщина в пикселях (1-100)
+   */
+  setRayCollisionThickness(thickness) {
+    this.rayCollisionThickness = Math.max(1, Math.min(100, Number(thickness) || 10));
+  }
+
+  /**
+   * ⚡ Установить показ луча
+   * @param {boolean} show - Показывать луч визуально
+   */
+  setShowRay(show) {
+    this.showRay = Boolean(show);
+  }
+
+  /**
+   * ⚡ Установить длительность отображения луча
+   * @param {number} duration - Длительность в мс (10-1000)
+   */
+  setRayDuration(duration) {
+    this.rayDuration = Math.max(10, Math.min(1000, Number(duration) || 100));
+  }
+
+  /**
+   * ⚡ Добавить активный луч для визуализации
+   * @param {Object} ray - {startX, startY, endX, endY}
+   */
+  addActiveRay(ray) {
+    this._activeRays.push({
+      ...ray,
+      color: this.rayColor,
+      thickness: this.rayThickness,
+      endTime: performance.now() + this.rayDuration
+    });
+  }
+
+  /**
+   * ⚡ Очистить просроченные лучи
+   */
+  clearExpiredRays() {
+    const now = performance.now();
+    this._activeRays = this._activeRays.filter(r => r.endTime > now);
+  }
+
+  /**
+   * ⚡ Получить активные лучи для рендеринга
+   * @returns {Array} Массив активных лучей
+   */
+  getActiveRays() {
+    this.clearExpiredRays();
+    return this._activeRays;
   }
 
   getInfo() {
@@ -346,6 +454,7 @@ export class MuzzleEntity extends Entity {
       directionAngle: this.getDirectionAngle(),
       showDebug: this.showDebug,
       debugColor: this.debugColor,
+      fireType: this.fireType,
       fireRate: this.fireRate,
       bulletSpeed: this.bulletSpeed,
       bulletRange: this.bulletRange,
@@ -360,8 +469,15 @@ export class MuzzleEntity extends Entity {
       rangeSpreadPercent: this.rangeSpreadPercent,
       bulletLifetime: this.bulletLifetime,
       bulletPiercing: this.bulletPiercing,
+      showRay: this.showRay,
+      rayColor: this.rayColor,
+      rayThickness: this.rayThickness,
+      rayCollisionThickness: this.rayCollisionThickness,
+      rayDuration: this.rayDuration,
       isFiring: this._isFiring,
-      hasOnFire: !!this.onFire
+      hasOnFire: !!this.onFire,
+      hasOnRayHit: !!this.onRayHit,
+      activeRaysCount: this._activeRays.length
     };
   }
 }

@@ -825,6 +825,213 @@ export class CollisionSystem {
   }
 
   /**
+   * ⚡ Raycast - проверить пересечение луча с сущностями
+   * @param {Object} origin - Начальная точка {x, y}
+   * @param {Object} direction - Направление (нормализованный вектор) {x, y}
+   * @param {number} maxDistance - Максимальная дистанция
+   * @param {Object} options - Опции {thickness, excludeEntityId, collisionTypes}
+   * @returns {Array} Массив попаданий [{entityId, point, distance, normal}]
+   */
+  raycast(origin, direction, maxDistance, options = {}) {
+    const hits = [];
+    const thickness = options.thickness || 0;
+    const excludeEntityId = options.excludeEntityId || null;
+    const collisionTypes = options.collisionTypes || null; // null = все, кроме projectile
+    const rootEntityId = options.rootEntityId || null;
+
+    // Нормализуем направление
+    const dirLen = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+    if (dirLen === 0) return hits;
+    const dirX = direction.x / dirLen;
+    const dirY = direction.y / dirLen;
+
+    // Проходим по всем сущностям
+    for (const [entityId, components] of this.world.entities) {
+      // Пропускаем исключённую сущность
+      if (entityId === excludeEntityId) continue;
+
+      const collision = components.get('collision');
+      const position = components.get('position');
+      
+      if (!collision || !position) continue;
+
+      // Пропускаем projectile если не указано иначе
+      if (collision.type === 'projectile' && !collisionTypes?.includes('projectile')) continue;
+
+      // Фильтр по типам коллизии
+      if (collisionTypes && !collisionTypes.includes(collision.type)) continue;
+
+      // 🌳 Проверяем общий root - не попадаем в свою иерархию
+      const entityRef = components.get('_entityRef');
+      if (rootEntityId && entityRef?._rootEntityId === rootEntityId) continue;
+
+      // Проверяем пересечение луча с коллайдером
+      const hit = this._raycastEntity(origin, dirX, dirY, maxDistance, thickness, collision, position);
+      
+      if (hit) {
+        hits.push({
+          entityId,
+          point: hit.point,
+          distance: hit.distance,
+          normal: hit.normal,
+          collisionType: collision.type
+        });
+      }
+    }
+
+    // Сортируем по расстоянию
+    hits.sort((a, b) => a.distance - b.distance);
+
+    // Debug: логируем если нашли попадания
+    if (hits.length > 0) {
+      console.log(`🎯 Raycast found ${hits.length} hits:`, hits.map(h => `${h.entityId}(${h.collisionType})@${h.distance.toFixed(0)}`).join(', '));
+    }
+
+    return hits;
+  }
+
+  /**
+   * ⚡ Проверить пересечение луча с одной сущностью
+   * @private
+   */
+  _raycastEntity(origin, dirX, dirY, maxDistance, thickness, collision, position) {
+    const shape = collision.shape || 'circle';
+    const cPos = this._getColliderCenter(position, collision);
+
+    if (shape === 'circle') {
+      return this._raycastCircle(origin, dirX, dirY, maxDistance, thickness, collision, cPos);
+    } else if (shape === 'rect') {
+      return this._raycastRect(origin, dirX, dirY, maxDistance, thickness, collision, cPos);
+    }
+
+    return null;
+  }
+
+  /**
+   * ⚡ Raycast vs Circle
+   * @private
+   */
+  _raycastCircle(origin, dirX, dirY, maxDistance, thickness, collision, circlePos) {
+    const radius = this._getRadius(collision) + thickness / 2;
+    
+    // Вектор от origin к центру круга
+    const dx = circlePos.x - origin.x;
+    const dy = circlePos.y - origin.y;
+    
+    // Проекция на направление луча
+    const proj = dx * dirX + dy * dirY;
+    
+    // Если проекция отрицательная - круг позади луча
+    if (proj < 0) return null;
+    
+    // Квадрат расстояния от центра круга до луча
+    const distSq = dx * dx + dy * dy - proj * proj;
+    const radiusSq = radius * radius;
+    
+    // Если расстояние больше радиуса - нет пересечения
+    if (distSq > radiusSq) return null;
+    
+    // Расстояние до точки входа
+    const offset = Math.sqrt(radiusSq - distSq);
+    const enterDist = proj - offset;
+    
+    // Если точка входа дальше maxDistance - нет пересечения
+    if (enterDist > maxDistance) return null;
+    
+    // Если точка входа отрицательная - луч внутри круга
+    const distance = Math.max(0, enterDist);
+    
+    // Точка попадания
+    const point = {
+      x: origin.x + dirX * distance,
+      y: origin.y + dirY * distance
+    };
+    
+    // Нормаль (от центра к точке попадания)
+    const nx = (point.x - circlePos.x) / radius;
+    const ny = (point.y - circlePos.y) / radius;
+    
+    return {
+      point,
+      distance,
+      normal: { x: nx, y: ny }
+    };
+  }
+
+  /**
+   * ⚡ Raycast vs Rectangle (AABB)
+   * @private
+   */
+  _raycastRect(origin, dirX, dirY, maxDistance, thickness, collision, rectPos) {
+    const sizeRect = this._getRectSize(collision);
+    const halfW = sizeRect.width / 2 + thickness / 2;
+    const halfH = sizeRect.height / 2 + thickness / 2;
+    
+    // Границы прямоугольника
+    const left = rectPos.x - halfW;
+    const right = rectPos.x + halfW;
+    const top = rectPos.y - halfH;
+    const bottom = rectPos.y + halfH;
+    
+    // Алгоритм Liang-Barsky для ray-AABB
+    let tMin = 0;
+    let tMax = maxDistance;
+    
+    // Проверяем X
+    if (Math.abs(dirX) < 0.0001) {
+      // Луч параллелен оси X
+      if (origin.x < left || origin.x > right) return null;
+    } else {
+      const t1 = (left - origin.x) / dirX;
+      const t2 = (right - origin.x) / dirX;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    }
+    
+    // Проверяем Y
+    if (Math.abs(dirY) < 0.0001) {
+      // Луч параллелен оси Y
+      if (origin.y < top || origin.y > bottom) return null;
+    } else {
+      const t1 = (top - origin.y) / dirY;
+      const t2 = (bottom - origin.y) / dirY;
+      tMin = Math.max(tMin, Math.min(t1, t2));
+      tMax = Math.min(tMax, Math.max(t1, t2));
+    }
+    
+    // Нет пересечения
+    if (tMin > tMax || tMax < 0) return null;
+    
+    const distance = Math.max(0, tMin);
+    
+    // Точка попадания
+    const point = {
+      x: origin.x + dirX * distance,
+      y: origin.y + dirY * distance
+    };
+    
+    // Определяем нормаль (какая грань была поражена)
+    let nx = 0, ny = 0;
+    const eps = 0.001;
+    
+    if (Math.abs(point.x - left) < eps) nx = -1;
+    else if (Math.abs(point.x - right) < eps) nx = 1;
+    else if (Math.abs(point.y - top) < eps) ny = -1;
+    else if (Math.abs(point.y - bottom) < eps) ny = 1;
+    else {
+      // Внутри прямоугольника - нормаль в направлении движения
+      nx = -dirX;
+      ny = -dirY;
+    }
+    
+    return {
+      point,
+      distance,
+      normal: { x: nx, y: ny }
+    };
+  }
+
+  /**
    * 📊 Получить информацию о системе
    */
   getInfo() {

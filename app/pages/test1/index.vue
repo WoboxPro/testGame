@@ -969,6 +969,7 @@ const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showMode: 'all', show
 
 // 🔫 Muzzle UI state for inspector
 const muzzleUi = reactive({
+  fireType: 'projectile',
   fireRate: 5,
   bulletSpeed: 500,
   bulletRange: 1000,
@@ -986,7 +987,13 @@ const muzzleUi = reactive({
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
-  debugColor: '#FF00FF'
+  debugColor: '#FF00FF',
+  // ⚡ Ray parameters
+  showRay: true,
+  rayColor: '#FF0000',
+  rayThickness: 3,
+  rayCollisionThickness: 10,
+  rayDuration: 100
 });
 
 // Attachment form for unattached entities
@@ -1224,6 +1231,8 @@ const muzzleForm = reactive({
   directionMode: 'relative',
   showDebug: true,
   debugColor: '#FF00FF',
+  // 🔫 Fire type
+  fireType: 'projectile',
   // 🔫 Fire parameters
   fireRate: 5,
   bulletSpeed: 500,
@@ -1238,7 +1247,14 @@ const muzzleForm = reactive({
   scatterChance: 0,
   rangeScatterChance: 0,
   rangeSpreadPercent: 10,
-  bulletLifetime: 0
+  bulletLifetime: 0,
+  bulletPiercing: 1,
+  // ⚡ Ray parameters
+  showRay: true,
+  rayColor: '#FF0000',
+  rayThickness: 3,
+  rayCollisionThickness: 10,
+  rayDuration: 100
 });
 
 const visionForm = reactive({
@@ -1641,6 +1657,10 @@ function syncCameraUiFromSelected() {
 function syncMuzzleUiFromSelected() {
   if (!selectedMuzzle.value) return;
   const m = selectedMuzzle.value;
+  const instance = m.instance;
+
+  // Синхронизируем тип огня
+  muzzleUi.fireType = instance?.fireType || m.fireType || 'projectile';
 
   // Синхронизируем параметры стрельбы
   muzzleUi.fireRate = m.fireRate !== undefined ? m.fireRate : 5;
@@ -1656,6 +1676,14 @@ function syncMuzzleUiFromSelected() {
   muzzleUi.rangeScatterChance = m.rangeScatterChance !== undefined ? m.rangeScatterChance : 0;
   muzzleUi.rangeSpreadPercent = m.rangeSpreadPercent !== undefined ? m.rangeSpreadPercent : 10;
   muzzleUi.bulletLifetime = m.bulletLifetime !== undefined ? m.bulletLifetime : 0;
+  muzzleUi.bulletPiercing = m.bulletPiercing !== undefined ? m.bulletPiercing : 1;
+
+  // Синхронизируем ray параметры
+  muzzleUi.showRay = instance?.showRay !== undefined ? instance.showRay : (m.showRay !== undefined ? m.showRay : true);
+  muzzleUi.rayColor = instance?.rayColor || m.rayColor || '#FF0000';
+  muzzleUi.rayThickness = instance?.rayThickness !== undefined ? instance.rayThickness : (m.rayThickness !== undefined ? m.rayThickness : 3);
+  muzzleUi.rayCollisionThickness = instance?.rayCollisionThickness !== undefined ? instance.rayCollisionThickness : (m.rayCollisionThickness !== undefined ? m.rayCollisionThickness : 10);
+  muzzleUi.rayDuration = instance?.rayDuration !== undefined ? instance.rayDuration : (m.rayDuration !== undefined ? m.rayDuration : 100);
 
   // Синхронизируем направление
   muzzleUi.direction = m.direction ? { ...m.direction } : { x: 1, y: 0 };
@@ -1697,6 +1725,9 @@ function applySelectedMuzzleUi() {
 
   const instance = selectedMuzzle.instance;
 
+  // Применяем тип огня
+  instance.setFireType(muzzleUi.fireType);
+
   // Применяем параметры стрельбы
   instance.setFireRate(muzzleUi.fireRate);
   instance.setBulletSpeed(muzzleUi.bulletSpeed);
@@ -1713,6 +1744,13 @@ function applySelectedMuzzleUi() {
   instance.setBulletLifetime(muzzleUi.bulletLifetime);
   instance.setBulletPiercing(muzzleUi.bulletPiercing);
 
+  // Применяем ray параметры
+  instance.setShowRay(muzzleUi.showRay);
+  instance.setRayColor(muzzleUi.rayColor);
+  instance.setRayThickness(muzzleUi.rayThickness);
+  instance.setRayCollisionThickness(muzzleUi.rayCollisionThickness);
+  instance.setRayDuration(muzzleUi.rayDuration);
+
   // Применяем направление
   instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
   instance.setDirectionMode(muzzleUi.directionMode);
@@ -1722,6 +1760,7 @@ function applySelectedMuzzleUi() {
   instance.setDebugColor(muzzleUi.debugColor);
 
   // Обновляем модель
+  selectedMuzzle.fireType = muzzleUi.fireType;
   selectedMuzzle.fireRate = muzzleUi.fireRate;
   selectedMuzzle.bulletSpeed = muzzleUi.bulletSpeed;
   selectedMuzzle.bulletRange = muzzleUi.bulletRange;
@@ -1736,6 +1775,11 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.rangeSpreadPercent = muzzleUi.rangeSpreadPercent;
   selectedMuzzle.bulletLifetime = muzzleUi.bulletLifetime;
   selectedMuzzle.bulletPiercing = muzzleUi.bulletPiercing;
+  selectedMuzzle.showRay = muzzleUi.showRay;
+  selectedMuzzle.rayColor = muzzleUi.rayColor;
+  selectedMuzzle.rayThickness = muzzleUi.rayThickness;
+  selectedMuzzle.rayCollisionThickness = muzzleUi.rayCollisionThickness;
+  selectedMuzzle.rayDuration = muzzleUi.rayDuration;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
   selectedMuzzle.showDebug = muzzleUi.showDebug;
@@ -2481,6 +2525,8 @@ function createMuzzleFromForm() {
     directionMode: muzzleForm.directionMode || 'relative',
     showDebug: muzzleForm.showDebug !== false,
     debugColor: muzzleForm.debugColor?.trim() || '#FF00FF',
+    // 🔫 Fire type
+    fireType: muzzleForm.fireType || 'projectile',
     // 🔫 Fire parameters
     fireRate: Number(muzzleForm.fireRate) || 5,
     bulletSpeed: Number(muzzleForm.bulletSpeed) || 500,
@@ -2497,6 +2543,12 @@ function createMuzzleFromForm() {
     rangeSpreadPercent: Math.max(0, Math.min(100, Number(muzzleForm.rangeSpreadPercent) || 10)),
     bulletLifetime: Math.max(0, Number(muzzleForm.bulletLifetime) || 0),
     bulletPiercing: Math.max(0, Math.min(100, Number(muzzleForm.bulletPiercing) || 1)),
+    // ⚡ Ray parameters
+    showRay: muzzleForm.showRay !== false,
+    rayColor: muzzleForm.rayColor?.trim() || '#FF0000',
+    rayThickness: Math.max(1, Math.min(50, Number(muzzleForm.rayThickness) || 3)),
+    rayCollisionThickness: Math.max(1, Math.min(100, Number(muzzleForm.rayCollisionThickness) || 10)),
+    rayDuration: Math.max(10, Math.min(1000, Number(muzzleForm.rayDuration) || 100)),
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }
@@ -2528,12 +2580,26 @@ function createMuzzleFromForm() {
     directionMode: instance.directionMode,
     showDebug: instance.showDebug,
     debugColor: instance.debugColor,
+    fireType: instance.fireType,
     fireRate: instance.fireRate,
     bulletSpeed: instance.bulletSpeed,
     bulletRange: instance.bulletRange,
     bulletSize: instance.bulletSize,
     bulletColor: instance.bulletColor,
     autoFire: instance.autoFire,
+    bulletCount: instance.bulletCount,
+    isSpread: instance.isSpread,
+    spreadAngle: instance.spreadAngle,
+    scatterChance: instance.scatterChance,
+    rangeScatterChance: instance.rangeScatterChance,
+    rangeSpreadPercent: instance.rangeSpreadPercent,
+    bulletLifetime: instance.bulletLifetime,
+    bulletPiercing: instance.bulletPiercing,
+    showRay: instance.showRay,
+    rayColor: instance.rayColor,
+    rayThickness: instance.rayThickness,
+    rayCollisionThickness: instance.rayCollisionThickness,
+    rayDuration: instance.rayDuration,
     instance,
     worldId: worldModel?.id // Store world reference
   };

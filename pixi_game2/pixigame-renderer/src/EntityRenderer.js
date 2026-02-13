@@ -638,6 +638,32 @@ export class EntityRenderer {
         alpha: 0.7
       });
 
+    // ⚡ Отрисовка активных лучей raycast
+    if (entityRef.fireType === 'ray' && entityRef.showRay) {
+      const activeRays = entityRef.getActiveRays ? entityRef.getActiveRays() : [];
+      
+      for (const ray of activeRays) {
+        const rayColor = ray.color || '#FF0000';
+        const rayColorInt = parseInt(rayColor.replace('#', ''), 16);
+        const rayThickness = ray.thickness || 3;
+        
+        // Преобразуем координаты луча в локальные (относительно позиции muzzle)
+        const localStartX = ray.startX - position.x;
+        const localStartY = ray.startY - position.y;
+        const localEndX = ray.endX - position.x;
+        const localEndY = ray.endY - position.y;
+        
+        muzzleGraphics
+          .moveTo(localStartX, localStartY)
+          .lineTo(localEndX, localEndY)
+          .stroke({
+            width: rayThickness,
+            color: rayColorInt,
+            alpha: 0.8
+          });
+      }
+    }
+
     // Позиционируем muzzle graphics на позицию сущности
     muzzleGraphics.position.set(position.x, position.y);
 
