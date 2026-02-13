@@ -1022,6 +1022,7 @@ const muzzleUi = reactive({
   rangeSpreadPercent: 10,
   bulletLifetime: 0,
   bulletPiercing: 1,
+  damage: 10,
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
@@ -1291,6 +1292,7 @@ const muzzleForm = reactive({
   rangeSpreadPercent: 10,
   bulletLifetime: 0,
   bulletPiercing: 1,
+  damage: 10,
   // ⚡ Ray parameters
   showRay: true,
   rayColor: '#FF0000',
@@ -1719,6 +1721,7 @@ function syncMuzzleUiFromSelected() {
   muzzleUi.rangeSpreadPercent = m.rangeSpreadPercent !== undefined ? m.rangeSpreadPercent : 10;
   muzzleUi.bulletLifetime = m.bulletLifetime !== undefined ? m.bulletLifetime : 0;
   muzzleUi.bulletPiercing = m.bulletPiercing !== undefined ? m.bulletPiercing : 1;
+  muzzleUi.damage = instance?.stats?.damage !== undefined ? instance.stats.damage : (m.damage !== undefined ? m.damage : 10);
 
   // Синхронизируем ray параметры
   muzzleUi.showRay = instance?.showRay !== undefined ? instance.showRay : (m.showRay !== undefined ? m.showRay : true);
@@ -1793,6 +1796,9 @@ function applySelectedMuzzleUi() {
   instance.setRayCollisionThickness(muzzleUi.rayCollisionThickness);
   instance.setRayDuration(muzzleUi.rayDuration);
 
+  // Применяем stats
+  instance.setDamage(muzzleUi.damage);
+
   // Применяем направление
   instance.setDirection(muzzleUi.direction.x, muzzleUi.direction.y);
   instance.setDirectionMode(muzzleUi.directionMode);
@@ -1822,6 +1828,7 @@ function applySelectedMuzzleUi() {
   selectedMuzzle.rayThickness = muzzleUi.rayThickness;
   selectedMuzzle.rayCollisionThickness = muzzleUi.rayCollisionThickness;
   selectedMuzzle.rayDuration = muzzleUi.rayDuration;
+  selectedMuzzle.damage = muzzleUi.damage;
   selectedMuzzle.direction = { ...muzzleUi.direction };
   selectedMuzzle.directionMode = muzzleUi.directionMode;
   selectedMuzzle.showDebug = muzzleUi.showDebug;
@@ -2657,6 +2664,10 @@ function createMuzzleFromForm() {
     rayThickness: Math.max(1, Math.min(50, Number(muzzleForm.rayThickness) || 3)),
     rayCollisionThickness: Math.max(1, Math.min(100, Number(muzzleForm.rayCollisionThickness) || 10)),
     rayDuration: Math.max(10, Math.min(1000, Number(muzzleForm.rayDuration) || 100)),
+    // 📊 Stats
+    stats: {
+      damage: Math.max(0, Number(muzzleForm.damage) || 10)
+    },
     position: { x: 0, y: 0 }, // Muzzle position will be controlled by slot
     rotation: 0,
     scale: { x: 1, y: 1 }
@@ -2703,6 +2714,7 @@ function createMuzzleFromForm() {
     rangeSpreadPercent: instance.rangeSpreadPercent,
     bulletLifetime: instance.bulletLifetime,
     bulletPiercing: instance.bulletPiercing,
+    damage: instance.stats?.damage || 10,
     showRay: instance.showRay,
     rayColor: instance.rayColor,
     rayThickness: instance.rayThickness,

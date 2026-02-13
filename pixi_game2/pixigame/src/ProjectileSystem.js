@@ -180,6 +180,7 @@ export class ProjectileSystem {
         lifetime: muzzle.bulletLifetime || 0,
         color: muzzle.bulletColor || '#FFFFFF',
         size: muzzle.bulletSize || 8,
+        damage: muzzle.stats?.damage || 0,
         piercing: muzzle.bulletPiercing !== undefined ? muzzle.bulletPiercing : 1,
         _rootEntityId: muzzle._rootEntityId || null
       });
@@ -429,11 +430,22 @@ export class ProjectileSystem {
    */
   _handleRayHit(muzzle, hit, targetComponents) {
     const targetEntity = targetComponents.get('_entityRef');
+    const damage = muzzle.stats?.damage || 0;
+    
+    // 📊 Наносим урон если у цели есть statsSystem
+    if (damage > 0 && targetEntity?.statsSystem && targetEntity?.stats?.hp) {
+      // Используем StatsSystem если есть
+      if (this.world.statsSystem) {
+        this.world.statsSystem.dealDamage(hit.entityId, damage, { type: 'ray', muzzleId: muzzle.id });
+      } else {
+        targetEntity.takeDamage(damage);
+      }
+    }
     
     // Вызываем onHit callback на цели если есть
     if (targetEntity?.onHit) {
       targetEntity.onHit(
-        { type: 'ray', muzzle },
+        { type: 'ray', muzzle, damage },
         hit.point,
         muzzle.id
       );

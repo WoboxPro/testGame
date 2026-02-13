@@ -201,6 +201,14 @@
           1 = только первая цель (по умолчанию) • 2+ = пробивает N целей • 0 = бесконечное пробитие
         </span>
       </label>
+
+      <label class="field">
+        <span class="field__label">⚔️ Урон (damage)</span>
+        <input class="field__input" type="number" step="1" min="0" v-model.number="model.damage" />
+        <span class="field__hint">
+          Урон при попадании (по умолчанию: 10). Работает только если у цели включён statsSystem.
+        </span>
+      </label>
     </div>
 
     <div class="form__section">

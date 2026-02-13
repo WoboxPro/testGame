@@ -330,6 +330,17 @@ export class CollisionSystem {
         bullet._hitTargets.add(targetId);
       }
 
+      // 📊 Наносим урон если у цели есть statsSystem
+      const damage = bullet?.damage || 0;
+      if (damage > 0 && targetEntity?.statsSystem && targetEntity?.stats?.hp) {
+        // Используем StatsSystem если есть
+        if (this.world.statsSystem) {
+          this.world.statsSystem.dealDamage(targetId, damage, { type: 'projectile', bulletId });
+        } else {
+          targetEntity.takeDamage(damage);
+        }
+      }
+
       // Call onHit callback
       if (bullet?.onHit) {
         bullet.onHit(targetComp, intersect.point, targetId);

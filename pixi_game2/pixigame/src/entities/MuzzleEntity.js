@@ -131,6 +131,11 @@ export class MuzzleEntity extends Entity {
     this.rayDuration = options.rayDuration !== undefined ? 
       Math.max(10, Math.min(1000, Number(options.rayDuration))) : 100;
 
+    // 📊 Параметры оружия (stats)
+    this.stats = {
+      damage: Math.max(0, Number(options.stats?.damage) || 10)
+    };
+
     // 📡 События (callbacks)
     this.onFire = options.onFire || null;  // (bulletIds) => void - вызывается при создании пуль
     this.onRayHit = options.onRayHit || null;  // (hits) => void - вызывается при попадании луча
@@ -416,6 +421,22 @@ export class MuzzleEntity extends Entity {
   }
 
   /**
+   * 📊 Установить урон оружия
+   * @param {number} damage - Величина урона
+   */
+  setDamage(damage) {
+    this.stats.damage = Math.max(0, Number(damage) || 0);
+  }
+
+  /**
+   * 📊 Получить урон оружия
+   * @returns {number}
+   */
+  getDamage() {
+    return this.stats.damage;
+  }
+
+  /**
    * ⚡ Добавить активный луч для визуализации
    * @param {Object} ray - {startX, startY, endX, endY}
    */
@@ -484,6 +505,7 @@ export class MuzzleEntity extends Entity {
       rayThickness: this.rayThickness,
       rayCollisionThickness: this.rayCollisionThickness,
       rayDuration: this.rayDuration,
+      stats: this.stats,
       isFiring: this._isFiring,
       hasOnFire: !!this.onFire,
       hasOnRayHit: !!this.onRayHit,

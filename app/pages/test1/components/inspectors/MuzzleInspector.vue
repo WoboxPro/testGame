@@ -193,6 +193,15 @@
           {{ (muzzleUi.bulletPiercing ?? 1) === 0 ? '♾️ Бесконечное' : (muzzleUi.bulletPiercing ?? 1) === 1 ? '🎯 1 цель' : `🎯 ${muzzleUi.bulletPiercing} целей` }}
         </div>
       </div>
+
+      <!-- Damage -->
+      <div class="inspector__group">
+        <div class="inspector__label">⚔️ Урон: {{ muzzleUi.damage ?? 10 }}</div>
+        <input type="range" v-model.number="muzzleUi.damage" min="0" max="200" step="1" @input="apply" />
+        <div class="inspector__value">
+          {{ (muzzleUi.damage ?? 10) === 0 ? '💔 Без урона' : (muzzleUi.damage ?? 10) < 20 ? '🗡️ Слабый' : (muzzleUi.damage ?? 10) > 50 ? '💀 Мощный' : '⚔️ Средний' }}
+        </div>
+      </div>
     </div>
 
     <!-- Debug Section -->
