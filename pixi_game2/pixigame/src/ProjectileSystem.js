@@ -515,6 +515,13 @@ export class ProjectileSystem {
     for (const bulletId of bulletsToRemove) {
       this.removeProjectile(bulletId);
     }
+
+    // 4. Обновляем лучи raycast (с учётом timeScale)
+    for (const [muzzleId, muzzle] of this.muzzles) {
+      if (muzzle.fireType === 'ray') {
+        muzzle.updateRays(adjustedDt);
+      }
+    }
   }
 
   /**

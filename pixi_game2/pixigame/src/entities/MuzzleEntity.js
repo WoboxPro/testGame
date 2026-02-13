@@ -424,16 +424,27 @@ export class MuzzleEntity extends Entity {
       ...ray,
       color: this.rayColor,
       thickness: this.rayThickness,
-      endTime: performance.now() + this.rayDuration
+      remainingTime: this.rayDuration // Используем remainingTime вместо endTime
     });
   }
 
   /**
-   * ⚡ Очистить просроченные лучи
+   * ⚡ Обновить лучи (вызывается из ProjectileSystem.update с учётом timeScale)
+   * @param {number} dt - delta time в миллисекундах (уже с учётом timeScale)
+   */
+  updateRays(dt) {
+    for (const ray of this._activeRays) {
+      ray.remainingTime -= dt;
+    }
+    this._activeRays = this._activeRays.filter(r => r.remainingTime > 0);
+  }
+
+  /**
+   * ⚡ Очистить просроченные лучи (deprecated - используйте updateRays)
+   * @deprecated
    */
   clearExpiredRays() {
-    const now = performance.now();
-    this._activeRays = this._activeRays.filter(r => r.endTime > now);
+    this._activeRays = this._activeRays.filter(r => r.remainingTime > 0);
   }
 
   /**
@@ -441,7 +452,6 @@ export class MuzzleEntity extends Entity {
    * @returns {Array} Массив активных лучей
    */
   getActiveRays() {
-    this.clearExpiredRays();
     return this._activeRays;
   }
 
