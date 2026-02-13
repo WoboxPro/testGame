@@ -327,7 +327,7 @@ export class ProjectileSystem {
         dirY = baseDirY;
       }
 
-      // Выполняем raycast
+      // Выполняем raycast (уже обрезан на блокирующей цели благодаря collision matrix)
       const hits = this.world.collisionSystem.raycast(
         { x: position.x, y: position.y },
         { x: dirX, y: dirY },
@@ -335,36 +335,49 @@ export class ProjectileSystem {
         {
           thickness: muzzle.rayCollisionThickness || 10,
           excludeEntityId: muzzleId,
-          rootEntityId: muzzle._rootEntityId || null
+          rootEntityId: muzzle._rootEntityId || null,
+          sourceType: 'projectile' // Используем collision matrix для projectile
         }
       );
 
-      // Ограничиваем количество попаданий по piercing
-      // piercing = 0 означает бесконечное пробитие
+      // Проверяем есть ли блокирующее попадание
+      const blockedHit = hits.find(h => h.blocked);
+      
+      // Ограничиваем количество попаданий по piercing (только для неблокирующих)
+      // piercing = 0 означает бесконечное пробитие (но блокирующие всё равно останавливают)
       // piercing = 1 означает только первая цель
       // piercing = 2+ означает N целей
-      const maxHits = piercing === 0 ? hits.length : Math.min(piercing, hits.length);
-      const limitedHits = hits.slice(0, maxHits);
+      let limitedHits;
+      if (blockedHit) {
+        // Есть блокирующее попадание - берём все до него включительно
+        const blockedIndex = hits.indexOf(blockedHit);
+        const nonBlockedBefore = hits.slice(0, blockedIndex);
+        
+        if (piercing === 0) {
+          // Бесконечное пробитие - все неблокирующие + блокирующее
+          limitedHits = hits.slice(0, blockedIndex + 1);
+        } else {
+          // Ограниченное пробитие
+          const maxNonBlocked = piercing - 1; // -1 потому что блокирующее не считается в piercing
+          const allowedNonBlocked = nonBlockedBefore.slice(0, maxNonBlocked);
+          limitedHits = [...allowedNonBlocked, blockedHit];
+        }
+      } else {
+        // Нет блокирующих попаданий - применяем piercing как обычно
+        const maxHits = piercing === 0 ? hits.length : Math.min(piercing, hits.length);
+        limitedHits = hits.slice(0, maxHits);
+      }
 
       // Вычисляем конечную точку луча
       let endX, endY;
+      const lastHit = limitedHits[limitedHits.length - 1];
       
-      if (piercing === 0) {
-        // Бесконечное пробитие - луч всегда идёт до rayRange
-        endX = position.x + dirX * rayRange;
-        endY = position.y + dirY * rayRange;
-      } else if (limitedHits.length >= piercing) {
-        // Достигли лимита piercing - луч останавливается на последней поражённой цели
-        const lastHit = limitedHits[limitedHits.length - 1];
+      if (lastHit && (lastHit.blocked || (piercing > 0 && limitedHits.length >= piercing))) {
+        // Луч остановился на цели (блокирующая или достигнут лимит piercing)
         endX = lastHit.point.x;
         endY = lastHit.point.y;
-      } else if (limitedHits.length > 0) {
-        // Есть попадания, но не достигли лимита piercing - луч идёт до rayRange
-        // (прошли сквозь все цели на пути)
-        endX = position.x + dirX * rayRange;
-        endY = position.y + dirY * rayRange;
       } else {
-        // Нет попаданий - луч идёт до rayRange
+        // Луч прошёл все цели - идёт до rayRange
         endX = position.x + dirX * rayRange;
         endY = position.y + dirY * rayRange;
       }
@@ -389,8 +402,9 @@ export class ProjectileSystem {
       }
 
       // Debug: логируем попадания луча
-      if (hits.length > 0) {
-        console.log(`⚡ Ray hits: ${hits.length} total, piercing=${piercing}, limited=${limitedHits.length}, end=(${endX.toFixed(0)}, ${endY.toFixed(0)})`);
+      if (limitedHits.length > 0) {
+        const blockedInfo = limitedHits.find(h => h.blocked) ? ' [BLOCKED]' : '';
+        console.log(`⚡ Ray: ${limitedHits.length} hits, piercing=${piercing}${blockedInfo}, end=(${endX.toFixed(0)}, ${endY.toFixed(0)})`);
       }
 
       // Сохраняем попадания

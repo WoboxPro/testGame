@@ -829,15 +829,16 @@ export class CollisionSystem {
    * @param {Object} origin - Начальная точка {x, y}
    * @param {Object} direction - Направление (нормализованный вектор) {x, y}
    * @param {number} maxDistance - Максимальная дистанция
-   * @param {Object} options - Опции {thickness, excludeEntityId, collisionTypes}
-   * @returns {Array} Массив попаданий [{entityId, point, distance, normal}]
+   * @param {Object} options - Опции {thickness, excludeEntityId, collisionTypes, sourceType}
+   * @returns {Array} Массив попаданий [{entityId, point, distance, normal, blocked}]
    */
   raycast(origin, direction, maxDistance, options = {}) {
     const hits = [];
     const thickness = options.thickness || 0;
     const excludeEntityId = options.excludeEntityId || null;
-    const collisionTypes = options.collisionTypes || null; // null = все, кроме projectile
+    const collisionTypes = options.collisionTypes || null;
     const rootEntityId = options.rootEntityId || null;
+    const sourceType = options.sourceType || 'projectile'; // Тип источника для проверки collision matrix
 
     // Нормализуем направление
     const dirLen = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
@@ -869,12 +870,17 @@ export class CollisionSystem {
       const hit = this._raycastEntity(origin, dirX, dirY, maxDistance, thickness, collision, position);
       
       if (hit) {
+        // Проверяем collision matrix - блокирует ли цель луч
+        const relation = this.getRelation(sourceType, collision.type);
+        const blocked = relation?.block ?? false;
+        
         hits.push({
           entityId,
           point: hit.point,
           distance: hit.distance,
           normal: hit.normal,
-          collisionType: collision.type
+          collisionType: collision.type,
+          blocked
         });
       }
     }
@@ -882,12 +888,11 @@ export class CollisionSystem {
     // Сортируем по расстоянию
     hits.sort((a, b) => a.distance - b.distance);
 
-    // Debug: логируем если нашли попадания
-    if (hits.length > 0) {
-      console.log(`🎯 Raycast found ${hits.length} hits:`, hits.map(h => `${h.entityId}(${h.collisionType})@${h.distance.toFixed(0)}`).join(', '));
-    }
+    // Обрезаем список на первом блокирующем попадании
+    const blockedIndex = hits.findIndex(h => h.blocked);
+    const finalHits = blockedIndex >= 0 ? hits.slice(0, blockedIndex + 1) : hits;
 
-    return hits;
+    return finalHits;
   }
 
   /**
