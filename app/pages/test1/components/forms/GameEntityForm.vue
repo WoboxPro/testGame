@@ -152,31 +152,56 @@
       </div>
     </div>
 
-     <div class="form__section">
-       <div class="form__section-title">Movement</div>
-       <div class="grid2">
-         <label class="field">
-           <span class="field__label">Max Speed</span>
-           <input class="field__input" type="number" v-model.number="model.maxSpeed" />
-         </label>
-         <label class="field">
-           <span class="field__label">Acceleration</span>
-           <input class="field__input" type="number" v-model.number="model.acceleration" />
-         </label>
-       </div>
-       <label class="field">
-         <span class="field__label">Friction</span>
-         <input class="field__input" type="number" v-model.number="model.friction" />
+      <div class="form__section">
+        <div class="form__section-title">Movement</div>
+        <div class="grid2">
+          <label class="field">
+            <span class="field__label">Max Speed</span>
+            <input class="field__input" type="number" v-model.number="model.maxSpeed" />
+          </label>
+          <label class="field">
+            <span class="field__label">Acceleration</span>
+            <input class="field__input" type="number" v-model.number="model.acceleration" />
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label">Friction</span>
+          <input class="field__input" type="number" v-model.number="model.friction" />
+        </label>
+        <label class="field">
+          <span class="field__label">Rotation / Reflection</span>
+          <select class="field__input" v-model="model.reflectionBehavior">
+            <option value="none">None (manual rotation only)</option>
+            <option value="mirrorX">Mirror X (left/right)</option>
+            <option value="mirrorY">Mirror Y (up/down)</option>
+          </select>
+          <span class="field__hint">Mirror disables rotation, flips entity based on movement or Q/E</span>
+        </label>
+      </div>
+
+     <div class="form__section form__section--stats">
+       <div class="form__section-title">📊 Stats System</div>
+       <label class="field field--row">
+         <input type="checkbox" v-model="model.statsSystem" />
+         <span class="field__label">Enable Stats</span>
        </label>
-       <label class="field">
-         <span class="field__label">Rotation / Reflection</span>
-         <select class="field__input" v-model="model.reflectionBehavior">
-           <option value="none">None (manual rotation only)</option>
-           <option value="mirrorX">Mirror X (left/right)</option>
-           <option value="mirrorY">Mirror Y (up/down)</option>
-         </select>
-         <span class="field__hint">Mirror disables rotation, flips entity based on movement or Q/E</span>
-       </label>
+       <span class="field__hint">Включает систему характеристик (hp, и т.д.)</span>
+
+       <template v-if="model.statsSystem">
+         <div class="form__subsection">
+           <div class="form__subsection-title">❤️ Health (HP)</div>
+           <div class="grid2">
+             <label class="field">
+               <span class="field__label">Current HP</span>
+               <input class="field__input" type="number" min="0" v-model.number="model.hpCurrent" />
+             </label>
+             <label class="field">
+               <span class="field__label">Max HP</span>
+               <input class="field__input" type="number" min="1" v-model.number="model.hpMax" />
+             </label>
+           </div>
+         </div>
+       </template>
      </div>
 
     <div class="form__section" v-if="model.shape === 'sprite'">
@@ -246,6 +271,8 @@ const needsCollisionShape = computed(() => {
 .field__error { font-size: 12px; color: #ff6b6b; margin-top: -4px; }
 .form__section { padding: 10px; border-radius: 8px; background: rgba(79, 195, 247, 0.05); border: 1px solid rgba(79, 195, 247, 0.15); }
 .form__section-title { font-weight: 700; font-size: 13px; color: #bfe7ff; margin-bottom: 8px; }
+.form__section--stats { background: rgba(255, 82, 82, 0.08); border: 1px solid rgba(255, 82, 82, 0.2); }
+.form__section--stats .form__section-title { color: #ff9999; }
 .form__subsection { padding: 8px; border-radius: 6px; background: rgba(79, 195, 247, 0.08); border: 1px solid rgba(79, 195, 247, 0.12); }
 .form__subsection-title { font-weight: 600; font-size: 12px; color: #bfe7ff; margin-bottom: 6px; }
 </style>

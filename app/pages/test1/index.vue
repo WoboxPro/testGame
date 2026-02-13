@@ -287,6 +287,44 @@
             <div class="kv__row"><div class="kv__k">Friction</div><div class="kv__v">{{ selectedGameEntity.instance.movement.friction }}</div></div>
           </div>
 
+          <!-- Stats Section -->
+          <div class="inspector__section inspector__section--stats" v-if="selectedGameEntity.instance.statsSystem">
+            <div class="inspector__section-title">📊 Stats</div>
+            
+            <!-- HP -->
+            <div class="inspector__group" v-if="selectedGameEntity.instance.stats?.hp">
+              <div class="inspector__label">❤️ HP</div>
+              <div class="stats-bar">
+                <div class="stats-bar__fill" 
+                     :style="{ width: (selectedGameEntity.instance.stats.hp.current / selectedGameEntity.instance.stats.hp.max * 100) + '%' }">
+                </div>
+                <div class="stats-bar__text">
+                  {{ selectedGameEntity.instance.stats.hp.current }} / {{ selectedGameEntity.instance.stats.hp.max }}
+                </div>
+              </div>
+              <div class="stats-controls">
+                <button class="btn btn--small" @click="entityTakeDamage(selectedGameEntity.id, 10)">-10 DMG</button>
+                <button class="btn btn--small" @click="entityHeal(selectedGameEntity.id, 10)">+10 Heal</button>
+                <input type="number" class="stats-input" v-model.number="entityStatsUi.hpCurrent" 
+                       @change="setEntityHp(selectedGameEntity.id, entityStatsUi.hpCurrent)" min="0" :max="selectedGameEntity.instance.stats.hp.max" />
+              </div>
+            </div>
+
+            <!-- Alive Status -->
+            <div class="kv__row">
+              <div class="kv__k">Status</div>
+              <div class="kv__v" :class="{ 'kv__v--dead': !selectedGameEntity.instance.isAlive() }">
+                {{ selectedGameEntity.instance.isAlive() ? '🟢 Alive' : '💀 Dead' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Section (disabled) -->
+          <div class="inspector__section inspector__section--disabled" v-else>
+            <div class="inspector__section-title">📊 Stats</div>
+            <div class="inspector__empty">Stats system disabled</div>
+          </div>
+
           <!-- Slots Section -->
           <div class="inspector__section">
             <div class="inspector__section-title">Slots ({{ selectedGameEntity.instance.getSlots().length }})</div>
@@ -1157,7 +1195,11 @@ const gameEntityForm = reactive({
    animationsEnabled: false, // включить анимации
    spritesheetUrl: '', // URL к JSON файлу спрайтшита
    defaultAnimationState: 'idle', // дефолтное состояние
-  animationSpeedMultiplier: 1.0 // множитель скорости анимации
+  animationSpeedMultiplier: 1.0, // множитель скорости анимации
+  // 📊 Stats
+  statsSystem: false,
+  hpCurrent: 100,
+  hpMax: 100
 });
 
 const controllerForm = reactive({
@@ -2017,8 +2059,62 @@ function closeSlotModal() {
      springMaxLength: slotForm.springMaxLength
    });
 
-   closeSlotModal();
- }
+    closeSlotModal();
+  }
+
+  // 📊 Stats methods
+  const entityStatsUi = reactive({
+    hpCurrent: 100
+  });
+
+  function entityTakeDamage(entityId, damage) {
+    const entity = gameEntities.find(e => e.id === entityId) || unattachedEntities.find(e => e.id === entityId);
+    if (!entity?.instance?.statsSystem) return;
+    
+    const world = worlds.find(w => w.id === entity.worldId);
+    if (world?.instance?.statsSystem) {
+      world.instance.statsSystem.dealDamage(entityId, damage);
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    } else {
+      entity.instance.takeDamage(damage);
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    }
+  }
+
+  function entityHeal(entityId, amount) {
+    const entity = gameEntities.find(e => e.id === entityId) || unattachedEntities.find(e => e.id === entityId);
+    if (!entity?.instance?.statsSystem) return;
+    
+    const world = worlds.find(w => w.id === entity.worldId);
+    if (world?.instance?.statsSystem) {
+      world.instance.statsSystem.heal(entityId, amount);
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    } else {
+      entity.instance.heal(amount);
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    }
+  }
+
+  function setEntityHp(entityId, value) {
+    const entity = gameEntities.find(e => e.id === entityId) || unattachedEntities.find(e => e.id === entityId);
+    if (!entity?.instance?.statsSystem) return;
+    
+    const world = worlds.find(w => w.id === entity.worldId);
+    if (world?.instance?.statsSystem) {
+      world.instance.statsSystem.setHp(entityId, value);
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    } else {
+      entity.instance.setStat('hp', value);
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    }
+  }
+
+  // Sync entityStatsUi when selected entity changes
+  watch(selectedGameEntity, (entity) => {
+    if (entity?.instance?.stats?.hp) {
+      entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    }
+  });
 
 function removeSlot(slotId) {
   if (!selectedGameEntity.value) return;
@@ -2455,6 +2551,14 @@ function createGameEntityFromForm() {
       spritesheetUrl: gameEntityForm.spritesheetUrl?.trim() || null,
       defaultState: gameEntityForm.defaultAnimationState || 'idle',
       speedMultiplier: Number(gameEntityForm.animationSpeedMultiplier) || 1.0
+    } : undefined,
+    // 📊 Stats
+    statsSystem: gameEntityForm.statsSystem === true,
+    stats: gameEntityForm.statsSystem ? {
+      hp: {
+        current: Number(gameEntityForm.hpCurrent) || 100,
+        max: Number(gameEntityForm.hpMax) || 100
+      }
     } : undefined
   }));
 
@@ -2465,6 +2569,8 @@ function createGameEntityFromForm() {
       id,
       subtype: instance.subtype,
       appearance: instance.appearance,
+      statsSystem: instance.statsSystem,
+      stats: instance.stats,
       instance
     };
     unattachedEntities.push(model);
@@ -2481,6 +2587,8 @@ function createGameEntityFromForm() {
       subtype: instance.subtype,
       worldId: gameEntityForm.worldId,
       appearance: instance.appearance,
+      statsSystem: instance.statsSystem,
+      stats: instance.stats,
       instance
     };
     gameEntities.push(model);
@@ -3284,6 +3392,47 @@ watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
 .inspector__value { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #7bd3ff; margin-top: 6px; font-size: 12px; }
 .inspector__section { padding: 10px; border-radius: 8px; background: rgba(79, 195, 247, 0.05); border: 1px solid rgba(79, 195, 247, 0.15); }
 .inspector__section-title { font-weight: 700; font-size: 13px; color: #bfe7ff; margin-bottom: 8px; }
+.inspector__section--stats { background: rgba(255, 82, 82, 0.08); border: 1px solid rgba(255, 82, 82, 0.2); }
+.inspector__section--stats .inspector__section-title { color: #ff9999; }
+.inspector__section--disabled { opacity: 0.5; }
+.kv__v--dead { color: #ff6b6b !important; }
+
+.stats-bar { 
+  height: 24px; 
+  background: rgba(0, 0, 0, 0.4); 
+  border-radius: 4px; 
+  position: relative; 
+  overflow: hidden;
+  margin: 6px 0;
+}
+.stats-bar__fill { 
+  height: 100%; 
+  background: linear-gradient(90deg, #ff4444, #ff6b6b); 
+  transition: width 0.2s;
+}
+.stats-bar__text { 
+  position: absolute; 
+  inset: 0; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-size: 12px; 
+  font-weight: 700; 
+  color: white; 
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.stats-controls { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+.stats-input { 
+  width: 70px; 
+  height: 28px; 
+  padding: 0 8px; 
+  border-radius: 4px; 
+  border: 1px solid rgba(255, 255, 255, 0.15); 
+  background: rgba(0, 0, 0, 0.3); 
+  color: white; 
+  font-size: 12px;
+  text-align: center;
+}
 .actions { display: grid; gap: 8px; margin-top: 12px; }
 
 .modal-backdrop {

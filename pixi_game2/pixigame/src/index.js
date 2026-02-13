@@ -10,6 +10,7 @@ export { CameraController } from './CameraController.js';
 export { EntityController } from './EntityController.js';
 export { CollisionSystem } from './CollisionSystem.js';
 export { ProjectileSystem } from './ProjectileSystem.js';
+export { StatsSystem } from './StatsSystem.js';
 export { TimeSystem, timeSystem } from './TimeSystem.js';
 
 // Input

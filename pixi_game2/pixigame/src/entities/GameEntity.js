@@ -103,6 +103,108 @@ export class GameEntity extends Entity {
 
     // Слоты (attachment points)
     this.slots = options.slots || [];
+
+    // 📊 Stats System
+    this.statsSystem = options.statsSystem === true;
+    
+    // Характеристики (расширяемая структура)
+    // Пользователь может добавлять свои статы: stats.mana = { current: 50, max: 50 }
+    if (this.statsSystem) {
+      this.stats = {
+        hp: {
+          current: options.stats?.hp?.current ?? options.stats?.hp ?? 100,
+          max: options.stats?.hp?.max ?? 100
+        },
+        ...options.stats // Позволяет переопределить hp или добавить свои статы
+      };
+      
+      // Удаляем дубликаты (если hp был в ...options.stats)
+      if (options.stats?.hp) {
+        this.stats.hp = {
+          current: options.stats.hp.current ?? options.stats.hp ?? 100,
+          max: options.stats.hp.max ?? 100
+        };
+      }
+    } else {
+      this.stats = null;
+    }
+  }
+
+  /**
+   * 📊 Получить значение стата
+   * @param {string} statName - Имя стата (например, 'hp')
+   * @returns {{current: number, max: number}|null}
+   */
+  getStat(statName) {
+    if (!this.statsSystem || !this.stats) return null;
+    return this.stats[statName] || null;
+  }
+
+  /**
+   * 📊 Установить текущее значение стата
+   * @param {string} statName - Имя стата
+   * @param {number} value - Новое значение
+   */
+  setStat(statName, value) {
+    if (!this.statsSystem || !this.stats) return;
+    const stat = this.stats[statName];
+    if (stat) {
+      stat.current = Math.max(0, Math.min(stat.max, value));
+    }
+  }
+
+  /**
+   * 📊 Изменить стат на величину (положительную или отрицательную)
+   * @param {string} statName - Имя стата
+   * @param {number} delta - Изменение (отрицательное = уменьшение)
+   * @returns {number} Новое значение
+   */
+  addStat(statName, delta) {
+    if (!this.statsSystem || !this.stats) return 0;
+    const stat = this.stats[statName];
+    if (stat) {
+      stat.current = Math.max(0, Math.min(stat.max, stat.current + delta));
+      return stat.current;
+    }
+    return 0;
+  }
+
+  /**
+   * 📊 Добавить новый стат
+   * @param {string} statName - Имя стата
+   * @param {number} current - Текущее значение
+   * @param {number} max - Максимальное значение
+   */
+  addNewStat(statName, current, max) {
+    if (!this.statsSystem || !this.stats) return;
+    this.stats[statName] = { current, max };
+  }
+
+  /**
+   * 📊 Проверить, жива ли сущность (hp > 0)
+   * @returns {boolean}
+   */
+  isAlive() {
+    if (!this.statsSystem || !this.stats?.hp) return true;
+    return this.stats.hp.current > 0;
+  }
+
+  /**
+   * 📊 Нанести урон
+   * @param {number} damage - Величина урона
+   * @returns {number} Оставшееся hp
+   */
+  takeDamage(damage) {
+    return this.addStat('hp', -damage);
+  }
+
+  /**
+   * 📊 Восстановить здоровье
+   * @param {number} amount - Величина восстановления
+   * @returns {number} Текущее hp
+   */
+  heal(amount) {
+    return this.addStat('hp', amount);
   }
 
   /**
@@ -311,7 +413,9 @@ export class GameEntity extends Entity {
       appearance: this.appearance,
       hasCollision: this.hasCollision,
       collision: this.collision,
-      animations: this.animations
+      animations: this.animations,
+      statsSystem: this.statsSystem,
+      stats: this.stats
     };
   }
 }

@@ -10,6 +10,7 @@ import { RegionSystem } from './RegionSystem.js';
 import { CollisionSystem } from './CollisionSystem.js';
 import { AnimationSystem } from './AnimationSystem.js';
 import { ProjectileSystem } from './ProjectileSystem.js';
+import { StatsSystem } from './StatsSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -50,6 +51,9 @@ export class World {
 
     // 🔫 Система снарядов (пуль)
     this.projectileSystem = new ProjectileSystem(this);
+
+    // 📊 Система характеристик
+    this.statsSystem = new StatsSystem(this);
 
     this.entities = new Map();
     this._entityCounter = 1;
@@ -195,16 +199,21 @@ export class World {
        this.animationSystem.update(dt);
      }
 
-     // 🔫 Обновляем снаряды (пули)
-     if (this.projectileSystem) {
-       this.projectileSystem.update(dt);
-     }
+      // 🔫 Обновляем снаряды (пули)
+      if (this.projectileSystem) {
+        this.projectileSystem.update(dt);
+      }
 
-     // Проверяем коллизии
-     if (this.collisionSystem) {
-       this.collisionSystem.checkCollisions();
-     }
-   }
+      // 📊 Обновляем характеристики
+      if (this.statsSystem) {
+        this.statsSystem.update(dt);
+      }
+
+      // Проверяем коллизии
+      if (this.collisionSystem) {
+        this.collisionSystem.checkCollisions();
+      }
+    }
 
    /**
     * 📌 Обновление позиций сущностей, прикрепленных к слотам
