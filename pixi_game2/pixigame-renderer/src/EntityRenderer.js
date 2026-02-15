@@ -30,6 +30,43 @@ export class EntityRenderer {
       const collision = components.get('collision');
       const animations = components.get('animations');
 
+      // 💀 Пропускаем мертвые сущности (включая дочерние в слотах)
+      if (entityRef && typeof entityRef.isEffectivelyDead === 'function' && entityRef.isEffectivelyDead(world)) {
+        // Удаляем графику если была
+        const cacheKey = `${cachePrefix}${entityId}`;
+        const displayObj = this._cache.get(cacheKey);
+        if (displayObj && displayObj.parent === container) {
+          container.removeChild(displayObj);
+        }
+        
+        // Remove all associated graphics
+        const boundsKey = `${cachePrefix}bounds::${entityId}`;
+        const boundsGraphics = this._collisionBoundsCache.get(boundsKey);
+        if (boundsGraphics && boundsGraphics.parent === container) {
+          container.removeChild(boundsGraphics);
+        }
+        
+        const slotsKey = `${cachePrefix}slots::${entityId}`;
+        const slotsGraphics = this._slotsCache.get(slotsKey);
+        if (slotsGraphics && slotsGraphics.parent === container) {
+          container.removeChild(slotsGraphics);
+        }
+        
+        const muzzleKey = `${cachePrefix}muzzle::${entityId}`;
+        const muzzleGraphics = this._muzzleCache.get(muzzleKey);
+        if (muzzleGraphics && muzzleGraphics.parent === container) {
+          container.removeChild(muzzleGraphics);
+        }
+        
+        const visionKey = `${cachePrefix}vision::${entityId}`;
+        const visionGraphics = this._visionCache.get(visionKey);
+        if (visionGraphics && visionGraphics.parent === container) {
+          container.removeChild(visionGraphics);
+        }
+        
+        continue;
+      }
+
       // 🔫 Special handling for muzzle - no appearance component required
       const isMuzzle = entityRef?.subtype === 'muzzle';
 

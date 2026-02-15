@@ -125,8 +125,17 @@ export class GameEntity extends Entity {
           max: options.stats.hp.max ?? 100
         };
       }
+      
+      // 💀 Действия при потере жизней
+      this.deathBehavior = options.deathBehavior || 'stay'; // 'respawn' | 'stay'
+      this.respawnDelay = Number(options.respawnDelay) || 3000; // мс до респавна
+      this._deathPosition = null; // позиция смерти для респавна
+      this._isDead = false; // флаг смерти
+      this._respawnTimer = null; // таймер респавна
     } else {
       this.stats = null;
+      this.deathBehavior = null;
+      this.respawnDelay = null;
     }
   }
 
@@ -181,7 +190,38 @@ export class GameEntity extends Entity {
   }
 
   /**
-   * 📊 Проверить, жива ли сущность (hp > 0)
+   * 💀 Проверить, мертва ли сущность (включая проверку родителя)
+   * @param {World} world - Мир для поиска родительской сущности
+   * @returns {boolean}
+   */
+  isEffectivelyDead(world) {
+    // Если сама сущность мертва
+    if (this._isDead) return true;
+    
+    // Если есть родитель - проверяем его
+    if (this._parentEntityId && this._parentEntityId !== this.id && world) {
+      const parentComponents = world.entities.get(this._parentEntityId);
+      if (parentComponents) {
+        const parentEntity = parentComponents.get('_entityRef');
+        if (parentEntity && typeof parentEntity.isEffectivelyDead === 'function') {
+          return parentEntity.isEffectivelyDead(world);
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * 💀 Проверить, мертва ли сущность
+   * @returns {boolean}
+   */
+  isDead() {
+    return this._isDead === true;
+  }
+
+  /**
+   * 💀 Проверить, жива ли сущность (hp > 0)
    * @returns {boolean}
    */
   isAlive() {
@@ -205,6 +245,73 @@ export class GameEntity extends Entity {
    */
   heal(amount) {
     return this.addStat('hp', amount);
+  }
+
+  /**
+   * 💀 Умереть (вызывается при hp = 0)
+   * @param {Object} source - Источник смерти (опционально)
+   */
+  die(source = null) {
+    if (!this.statsSystem || this._isDead) return;
+    
+    this._isDead = true;
+    this._deathPosition = { ...this.position };
+    
+    console.log(`💀 Entity "${this.id}" died at (${this._deathPosition.x}, ${this._deathPosition.y})`);
+    
+    if (this.deathBehavior === 'respawn') {
+      this._scheduleRespawn();
+    }
+  }
+
+  /**
+   * 🔄 Запланировать респавн
+   * @private
+   */
+  _scheduleRespawn() {
+    if (this._respawnTimer) {
+      clearTimeout(this._respawnTimer);
+    }
+    
+    console.log(`⏳ Entity "${this.id}" will respawn in ${this.respawnDelay}ms`);
+    
+    this._respawnTimer = setTimeout(() => {
+      this.respawn();
+    }, this.respawnDelay);
+  }
+
+  /**
+   * 🔄 Возродиться
+   */
+  respawn() {
+    if (!this.statsSystem) return;
+    
+    this._isDead = false;
+    this._respawnTimer = null;
+    
+    // Восстанавливаем HP до максимума
+    if (this.stats?.hp) {
+      this.stats.hp.current = this.stats.hp.max;
+    }
+    
+    // Возвращаем на позицию смерти (если была сохранена)
+    if (this._deathPosition) {
+      this.position.x = this._deathPosition.x;
+      this.position.y = this._deathPosition.y;
+    }
+    
+    console.log(`🔄 Entity "${this.id}" respawned at (${this.position.x}, ${this.position.y})`);
+  }
+
+  /**
+   * 🛑 Отменить респавн
+   */
+  cancelRespawn() {
+    if (this._respawnTimer) {
+      clearTimeout(this._respawnTimer);
+      this._respawnTimer = null;
+      console.log(`🛑 Entity "${this.id}" respawn cancelled`);
+    }
   }
 
   /**
@@ -415,7 +522,10 @@ export class GameEntity extends Entity {
       collision: this.collision,
       animations: this.animations,
       statsSystem: this.statsSystem,
-      stats: this.stats
+      stats: this.stats,
+      deathBehavior: this.deathBehavior,
+      respawnDelay: this.respawnDelay,
+      isDead: this._isDead
     };
   }
 }

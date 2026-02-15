@@ -201,6 +201,24 @@
              </label>
            </div>
          </div>
+
+         <div class="form__subsection form__subsection--death">
+           <div class="form__subsection-title">💀 Действия при потере жизней</div>
+           <label class="field">
+             <span class="field__label">При смерти</span>
+             <select class="field__input" v-model="model.deathBehavior">
+               <option value="stay">Остаться на месте</option>
+               <option value="respawn">Переродиться на месте гибели</option>
+             </select>
+           </label>
+           <template v-if="model.deathBehavior === 'respawn'">
+             <label class="field">
+               <span class="field__label">Задержка респавна (мс)</span>
+               <input class="field__input" type="number" min="100" step="100" v-model.number="model.respawnDelay" />
+               <span class="field__hint">Время до перерождения (1000 = 1 сек)</span>
+             </label>
+           </template>
+         </div>
        </template>
      </div>
 
@@ -275,4 +293,6 @@ const needsCollisionShape = computed(() => {
 .form__section--stats .form__section-title { color: #ff9999; }
 .form__subsection { padding: 8px; border-radius: 6px; background: rgba(79, 195, 247, 0.08); border: 1px solid rgba(79, 195, 247, 0.12); }
 .form__subsection-title { font-weight: 600; font-size: 12px; color: #bfe7ff; margin-bottom: 6px; }
+.form__subsection--death { background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.25); }
+.form__subsection--death .form__subsection-title { color: #ff9999; }
 </style>

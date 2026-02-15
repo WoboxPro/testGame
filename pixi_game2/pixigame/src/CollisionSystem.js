@@ -198,8 +198,14 @@ export class CollisionSystem {
     for (const [entityId, components] of entities) {
       const collision = components.get('collision');
       const position = components.get('position');
+      const entityRef = components.get('_entityRef');
       
       if (!collision || !position) continue;
+
+      // 💀 Пропускаем мертвые сущности (включая дочерние в слотах)
+      if (entityRef && typeof entityRef.isEffectivelyDead === 'function' && entityRef.isEffectivelyDead(this.world)) {
+        continue;
+      }
 
       if (collision.type === 'projectile') {
         projectileEntities.push({ id: entityId, components });
@@ -260,6 +266,17 @@ export class CollisionSystem {
     const collisionB = componentsB.get('collision');
 
     if (!collisionA || !collisionB) return;
+
+    // 💀 Пропускаем мертвые сущности (включая дочерние в слотах)
+    const entityRefA = componentsA.get('_entityRef');
+    const entityRefB = componentsB.get('_entityRef');
+    
+    if (entityRefA && typeof entityRefA.isEffectivelyDead === 'function' && entityRefA.isEffectivelyDead(this.world)) {
+      return;
+    }
+    if (entityRefB && typeof entityRefB.isEffectivelyDead === 'function' && entityRefB.isEffectivelyDead(this.world)) {
+      return;
+    }
 
     const relation = this.getRelation(collisionA.type, collisionB.type);
     if (!relation) return; // Нет отношения = нет проверки
@@ -864,8 +881,14 @@ export class CollisionSystem {
 
       const collision = components.get('collision');
       const position = components.get('position');
+      const entityRef = components.get('_entityRef');
       
       if (!collision || !position) continue;
+
+      // 💀 Пропускаем мертвые сущности (включая дочерние в слотах)
+      if (entityRef && typeof entityRef.isEffectivelyDead === 'function' && entityRef.isEffectivelyDead(this.world)) {
+        continue;
+      }
 
       // Пропускаем projectile если не указано иначе
       if (collision.type === 'projectile' && !collisionTypes?.includes('projectile')) continue;
@@ -874,7 +897,6 @@ export class CollisionSystem {
       if (collisionTypes && !collisionTypes.includes(collision.type)) continue;
 
       // 🌳 Проверяем общий root - не попадаем в свою иерархию
-      const entityRef = components.get('_entityRef');
       if (rootEntityId && entityRef?._rootEntityId === rootEntityId) continue;
 
       // Проверяем пересечение луча с коллайдером

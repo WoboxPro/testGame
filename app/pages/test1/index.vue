@@ -317,7 +317,21 @@
                 {{ selectedGameEntity.instance.isAlive() ? '🟢 Alive' : '💀 Dead' }}
               </div>
             </div>
-          </div>
+
+            <!-- Death Behavior -->
+            <div class="kv__row">
+              <div class="kv__k">Death Behavior</div>
+              <div class="kv__v">
+                {{ selectedGameEntity.instance.deathBehavior === 'respawn' ? '🔄 Respawn' : '📌 Stay' }}
+                <span v-if="selectedGameEntity.instance.deathBehavior === 'respawn'"> ({{ selectedGameEntity.instance.respawnDelay }}ms)</span>
+              </div>
+            </div>
+
+            <!-- Respawn Button (if dead) -->
+            <div class="stats-controls" v-if="!selectedGameEntity.instance.isAlive()">
+              <button class="btn btn--small btn--success" @click="entityRespawn(selectedGameEntity.id)">🔄 Respawn Now</button>
+            </div>
+           </div>
 
           <!-- Stats Section (disabled) -->
           <div class="inspector__section inspector__section--disabled" v-else>
@@ -1200,7 +1214,10 @@ const gameEntityForm = reactive({
   // 📊 Stats
   statsSystem: false,
   hpCurrent: 100,
-  hpMax: 100
+  hpMax: 100,
+  // 💀 Death behavior
+  deathBehavior: 'stay', // 'stay' | 'respawn'
+  respawnDelay: 3000 // мс до респавна
 });
 
 const controllerForm = reactive({
@@ -2116,6 +2133,15 @@ function closeSlotModal() {
     }
   }
 
+  function entityRespawn(entityId) {
+    const entity = gameEntities.find(e => e.id === entityId) || unattachedEntities.find(e => e.id === entityId);
+    if (!entity?.instance?.statsSystem) return;
+    
+    entity.instance.respawn();
+    entityStatsUi.hpCurrent = entity.instance.stats.hp.current;
+    console.log(`🔄 Entity "${entityId}" respawned manually`);
+  }
+
   // Sync entityStatsUi when selected entity changes
   watch(selectedGameEntity, (entity) => {
     if (entity?.instance?.stats?.hp) {
@@ -2566,7 +2592,10 @@ function createGameEntityFromForm() {
         current: Number(gameEntityForm.hpCurrent) || 100,
         max: Number(gameEntityForm.hpMax) || 100
       }
-    } : undefined
+    } : undefined,
+    // 💀 Death behavior
+    deathBehavior: gameEntityForm.statsSystem ? gameEntityForm.deathBehavior : undefined,
+    respawnDelay: gameEntityForm.statsSystem ? Number(gameEntityForm.respawnDelay) || 3000 : undefined
   }));
 
   // Check if we're creating an attached or unattached entity
@@ -2578,6 +2607,8 @@ function createGameEntityFromForm() {
       appearance: instance.appearance,
       statsSystem: instance.statsSystem,
       stats: instance.stats,
+      deathBehavior: instance.deathBehavior,
+      respawnDelay: instance.respawnDelay,
       instance
     };
     unattachedEntities.push(model);
@@ -2596,6 +2627,8 @@ function createGameEntityFromForm() {
       appearance: instance.appearance,
       statsSystem: instance.statsSystem,
       stats: instance.stats,
+      deathBehavior: instance.deathBehavior,
+      respawnDelay: instance.respawnDelay,
       instance
     };
     gameEntities.push(model);

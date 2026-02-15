@@ -9,6 +9,8 @@
  * - onDeath callback
  * - onDamage callback
  * - onHeal callback
+ * - onRespawn callback
+ * - deathBehavior: 'stay' | 'respawn'
  *
  * Пользователь может расширять систему для своих статов.
  */
@@ -21,7 +23,8 @@ export class StatsSystem {
     this._callbacks = {
       onDeath: new Map(),    // entityId -> callback
       onDamage: new Map(),   // entityId -> callback
-      onHeal: new Map()      // entityId -> callback
+      onHeal: new Map(),     // entityId -> callback
+      onRespawn: new Map()   // entityId -> callback
     };
 
     console.log('📊 StatsSystem создана');
@@ -30,7 +33,7 @@ export class StatsSystem {
   /**
    * 📊 Зарегистрировать callback для сущности
    * @param {string} entityId - ID сущности
-   * @param {string} event - 'onDeath' | 'onDamage' | 'onHeal'
+   * @param {string} event - 'onDeath' | 'onDamage' | 'onHeal' | 'onRespawn'
    * @param {Function} callback - Функция обратного вызова
    */
   on(entityId, event, callback) {
@@ -186,13 +189,36 @@ export class StatsSystem {
     if (deathCallback) {
       deathCallback({
         entityId,
-        source
+        source,
+        deathBehavior: entity.deathBehavior,
+        respawnDelay: entity.respawnDelay
       });
     }
 
     // Если есть метод die на entity - вызываем
     if (entity.die && typeof entity.die === 'function') {
       entity.die(source);
+    }
+  }
+
+  /**
+   * 🔄 Вызвать респавн сущности (для callback из entity)
+   * @param {string} entityId - ID сущности
+   */
+  triggerRespawn(entityId) {
+    const components = this.world.entities.get(entityId);
+    if (!components) return;
+
+    const entity = components.get('_entityRef');
+    if (!entity?.statsSystem) return;
+
+    // Вызываем onRespawn callback
+    const respawnCallback = this._callbacks.onRespawn.get(entityId);
+    if (respawnCallback) {
+      respawnCallback({
+        entityId,
+        position: entity.position
+      });
     }
   }
 
@@ -224,7 +250,8 @@ export class StatsSystem {
       callbacksCount: {
         onDeath: this._callbacks.onDeath.size,
         onDamage: this._callbacks.onDamage.size,
-        onHeal: this._callbacks.onHeal.size
+        onHeal: this._callbacks.onHeal.size,
+        onRespawn: this._callbacks.onRespawn.size
       }
     };
   }
