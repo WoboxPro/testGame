@@ -12,10 +12,16 @@ export class EntityRenderer {
     this._slotsCache = new Map(); // Кеш для визуализации слотов
     this._muzzleCache = new Map(); // Кеш для визуализации muzzle
     this._visionCache = new Map(); // Кеш для визуализации vision
+    this._tileGridCache = new Map(); // Кеш для визуализации тайловой сетки
   }
   
   renderEntities(camera, world, container) {
     if (!container || !world) return;
+
+    // 📐 Рендеринг тайловой сетки (если включено)
+    if (world.tileSystem && world.tileSystem.enabled && world.tileSystem.showGrid) {
+      this._renderTileGrid(camera, world, container);
+    }
 
     const cachePrefix = `${camera.id}::`;
     const visibleBounds = camera._getWorldBoundsInView();
@@ -851,6 +857,93 @@ export class EntityRenderer {
     }
   }
 
+  /**
+   * 📐 Отрисовка тайловой сетки
+   */
+  _renderTileGrid(camera, world, container) {
+    const tileSystem = world.tileSystem;
+    if (!tileSystem || !tileSystem.enabled || !tileSystem.showGrid) {
+      // Если выключено - удаляем графику если есть
+      const tileGridKey = `${camera.id}::tilegrid`;
+      const tileGridGraphics = this._tileGridCache.get(tileGridKey);
+      if (tileGridGraphics && tileGridGraphics.parent === container) {
+        container.removeChild(tileGridGraphics);
+      }
+      return;
+    }
+
+    const tileGridKey = `${camera.id}::tilegrid`;
+    let tileGridGraphics = this._tileGridCache.get(tileGridKey);
+
+    if (!tileGridGraphics) {
+      tileGridGraphics = new PIXI.Graphics();
+      this._tileGridCache.set(tileGridKey, tileGridGraphics);
+    }
+
+    // Очистка
+    tileGridGraphics.clear();
+
+    // Получаем видимые границы
+    const bounds = camera._getWorldBoundsInView();
+    const tileSize = tileSystem.tileSize;
+    const origin = tileSystem.origin;
+
+    // Конвертируем цвет
+    const gridColor = parseInt(tileSystem.gridColor.replace('#', ''), 16);
+    const gridAlpha = tileSystem.gridAlpha || 0.3;
+    const lineWidth = tileSystem.gridLineWidth || 1;
+
+    // Вычисляем границы сетки для видимой области
+    const startTileX = Math.floor((bounds.minX - origin.x) / tileSize.width);
+    const startTileY = Math.floor((bounds.minY - origin.y) / tileSize.height);
+    const endTileX = Math.ceil((bounds.maxX - origin.x) / tileSize.width);
+    const endTileY = Math.ceil((bounds.maxY - origin.y) / tileSize.height);
+
+    // Ограничиваем для fixed режима
+    let finalStartTileX = startTileX;
+    let finalStartTileY = startTileY;
+    let finalEndTileX = endTileX;
+    let finalEndTileY = endTileY;
+
+    if (tileSystem.mode === 'fixed') {
+      finalStartTileX = Math.max(0, startTileX);
+      finalStartTileY = Math.max(0, startTileY);
+      finalEndTileX = Math.min(tileSystem.size.cols, endTileX);
+      finalEndTileY = Math.min(tileSystem.size.rows, endTileY);
+    }
+
+    // Рисуем вертикальные линии
+    for (let tileX = finalStartTileX; tileX <= finalEndTileX; tileX++) {
+      const x = origin.x + tileX * tileSize.width;
+      tileGridGraphics
+        .moveTo(x, bounds.minY)
+        .lineTo(x, bounds.maxY)
+        .stroke({
+          width: lineWidth,
+          color: gridColor,
+          alpha: gridAlpha
+        });
+    }
+
+    // Рисуем горизонтальные линии
+    for (let tileY = finalStartTileY; tileY <= finalEndTileY; tileY++) {
+      const y = origin.y + tileY * tileSize.height;
+      tileGridGraphics
+        .moveTo(bounds.minX, y)
+        .lineTo(bounds.maxX, y)
+        .stroke({
+          width: lineWidth,
+          color: gridColor,
+          alpha: gridAlpha
+        });
+    }
+
+    // Добавляем в контейнер если еще не добавлен
+    if (tileGridGraphics.parent !== container) {
+      container.addChild(tileGridGraphics);
+    }
+  }
+
   clearCameraCache(cameraId) {
     const cachePrefix = `${cameraId}::`;
 
@@ -892,6 +985,14 @@ export class EntityRenderer {
         this._visionCache.delete(visionKey);
       }
     }
+
+    // Очистка кеша тайловой сетки
+    for (const [tileGridKey, tileGridGraphics] of this._tileGridCache) {
+      if (tileGridKey.startsWith(cachePrefix + 'tilegrid')) {
+        tileGridGraphics.destroy({ children: true });
+        this._tileGridCache.delete(tileGridKey);
+      }
+    }
   }
 
   _clearAllCache() {
@@ -919,6 +1020,11 @@ export class EntityRenderer {
       visionGraphics.destroy({ children: true });
     }
     this._visionCache.clear();
+
+    for (const tileGridGraphics of this._tileGridCache.values()) {
+      tileGridGraphics.destroy({ children: true });
+    }
+    this._tileGridCache.clear();
   }
   
   getCacheSize() {

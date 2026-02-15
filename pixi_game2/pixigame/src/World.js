@@ -11,6 +11,7 @@ import { CollisionSystem } from './CollisionSystem.js';
 import { AnimationSystem } from './AnimationSystem.js';
 import { ProjectileSystem } from './ProjectileSystem.js';
 import { StatsSystem } from './StatsSystem.js';
+import { TileSystem } from './TileSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -54,6 +55,12 @@ export class World {
 
     // 📊 Система характеристик
     this.statsSystem = new StatsSystem(this);
+
+    // 📐 Система тайлов (опционально)
+    this.tileSystem = null;
+    if (options.tileSystem?.enabled) {
+      this.tileSystem = new TileSystem(this, options.tileSystem);
+    }
 
     this.entities = new Map();
     this._entityCounter = 1;
