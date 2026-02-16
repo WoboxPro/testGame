@@ -205,6 +205,9 @@ export class Canvas {
       // 🗺️ Рендерим регионы (поверх фона мира, перед сущностями)
       this._renderRegions(camera);
 
+      // ⬡ Рендерим гексагональную сетку (если включена)
+      this._renderHexGrid(camera);
+
       if (camera.cameraBackgroundColor) {
         this._renderCameraBackground(camera);
       }
@@ -417,6 +420,64 @@ export class Canvas {
     });
 
     camera.worldBackgroundLayer.addChild(borderGraphics);
+  }
+
+  /**
+   * ⬡ Рендеринг гексагональной сетки
+   */
+  _renderHexGrid(camera) {
+    if (!camera.worldBackgroundLayer || !camera.world) return;
+
+    const hexTileSystem = camera.world.hexTileSystem;
+    if (!hexTileSystem || !hexTileSystem.showGrid) return;
+
+    const bounds = camera._getWorldBoundsInView();
+    const hexSize = hexTileSystem.hexSize;
+    const orientation = hexTileSystem.orientation;
+
+    const graphics = new PIXI.Graphics();
+    graphics.setStrokeStyle({
+      color: hexTileSystem.gridColor || '#444444',
+      width: hexTileSystem.gridLineWidth || 1,
+      alpha: hexTileSystem.gridAlpha || 0.3
+    });
+
+    // Находим границы в hex координатах с запасом
+    const minHex = hexTileSystem.worldToHex(bounds.minX - hexSize * 2, bounds.minY - hexSize * 2);
+    const maxHex = hexTileSystem.worldToHex(bounds.maxX + hexSize * 2, bounds.maxY + hexSize * 2);
+
+    // Рендерим все гексы в видимой области
+    for (let q = minHex.q; q <= maxHex.q; q++) {
+      for (let r = minHex.r; r <= maxHex.r; r++) {
+        const center = hexTileSystem.hexToWorld(q, r, 'center');
+        
+        // Пропускаем гексы далеко за пределами видимости
+        if (center.x < bounds.minX - hexSize * 2 || center.x > bounds.maxX + hexSize * 2 ||
+            center.y < bounds.minY - hexSize * 2 || center.y > bounds.maxY + hexSize * 2) {
+          continue;
+        }
+
+        // Рисуем гекс
+        const vertices = hexTileSystem.getHexVertices(q, r);
+        this._drawHexPath(graphics, vertices);
+      }
+    }
+
+    graphics.stroke();
+    camera.worldBackgroundLayer.addChild(graphics);
+  }
+
+  /**
+   * Нарисовать путь гекса
+   */
+  _drawHexPath(graphics, vertices) {
+    if (vertices.length < 6) return;
+
+    graphics.moveTo(vertices[0].x, vertices[0].y);
+    for (let i = 1; i < vertices.length; i++) {
+      graphics.lineTo(vertices[i].x, vertices[i].y);
+    }
+    graphics.lineTo(vertices[0].x, vertices[0].y);
   }
 
   _renderWorldTexture(camera, world, bgTexture, bounds) {

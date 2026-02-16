@@ -1105,7 +1105,17 @@ const worldForm = reactive({
   tileShowGrid: true,
   tileGridColor: '#444444',
   tileGridAlpha: 0.3,
-  tileGridLineWidth: 1
+  tileGridLineWidth: 1,
+  // ⬡ Hex Tile System
+  hexEnabled: false,
+  hexOrientation: 'pointy-top',
+  hexSize: 32,
+  hexOriginX: 0,
+  hexOriginY: 0,
+  hexShowGrid: true,
+  hexGridColor: '#4fc3f7',
+  hexGridAlpha: 0.3,
+  hexGridLineWidth: 1
 });
 
 const canvasForm = reactive({
@@ -1506,6 +1516,21 @@ function createWorldFromForm() {
     gridLineWidth: Number(worldForm.tileGridLineWidth) || 1
   } : undefined;
 
+  // ⬡ Hex Tile System конфигурация
+  const hexTileSystem = worldForm.hexEnabled ? {
+    enabled: true,
+    orientation: worldForm.hexOrientation || 'pointy-top',
+    hexSize: Number(worldForm.hexSize) || 32,
+    origin: {
+      x: Number(worldForm.hexOriginX) || 0,
+      y: Number(worldForm.hexOriginY) || 0
+    },
+    showGrid: worldForm.hexShowGrid !== false,
+    gridColor: worldForm.hexGridColor || '#4fc3f7',
+    gridAlpha: Number(worldForm.hexGridAlpha) || 0.3,
+    gridLineWidth: Number(worldForm.hexGridLineWidth) || 1
+  } : undefined;
+
   const instance = markRaw(new World({
     id,
     type: worldForm.type,
@@ -1515,7 +1540,8 @@ function createWorldFromForm() {
     backgroundTexture: Object.keys(backgroundTexture).length > 0 ? backgroundTexture : undefined,
     showBounds: !!worldForm.showBounds,
     boundsColor: worldForm.boundsColor || '#FF4444',
-    tileSystem
+    tileSystem,
+    hexTileSystem
   }));
 
   // 🎯 Добавляем дефолтные collision relations для projectile
@@ -1532,6 +1558,7 @@ function createWorldFromForm() {
     height: instance.height,
     backgroundColor: instance.backgroundColor,
     tileEnabled: worldForm.tileEnabled,
+    hexEnabled: worldForm.hexEnabled,
     instance
   };
 

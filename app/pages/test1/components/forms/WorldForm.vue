@@ -129,6 +129,67 @@
         </template>
       </template>
     </div>
+
+    <!-- ⬡ Hex Tile System -->
+    <div class="form__divider"></div>
+    <div class="form__section">
+      <div class="form__section-title">⬡ Hex Tile System</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.hexEnabled" />
+        <span class="field__label">Включить гексагональные тайлы</span>
+      </label>
+      <span class="field__hint">Бесконечная сетка гексагонов (axial координаты)</span>
+
+      <template v-if="model.hexEnabled">
+        <label class="field">
+          <span class="field__label">Ориентация</span>
+          <select class="field__input" v-model="model.hexOrientation">
+            <option value="pointy-top">Pointy-top (угол вверх)</option>
+            <option value="flat-top">Flat-top (плоскость сверху)</option>
+          </select>
+        </label>
+
+        <div class="grid2">
+          <label class="field">
+            <span class="field__label">Размер гекса (радиус, px)</span>
+            <input class="field__input" type="number" min="8" v-model.number="model.hexSize" />
+          </label>
+        </div>
+
+        <div class="grid2">
+          <label class="field">
+            <span class="field__label">Origin X</span>
+            <input class="field__input" type="number" v-model.number="model.hexOriginX" />
+          </label>
+          <label class="field">
+            <span class="field__label">Origin Y</span>
+            <input class="field__input" type="number" v-model.number="model.hexOriginY" />
+          </label>
+        </div>
+
+        <label class="field field--row">
+          <input type="checkbox" v-model="model.hexShowGrid" />
+          <span class="field__label">Показать сетку</span>
+        </label>
+
+        <template v-if="model.hexShowGrid">
+          <label class="field">
+            <span class="field__label">Цвет сетки</span>
+            <input class="field__input" type="color" v-model.trim="model.hexGridColor" />
+          </label>
+          <div class="grid2">
+            <label class="field">
+              <span class="field__label">Прозрачность</span>
+              <input class="field__input" type="number" min="0" max="1" step="0.1" v-model.number="model.hexGridAlpha" />
+            </label>
+            <label class="field">
+              <span class="field__label">Толщина линии</span>
+              <input class="field__input" type="number" min="1" max="5" v-model.number="model.hexGridLineWidth" />
+            </label>
+          </div>
+        </template>
+      </template>
+    </div>
   </div>
 </template>
 

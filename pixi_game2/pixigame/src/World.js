@@ -12,6 +12,7 @@ import { AnimationSystem } from './AnimationSystem.js';
 import { ProjectileSystem } from './ProjectileSystem.js';
 import { StatsSystem } from './StatsSystem.js';
 import { TileSystem } from './TileSystem.js';
+import { HexTileSystem } from './HexTileSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -60,6 +61,12 @@ export class World {
     this.tileSystem = null;
     if (options.tileSystem?.enabled) {
       this.tileSystem = new TileSystem(this, options.tileSystem);
+    }
+
+    // ⬡ Система гексагональных тайлов (опционально)
+    this.hexTileSystem = null;
+    if (options.hexTileSystem?.enabled) {
+      this.hexTileSystem = new HexTileSystem(this, options.hexTileSystem);
     }
 
     this.entities = new Map();
