@@ -44,6 +44,10 @@ export class Canvas {
     this.uiDisplayCache = new Map(); // key -> PIXI.DisplayObject
     this._uiOverlay = null; // Canvas-level UI layer
 
+    // Hex grid caching (per camera)
+    // key: camera.id -> { graphics: PIXI.Graphics, lastKey: string }
+    this._hexGridCache = new Map();
+
     console.log(`🖼️ Canvas создан: ${this.id}, mode=${this.sizeMode}`);
   }
   
@@ -195,6 +199,13 @@ export class Canvas {
 
       this._updateCameraViewport(camera);
 
+      // IMPORTANT: always clear worldBackgroundLayer to avoid accumulation/leaks
+      // when world background is disabled (no color/texture).
+      // Background/regions/grid are rendered each frame anyway.
+      if (camera.worldBackgroundLayer) {
+        camera.worldBackgroundLayer.removeChildren();
+      }
+
       // Рендерим фон мира если есть цвет фона ИЛИ текстура
       const hasWorldBgColor = camera.worldBackgroundColor && camera.worldBackgroundColor !== 'transparent';
       const hasWorldTexture = camera.world?.backgroundTexture?.textureUrl;
@@ -272,8 +283,6 @@ export class Canvas {
   
   _renderWorldBackground(camera) {
     if (!camera.worldBackgroundLayer || !camera.world) return;
-
-    camera.worldBackgroundLayer.removeChildren();
 
     const bounds = camera._getWorldBoundsInView();
     const world = camera.world;
@@ -433,8 +442,48 @@ export class Canvas {
 
     const bounds = camera._getWorldBoundsInView();
     const hexSize = hexTileSystem.hexSize;
+    const orientation = hexTileSystem.orientation;
 
-    const graphics = new PIXI.Graphics();
+    // If hexes are too small on screen, don't draw the grid (too expensive / visually noisy).
+    const hexPixelRadius = hexSize * (Number(camera.zoom) || 1);
+    if (hexPixelRadius < 6) return;
+
+    // Reuse one Graphics per camera and redraw only when view changes enough.
+    let cache = this._hexGridCache.get(camera.id);
+    if (!cache) {
+      cache = { graphics: new PIXI.Graphics(), lastKey: null };
+      this._hexGridCache.set(camera.id, cache);
+    }
+    const graphics = cache.graphics;
+
+    // Ensure it's attached (worldBackgroundLayer is cleared each frame).
+    if (graphics.parent !== camera.worldBackgroundLayer) {
+      camera.worldBackgroundLayer.addChild(graphics);
+    }
+
+    // Redraw throttling key based on quantized world bounds + settings.
+    // Quantization prevents full rebuild every frame during smooth panning.
+    const gran = Math.max(1, hexSize); // world units
+    const key = [
+      Math.floor(bounds.minX / gran),
+      Math.floor(bounds.minY / gran),
+      Math.floor(bounds.maxX / gran),
+      Math.floor(bounds.maxY / gran),
+      Math.round((Number(camera.zoom) || 1) * 1000),
+      hexSize,
+      orientation,
+      hexTileSystem.gridColor,
+      hexTileSystem.gridAlpha,
+      hexTileSystem.gridLineWidth
+    ].join('|');
+
+    if (cache.lastKey === key) {
+      // No meaningful change -> keep existing geometry
+      return;
+    }
+    cache.lastKey = key;
+
+    graphics.clear();
     graphics.setStrokeStyle({
       color: hexTileSystem.gridColor || '#444444',
       width: hexTileSystem.gridLineWidth || 1,
@@ -445,7 +494,7 @@ export class Canvas {
     // ВАЖНО: для axial-координат нельзя корректно получить min/max (q,r),
     // используя только (minX,minY) и (maxX,maxY) — по диагональным углам
     // будут пропуски (особенно заметно при зуме/панорамировании).
-    const pad = hexSize * 2;
+    const pad = hexSize * 3;
     const corners = [
       { x: bounds.minX - pad, y: bounds.minY - pad },
       { x: bounds.minX - pad, y: bounds.maxY + pad },
@@ -465,14 +514,22 @@ export class Canvas {
     minR -= axialPadding;
     maxR += axialPadding;
 
+    // Hard safety cap to avoid crashing browser when zoomed out too far.
+    const total = (maxQ - minQ + 1) * (maxR - minR + 1);
+    const MAX_HEXES = 12000;
+    if (total > MAX_HEXES) {
+      // Keep empty graphics; user can zoom in for details.
+      return;
+    }
+
     // Рендерим все гексы в видимой области
     for (let q = minQ; q <= maxQ; q++) {
       for (let r = minR; r <= maxR; r++) {
         const center = hexTileSystem.hexToWorld(q, r, 'center');
         
         // Пропускаем гексы далеко за пределами видимости
-        if (center.x < bounds.minX - hexSize * 2 || center.x > bounds.maxX + hexSize * 2 ||
-            center.y < bounds.minY - hexSize * 2 || center.y > bounds.maxY + hexSize * 2) {
+        if (center.x < bounds.minX - pad || center.x > bounds.maxX + pad ||
+            center.y < bounds.minY - pad || center.y > bounds.maxY + pad) {
           continue;
         }
 
@@ -483,7 +540,6 @@ export class Canvas {
     }
 
     graphics.stroke();
-    camera.worldBackgroundLayer.addChild(graphics);
   }
 
   /**
@@ -951,6 +1007,12 @@ export class Canvas {
       this.app.destroy(true, true);
       this.app = null;
     }
+
+    // Destroy cached hex grid graphics
+    for (const cache of this._hexGridCache.values()) {
+      try { cache.graphics?.destroy?.({ children: true }); } catch (_) {}
+    }
+    this._hexGridCache.clear();
 
     // Clean up all UI cache
     for (const [key, obj] of this.uiDisplayCache) {
