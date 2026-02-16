@@ -82,6 +82,39 @@
       </label>
     </div>
 
+    <div class="form__section form__section--detection">
+      <div class="form__section-title">🎯 Entity Detection</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.detectEntities" />
+        <span class="field__label">Detect Entities (детектировать сущности)</span>
+      </label>
+      <div class="field__hint" style="margin-bottom: 8px;">
+        Показывает обнаруженные сущности в зоне обзора маркерами
+      </div>
+      
+      <template v-if="model.detectEntities">
+        <div class="form__section-title form__section-title--small">Типы для детекции:</div>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.detectTypes?.includes('unit')" 
+                 @change="toggleDetectType('unit')" />
+          <span class="field__label">Unit (юниты)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.detectTypes?.includes('build')" 
+                 @change="toggleDetectType('build')" />
+          <span class="field__label">Build (здания)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.detectTypes?.includes('prop')" 
+                 @change="toggleDetectType('prop')" />
+          <span class="field__label">Prop (пропсы)</span>
+        </label>
+      </template>
+    </div>
+
     <div class="form__section form__section--info">
       <div class="form__section-title">Примечание</div>
       <div class="field__hint">
@@ -100,6 +133,21 @@ defineProps({
 });
 
 const model = defineModel();
+
+function toggleDetectType(type) {
+  if (!model.value.detectTypes) {
+    model.value.detectTypes = ['unit'];
+  }
+  
+  const index = model.value.detectTypes.indexOf(type);
+  if (index > -1) {
+    if (model.value.detectTypes.length > 1) {
+      model.value.detectTypes.splice(index, 1);
+    }
+  } else {
+    model.value.detectTypes.push(type);
+  }
+}
 </script>
 
 <style scoped>
@@ -159,6 +207,16 @@ const model = defineModel();
   background: rgba(123, 211, 255, 0.05);
   border: 1px solid rgba(123, 211, 255, 0.15);
 }
+.form__section--detection {
+  background: rgba(255, 100, 100, 0.05);
+  border: 1px solid rgba(255, 100, 100, 0.15);
+}
+.form__section-title--small {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+.form__section--detection .form__section-title { color: #ff6464; }
 .form__section-title { font-weight: 700; font-size: 13px; color: #00ff88; margin-bottom: 8px; }
 .form__section--arc .form__section-title { color: #64c8ff; }
 .form__section--mode .form__section-title { color: #9664ff; }

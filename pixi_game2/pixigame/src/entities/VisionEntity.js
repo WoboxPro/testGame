@@ -7,9 +7,15 @@
  * Формы:
  * - circle: круговой обзор (360°)
  * - arc: сектор обзора (угол + направление)
+ *
+ * Детекция:
+ * - detectEntities: включить детекцию сущностей в зоне обзора
+ * - detectTypes: типы сущностей для детекции (unit, build, prop)
  */
 
 import { Entity } from './Entity.js';
+
+export const VISION_DETECT_TYPES = ['unit', 'build', 'prop'];
 
 export class VisionEntity extends Entity {
   /**
@@ -20,7 +26,9 @@ export class VisionEntity extends Entity {
    *  direction?: {x:number, y:number},
    *  directionMode?: 'static' | 'relative',
    *  showDebug?: boolean,
-   *  debugColor?: string
+   *  debugColor?: string,
+   *  detectEntities?: boolean,
+   *  detectTypes?: string[]
    * }} options
    */
   constructor(options = {}) {
@@ -47,6 +55,13 @@ export class VisionEntity extends Entity {
     // Debug визуализация
     this.showDebug = options.showDebug !== false; // default: true
     this.debugColor = options.debugColor || '#00FF00'; // green по умолчанию
+
+    // Детекция сущностей
+    this.detectEntities = options.detectEntities || false;
+    this.detectTypes = options.detectTypes || ['unit'];
+    this.visibleEntities = [];
+    this._lastDetectionTime = 0;
+    this._detectionInterval = 100;
   }
 
   /**
@@ -137,6 +152,104 @@ export class VisionEntity extends Entity {
     this.debugColor = color;
   }
 
+  /**
+   * Включить/выключить детекцию сущностей
+   * @param {boolean} detect
+   */
+  setDetectEntities(detect) {
+    this.detectEntities = detect;
+    if (!detect) {
+      this.visibleEntities = [];
+    }
+  }
+
+  /**
+   * Установить типы сущностей для детекции
+   * @param {string[]} types - Массив типов (unit, build, prop)
+   */
+  setDetectTypes(types) {
+    this.detectTypes = types.filter(t => VISION_DETECT_TYPES.includes(t));
+  }
+
+  /**
+   * Добавить тип для детекции
+   * @param {string} type - Тип сущности (unit, build, prop)
+   */
+  addDetectType(type) {
+    if (VISION_DETECT_TYPES.includes(type) && !this.detectTypes.includes(type)) {
+      this.detectTypes.push(type);
+    }
+  }
+
+  /**
+   * Удалить тип из детекции
+   * @param {string} type - Тип сущности
+   */
+  removeDetectType(type) {
+    const index = this.detectTypes.indexOf(type);
+    if (index > -1) {
+      this.detectTypes.splice(index, 1);
+    }
+  }
+
+  /**
+   * Проверить, находится ли точка в зоне обзора
+   * @param {number} targetX - X координата цели
+   * @param {number} targetY - Y координата цели
+   * @param {number} visionX - X координата центра обзора
+   * @param {number} visionY - Y координата центра обзора
+   * @param {number} rotation - Текущий поворот (радианы)
+   * @param {{x:number, y:number}} mirrorDirection - Направление отражения
+   * @returns {boolean}
+   */
+  isPointInVision(targetX, targetY, visionX, visionY, rotation = 0, mirrorDirection = { x: 1, y: 1 }) {
+    const dx = targetX - visionX;
+    const dy = targetY - visionY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > this.range) return false;
+
+    if (this.shape === 'circle') return true;
+
+    const dirX = this.direction.x;
+    const dirY = this.direction.y;
+
+    let finalDirX = dirX;
+    let finalDirY = dirY;
+
+    if (this.directionMode === 'relative') {
+      const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+      const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+      finalDirX = rotatedDirX * mirrorDirection.x;
+      finalDirY = rotatedDirY * mirrorDirection.y;
+    }
+
+    const dirLength = Math.sqrt(finalDirX * finalDirX + finalDirY * finalDirY);
+    if (dirLength > 0) {
+      finalDirX /= dirLength;
+      finalDirY /= dirLength;
+    }
+
+    const targetAngle = Math.atan2(dy, dx);
+    const visionAngle = Math.atan2(finalDirY, finalDirX);
+    
+    let angleDiff = targetAngle - visionAngle;
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+    const halfFov = (this.fovAngle * Math.PI) / 360;
+    
+    return Math.abs(angleDiff) <= halfFov;
+  }
+
+  /**
+   * Получить видимые сущности
+   * @returns {Array<{id: string, type: string, distance: number}>}
+   */
+  getVisibleEntities() {
+    return [...this.visibleEntities];
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -146,7 +259,10 @@ export class VisionEntity extends Entity {
       direction: this.direction,
       directionMode: this.directionMode,
       showDebug: this.showDebug,
-      debugColor: this.debugColor
+      debugColor: this.debugColor,
+      detectEntities: this.detectEntities,
+      detectTypes: this.detectTypes,
+      visibleEntities: this.visibleEntities
     };
   }
 }

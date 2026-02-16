@@ -81,11 +81,44 @@
         </div>
       </label>
     </div>
+
+    <div class="inspector__section inspector__section--detection">
+      <div class="inspector__section-title">🎯 Entity Detection</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="visionUi.detectEntities" @change="applyVisionUi" />
+        <span class="field__label">Detect Entities</span>
+      </label>
+      
+      <template v-if="visionUi.detectEntities">
+        <div class="inspector__subsection-title">Типы для детекции:</div>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.detectUnit" @change="applyVisionUi" />
+          <span class="field__label">Unit (юниты)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.detectBuild" @change="applyVisionUi" />
+          <span class="field__label">Build (здания)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.detectProp" @change="applyVisionUi" />
+          <span class="field__label">Prop (пропсы)</span>
+        </label>
+      </template>
+    </div>
+
+    <div class="inspector__section inspector__section--detected" v-if="visionUi.detectEntities && detectedEntities.length > 0">
+      <div class="inspector__section-title">👁️ Detected ({{ detectedEntities.length }})</div>
+      <div v-for="entity in detectedEntities" :key="entity.id" class="detected-item">
+        <span class="detected-item__id">{{ entity.id }}</span>
+        <span class="detected-item__type">{{ entity.type }}</span>
+        <span class="detected-item__dist">{{ entity.distance }}px</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue';
+import { reactive, watch, computed } from 'vue';
 
 const props = defineProps({
   vision: {
@@ -104,7 +137,15 @@ const visionUi = reactive({
   directionY: props.vision.direction?.y || 0,
   directionMode: props.vision.directionMode || 'relative',
   showDebug: props.vision.showDebug !== false,
-  debugColor: props.vision.debugColor || '#00FF00'
+  debugColor: props.vision.debugColor || '#00FF00',
+  detectEntities: props.vision.detectEntities || false,
+  detectUnit: props.vision.detectTypes?.includes('unit') ?? true,
+  detectBuild: props.vision.detectTypes?.includes('build') ?? false,
+  detectProp: props.vision.detectTypes?.includes('prop') ?? false
+});
+
+const detectedEntities = computed(() => {
+  return props.vision.instance?.visibleEntities || [];
 });
 
 watch(() => props.vision, (newVision) => {
@@ -116,6 +157,10 @@ watch(() => props.vision, (newVision) => {
   visionUi.directionMode = newVision.directionMode || 'relative';
   visionUi.showDebug = newVision.showDebug !== false;
   visionUi.debugColor = newVision.debugColor || '#00FF00';
+  visionUi.detectEntities = newVision.detectEntities || false;
+  visionUi.detectUnit = newVision.detectTypes?.includes('unit') ?? true;
+  visionUi.detectBuild = newVision.detectTypes?.includes('build') ?? false;
+  visionUi.detectProp = newVision.detectTypes?.includes('prop') ?? false;
 }, { deep: true });
 
 function applyVisionUi() {
@@ -129,6 +174,14 @@ function applyVisionUi() {
   instance.directionMode = visionUi.directionMode;
   instance.showDebug = visionUi.showDebug;
   instance.debugColor = visionUi.debugColor;
+  instance.detectEntities = visionUi.detectEntities;
+  
+  const detectTypes = [];
+  if (visionUi.detectUnit) detectTypes.push('unit');
+  if (visionUi.detectBuild) detectTypes.push('build');
+  if (visionUi.detectProp) detectTypes.push('prop');
+  if (detectTypes.length === 0) detectTypes.push('unit');
+  instance.detectTypes = detectTypes;
 
   emit('apply', {
     shape: visionUi.shape,
@@ -137,7 +190,9 @@ function applyVisionUi() {
     direction: { x: visionUi.directionX, y: visionUi.directionY },
     directionMode: visionUi.directionMode,
     showDebug: visionUi.showDebug,
-    debugColor: visionUi.debugColor
+    debugColor: visionUi.debugColor,
+    detectEntities: visionUi.detectEntities,
+    detectTypes: detectTypes
   });
 }
 </script>
@@ -248,5 +303,55 @@ function applyVisionUi() {
 .color-text {
   font-family: monospace;
   text-transform: uppercase;
+}
+
+.inspector__section--detection {
+  background: rgba(255, 100, 100, 0.05);
+  border: 1px solid rgba(255, 100, 100, 0.15);
+}
+
+.inspector__section--detection .inspector__section-title {
+  color: #ff6464;
+}
+
+.inspector__section--detected {
+  background: rgba(255, 200, 0, 0.05);
+  border: 1px solid rgba(255, 200, 0, 0.15);
+}
+
+.inspector__section--detected .inspector__section-title {
+  color: #ffc800;
+}
+
+.inspector__subsection-title {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+  margin-top: 4px;
+}
+
+.detected-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detected-item:last-child {
+  border-bottom: none;
+}
+
+.detected-item__id {
+  color: rgba(255, 255, 255, 0.9);
+  font-family: monospace;
+}
+
+.detected-item__type {
+  color: rgba(255, 200, 0, 0.8);
+}
+
+.detected-item__dist {
+  color: rgba(255, 255, 255, 0.6);
 }
 </style>

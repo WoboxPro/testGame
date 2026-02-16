@@ -1004,7 +1004,7 @@ const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const gameEntities = reactive([]); // { id, subtype, worldId, instance }
 const unattachedEntities = reactive([]); // { id, subtype, instance }
 const muzzles = reactive([]); // { id, direction, showDebug, debugColor, instance }
-const visions = reactive([]); // { id, shape, range, fovAngle, direction, directionMode, showDebug, debugColor, instance }
+const visions = reactive([]); // { id, shape, range, fovAngle, direction, directionMode, showDebug, debugColor, detectEntities, detectTypes, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
 const keyActions = reactive([]); // 🎮 { id, name, displayName, description, defaultKey }
@@ -1362,7 +1362,9 @@ const visionForm = reactive({
   direction: { x: 1, y: 0 },
   directionMode: 'relative',
   showDebug: true,
-  debugColor: '#00FF00'
+  debugColor: '#00FF00',
+  detectEntities: false,
+  detectTypes: ['unit']
 });
 
  // Slot form
@@ -1956,6 +1958,8 @@ function applySelectedVisionUi(data) {
   selectedVisionEntity.directionMode = data.directionMode;
   selectedVisionEntity.showDebug = data.showDebug;
   selectedVisionEntity.debugColor = data.debugColor;
+  selectedVisionEntity.detectEntities = data.detectEntities;
+  selectedVisionEntity.detectTypes = data.detectTypes;
 
   console.log('👁️ Vision settings applied:', selectedVisionEntity.id);
 }
@@ -2904,6 +2908,8 @@ function createVisionFromForm() {
     directionMode: visionForm.directionMode || 'relative',
     showDebug: visionForm.showDebug !== false,
     debugColor: visionForm.debugColor?.trim() || '#00FF00',
+    detectEntities: visionForm.detectEntities || false,
+    detectTypes: visionForm.detectTypes || ['unit'],
     position: { x: 0, y: 0 },
     rotation: 0,
     scale: { x: 1, y: 1 }
@@ -2933,6 +2939,8 @@ function createVisionFromForm() {
     directionMode: instance.directionMode,
     showDebug: instance.showDebug,
     debugColor: instance.debugColor,
+    detectEntities: instance.detectEntities,
+    detectTypes: instance.detectTypes,
     instance,
     worldId: worldModel?.id
   };

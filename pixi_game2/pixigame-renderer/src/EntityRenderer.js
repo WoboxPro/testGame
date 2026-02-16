@@ -150,7 +150,7 @@ export class EntityRenderer {
 
       // 👁️ Vision rendering - skip appearance-based rendering
       if (isVision) {
-        this._renderVision(camera, entityId, components, container);
+        this._renderVision(camera, entityId, components, container, world);
         continue;
       }
 
@@ -719,14 +719,12 @@ export class EntityRenderer {
   /**
    * 👁️ Отрисовка vision (обзора) - круг или сектор
    */
-  _renderVision(camera, entityId, components, container) {
+  _renderVision(camera, entityId, components, container, world) {
     const entityRef = components.get('_entityRef');
     const position = components.get('position');
     const rotationComp = components.get('rotation');
 
-    // Проверяем, что это vision
     if (!entityRef || entityRef.subtype !== 'vision') {
-      // Если не vision - удаляем графику если есть
       const visionKey = `${camera.id}::vision::${entityId}`;
       const visionGraphics = this._visionCache.get(visionKey);
       if (visionGraphics && visionGraphics.parent === container) {
@@ -735,8 +733,7 @@ export class EntityRenderer {
       return;
     }
 
-    // Если выключена debug визуализация - не рисуем
-    if (!entityRef.showDebug) {
+    if (!entityRef.showDebug && !entityRef.detectEntities) {
       const visionKey = `${camera.id}::vision::${entityId}`;
       const visionGraphics = this._visionCache.get(visionKey);
       if (visionGraphics && visionGraphics.parent === container) {
@@ -745,10 +742,6 @@ export class EntityRenderer {
       return;
     }
 
-    // Rotation can be stored as:
-    // - number (radians)
-    // - { value: number }
-    // - or on a linked _entityRef
     const rotation =
       rotationComp != null
         ? (typeof rotationComp === 'number'
@@ -756,7 +749,6 @@ export class EntityRenderer {
             : (Number(rotationComp?.value) || 0))
         : (Number(entityRef?.rotation) || 0);
 
-    // Mirror direction - используем родительский mirrorDirection для attached vision
     const mirrorDirectionComp = components.get('mirrorDirection');
     const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
 
@@ -768,7 +760,6 @@ export class EntityRenderer {
       this._visionCache.set(visionKey, visionGraphics);
     }
 
-    // Очистка и перерисовка
     visionGraphics.clear();
 
     const debugColor = entityRef.debugColor || '#00FF00';
@@ -776,82 +767,135 @@ export class EntityRenderer {
     const range = entityRef.range || 500;
     const shape = entityRef.shape || 'arc';
 
-    if (shape === 'circle') {
-      // Круговой обзор (360°)
-      visionGraphics
-        .circle(0, 0, range)
-        .stroke({
-          width: 2,
-          color: colorInt,
-          alpha: 0.4
-        });
-    } else {
-      // Секторный обзор (arc)
-      const fovAngle = entityRef.fovAngle || 90;
-      const direction = entityRef.direction || { x: 1, y: 0 };
-      const directionMode = entityRef.directionMode || 'relative';
+    if (entityRef.showDebug) {
+      if (shape === 'circle') {
+        visionGraphics
+          .circle(0, 0, range)
+          .stroke({
+            width: 2,
+            color: colorInt,
+            alpha: 0.4
+          });
+      } else {
+        const fovAngle = entityRef.fovAngle || 90;
+        const direction = entityRef.direction || { x: 1, y: 0 };
+        const directionMode = entityRef.directionMode || 'relative';
 
-      // Вычисляем направление с учетом поворота и отражения
-      let dirX = direction.x;
-      let dirY = direction.y;
+        let dirX = direction.x;
+        let dirY = direction.y;
 
-      // Применяем rotation к direction ТОЛЬКО для relative режима
-      if (directionMode === 'relative') {
-        // Применяем rotation к direction
-        const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
-        const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+        if (directionMode === 'relative') {
+          const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+          const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+          dirX = rotatedDirX * mirrorDirection.x;
+          dirY = rotatedDirY * mirrorDirection.y;
+        }
 
-        // Применяем mirror
-        dirX = rotatedDirX * mirrorDirection.x;
-        dirY = rotatedDirY * mirrorDirection.y;
+        const baseAngle = Math.atan2(dirY, dirX);
+        const fovRad = (fovAngle * Math.PI) / 180;
+        const startAngle = baseAngle - fovRad / 2;
+        const endAngle = baseAngle + fovRad / 2;
+
+        visionGraphics
+          .moveTo(0, 0)
+          .arc(0, 0, range, startAngle, endAngle)
+          .closePath()
+          .stroke({
+            width: 2,
+            color: colorInt,
+            alpha: 0.4
+          });
+
+        visionGraphics
+          .moveTo(0, 0)
+          .lineTo(range * Math.cos(startAngle), range * Math.sin(startAngle))
+          .stroke({
+            width: 2,
+            color: colorInt,
+            alpha: 0.4
+          });
+
+        visionGraphics
+          .moveTo(0, 0)
+          .lineTo(range * Math.cos(endAngle), range * Math.sin(endAngle))
+          .stroke({
+            width: 2,
+            color: colorInt,
+            alpha: 0.4
+          });
       }
-      // Для static режима rotation НЕ применяется - direction остается как есть
-
-      // Получаем базовый угол направления
-      const baseAngle = Math.atan2(dirY, dirX);
-
-      // Преобразуем fovAngle в радианы
-      const fovRad = (fovAngle * Math.PI) / 180;
-
-      // Вычисляем начальный и конечный углы дуги
-      const startAngle = baseAngle - fovRad / 2;
-      const endAngle = baseAngle + fovRad / 2;
-
-      // Рисуем сектор
-      visionGraphics
-        .moveTo(0, 0)
-        .arc(0, 0, range, startAngle, endAngle)
-        .closePath()
-        .stroke({
-          width: 2,
-          color: colorInt,
-          alpha: 0.4
-        });
-
-      // Рисуем линии от центра к краям дуги
-      visionGraphics
-        .moveTo(0, 0)
-        .lineTo(range * Math.cos(startAngle), range * Math.sin(startAngle))
-        .stroke({
-          width: 2,
-          color: colorInt,
-          alpha: 0.4
-        });
-
-      visionGraphics
-        .moveTo(0, 0)
-        .lineTo(range * Math.cos(endAngle), range * Math.sin(endAngle))
-        .stroke({
-          width: 2,
-          color: colorInt,
-          alpha: 0.4
-        });
     }
 
-    // Позиционируем vision graphics на позицию сущности
+    if (entityRef.detectEntities && world && position) {
+      const visionX = position.x;
+      const visionY = position.y;
+      const detectTypes = entityRef.detectTypes || ['unit'];
+      const detectedEntities = [];
+
+      for (const [otherEntityId, otherComponents] of world.entities) {
+        if (otherEntityId === entityId) continue;
+
+        const otherEntityRef = otherComponents.get('_entityRef');
+        if (!otherEntityRef || otherEntityRef.type !== 'game') continue;
+
+        const otherSubtype = otherEntityRef.subtype || 'unit';
+        if (!detectTypes.includes(otherSubtype)) continue;
+
+        const otherPosition = otherComponents.get('position');
+        if (!otherPosition) continue;
+
+        const targetX = otherPosition.x;
+        const targetY = otherPosition.y;
+
+        const inVision = entityRef.isPointInVision(
+          targetX, targetY,
+          visionX, visionY,
+          rotation, mirrorDirection
+        );
+
+        if (inVision) {
+          const dx = targetX - visionX;
+          const dy = targetY - visionY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          detectedEntities.push({
+            id: otherEntityId,
+            type: otherSubtype,
+            distance: Math.round(distance)
+          });
+
+          const localX = targetX - visionX;
+          const localY = targetY - visionY;
+
+          const markerColor = otherSubtype === 'unit' ? 0xFF0000 : 0xFF8800;
+          const markerSize = 8;
+
+          visionGraphics
+            .circle(localX, localY, markerSize)
+            .stroke({
+              width: 2,
+              color: markerColor,
+              alpha: 0.8
+            });
+
+          visionGraphics
+            .moveTo(localX - markerSize, localY)
+            .lineTo(localX + markerSize, localY)
+            .moveTo(localX, localY - markerSize)
+            .lineTo(localX, localY + markerSize)
+            .stroke({
+              width: 2,
+              color: markerColor,
+              alpha: 0.8
+            });
+        }
+      }
+
+      entityRef.visibleEntities = detectedEntities;
+    }
+
     visionGraphics.position.set(position.x, position.y);
 
-    // Добавляем в контейнер если еще не добавлен
     if (visionGraphics.parent !== container) {
       container.addChild(visionGraphics);
     }
