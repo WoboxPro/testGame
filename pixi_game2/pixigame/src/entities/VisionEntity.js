@@ -255,6 +255,62 @@ export class VisionEntity extends Entity {
   }
 
   /**
+   * Получить ближайшую видимую сущность
+   * @param {string} [type] - Опционально фильтр по типу (unit, build, prop)
+   * @returns {{id: string, type: string, distance: number}|null}
+   */
+  getClosestEntity(type = null) {
+    if (!this.visibleEntities || this.visibleEntities.length === 0) return null;
+
+    let closest = null;
+    let minDistance = Infinity;
+
+    for (const entity of this.visibleEntities) {
+      if (type && entity.type !== type) continue;
+      if (entity.distance < minDistance) {
+        minDistance = entity.distance;
+        closest = entity;
+      }
+    }
+
+    return closest;
+  }
+
+  /**
+   * Получить ближайшего юнита
+   * @returns {{id: string, type: string, distance: number}|null}
+   */
+  getClosestUnit() {
+    return this.getClosestEntity('unit');
+  }
+
+  /**
+   * Получить ближайшее здание
+   * @returns {{id: string, type: string, distance: number}|null}
+   */
+  getClosestBuild() {
+    return this.getClosestEntity('build');
+  }
+
+  /**
+   * Проверить, видна ли конкретная сущность
+   * @param {string} entityId
+   * @returns {boolean}
+   */
+  isEntityVisible(entityId) {
+    return this.visibleEntities.some(e => e.id === entityId);
+  }
+
+  /**
+   * Получить информацию о видимой сущности
+   * @param {string} entityId
+   * @returns {{id: string, type: string, distance: number}|null}
+   */
+  getEntityInfo(entityId) {
+    return this.visibleEntities.find(e => e.id === entityId) || null;
+  }
+
+  /**
    * Включить/выключить скрытие вне зоны видимости
    * @param {boolean} hide
    */
