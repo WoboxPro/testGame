@@ -15,7 +15,7 @@
 
 import { Entity } from './Entity.js';
 
-export const VISION_DETECT_TYPES = ['unit', 'build', 'prop'];
+export const VISION_DETECT_TYPES = ['unit', 'build', 'prop', 'projectile'];
 
 export class VisionEntity extends Entity {
   /**
@@ -290,6 +290,14 @@ export class VisionEntity extends Entity {
    */
   getClosestBuild() {
     return this.getClosestEntity('build');
+  }
+
+  /**
+   * Получить ближайший снаряд
+   * @returns {{id: string, type: string, distance: number}|null}
+   */
+  getClosestProjectile() {
+    return this.getClosestEntity('projectile');
   }
 
   /**

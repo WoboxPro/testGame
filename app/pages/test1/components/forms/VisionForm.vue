@@ -112,6 +112,12 @@
                  @change="toggleDetectType('prop')" />
           <span class="field__label">Prop (пропсы)</span>
         </label>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.detectTypes?.includes('projectile')" 
+                 @change="toggleDetectType('projectile')" />
+          <span class="field__label">Projectile (пули)</span>
+        </label>
       </template>
     </div>
 
@@ -144,6 +150,12 @@
                  :checked="model.hideTypes?.includes('prop')" 
                  @change="toggleHideType('prop')" />
           <span class="field__label">Prop (пропсы)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.hideTypes?.includes('projectile')" 
+                 @change="toggleHideType('projectile')" />
+          <span class="field__label">Projectile (пули)</span>
         </label>
       </template>
     </div>

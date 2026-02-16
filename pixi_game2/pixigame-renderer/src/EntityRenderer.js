@@ -82,38 +82,45 @@ export class EntityRenderer {
       // 👁️ Special handling for vision - no appearance component required
       const isVision = entityRef?.subtype === 'vision';
 
-      if (!position || (!appearance && !isMuzzle && !isVision)) continue;
+      // 🔫 Projectile handling
+      const isProjectile = entityRef?.type === 'projectile';
+
+      if (!position || (!appearance && !isMuzzle && !isVision && !isProjectile)) continue;
 
       // 🙈 Проверка скрытия сущности вне зоны видимости
-      if (hidingVisions.length > 0 && entityRef?.type === 'game' && !isMuzzle && !isVision) {
-        const entitySubtype = entityRef?.subtype || 'unit';
-        if (this._isEntityHiddenByVision(entityId, entitySubtype, position, hidingVisions, world, entityRef)) {
-          // Сущность скрыта - удаляем графику и пропускаем
-          const cacheKey = `${cachePrefix}${entityId}`;
-          const displayObj = this._cache.get(cacheKey);
-          if (displayObj && displayObj.parent === container) {
-            container.removeChild(displayObj);
+      if (hidingVisions.length > 0 && !isMuzzle && !isVision) {
+        const isGameEntity = entityRef?.type === 'game';
+        // isProjectile уже определён выше
+        if (isGameEntity || isProjectile) {
+          const entitySubtype = isProjectile ? 'projectile' : (entityRef?.subtype || 'unit');
+          if (this._isEntityHiddenByVision(entityId, entitySubtype, position, hidingVisions, world, entityRef)) {
+            // Сущность скрыта - удаляем графику и пропускаем
+            const cacheKey = `${cachePrefix}${entityId}`;
+            const displayObj = this._cache.get(cacheKey);
+            if (displayObj && displayObj.parent === container) {
+              container.removeChild(displayObj);
+            }
+            
+            const boundsKey = `${cachePrefix}bounds::${entityId}`;
+            const boundsGraphics = this._collisionBoundsCache.get(boundsKey);
+            if (boundsGraphics && boundsGraphics.parent === container) {
+              container.removeChild(boundsGraphics);
+            }
+            
+            const slotsKey = `${cachePrefix}slots::${entityId}`;
+            const slotsGraphics = this._slotsCache.get(slotsKey);
+            if (slotsGraphics && slotsGraphics.parent === container) {
+              container.removeChild(slotsGraphics);
+            }
+            
+            const muzzleKey = `${cachePrefix}muzzle::${entityId}`;
+            const muzzleGraphics = this._muzzleCache.get(muzzleKey);
+            if (muzzleGraphics && muzzleGraphics.parent === container) {
+              container.removeChild(muzzleGraphics);
+            }
+            
+            continue;
           }
-          
-          const boundsKey = `${cachePrefix}bounds::${entityId}`;
-          const boundsGraphics = this._collisionBoundsCache.get(boundsKey);
-          if (boundsGraphics && boundsGraphics.parent === container) {
-            container.removeChild(boundsGraphics);
-          }
-          
-          const slotsKey = `${cachePrefix}slots::${entityId}`;
-          const slotsGraphics = this._slotsCache.get(slotsKey);
-          if (slotsGraphics && slotsGraphics.parent === container) {
-            container.removeChild(slotsGraphics);
-          }
-          
-          const muzzleKey = `${cachePrefix}muzzle::${entityId}`;
-          const muzzleGraphics = this._muzzleCache.get(muzzleKey);
-          if (muzzleGraphics && muzzleGraphics.parent === container) {
-            container.removeChild(muzzleGraphics);
-          }
-          
-          continue;
         }
       }
 
@@ -873,12 +880,18 @@ export class EntityRenderer {
         if (otherEntityId === entityId) continue;
 
         const otherEntityRef = otherComponents.get('_entityRef');
-        if (!otherEntityRef || otherEntityRef.type !== 'game') continue;
+        if (!otherEntityRef) continue;
+
+        // Проверяем тип: game (unit, build, prop) или projectile
+        const isGameEntity = otherEntityRef.type === 'game';
+        const isProjectile = otherEntityRef.type === 'projectile';
+        if (!isGameEntity && !isProjectile) continue;
 
         // Пропускаем сущности того же root (себя и свои дочерние сущности)
         if (visionRootId && otherEntityRef._rootEntityId === visionRootId) continue;
 
-        const otherSubtype = otherEntityRef.subtype || 'unit';
+        // Определяем тип для фильтрации
+        const otherSubtype = isProjectile ? 'projectile' : (otherEntityRef.subtype || 'unit');
         if (!detectTypes.includes(otherSubtype)) continue;
 
         const otherPosition = otherComponents.get('position');
@@ -907,7 +920,14 @@ export class EntityRenderer {
           const localX = targetX - visionX;
           const localY = targetY - visionY;
 
-          const markerColor = otherSubtype === 'unit' ? 0xFF0000 : 0xFF8800;
+          let markerColor;
+          if (otherSubtype === 'projectile') {
+            markerColor = 0xFFFF00; // жёлтый для пуль
+          } else if (otherSubtype === 'unit') {
+            markerColor = 0xFF0000; // красный для юнитов
+          } else {
+            markerColor = 0xFF8800; // оранжевый для buildings/props
+          }
           const markerSize = 8;
 
           visionGraphics
@@ -1159,21 +1179,22 @@ export class EntityRenderer {
   _isEntityHiddenByVision(entityId, entitySubtype, entityPosition, hidingVisions, world, entityRef) {
     if (hidingVisions.length === 0) return false;
 
-    // Получаем rootEntityId проверяемой сущности
     const entityRootId = entityRef?._rootEntityId;
+    const isProjectile = entitySubtype === 'projectile';
 
-    // Фильтруем visions: которые скрывают этот тип И не принадлежат тому же root
+    // Фильтруем visions
     const relevantVisions = hidingVisions.filter(({ vision, rootEntityId }) => {
-      // Не скрываем себя и свои дочерние сущности
-      if (rootEntityId && entityRootId && rootEntityId === entityRootId) return false;
+      // Для projectile НЕ проверяем rootEntityId (скрываем даже свои пули)
+      if (!isProjectile) {
+        // Не скрываем себя и свои дочерние сущности (кроме projectile)
+        if (rootEntityId && entityRootId && rootEntityId === entityRootId) return false;
+      }
       // Проверяем тип
       return vision.hideTypes && vision.hideTypes.includes(entitySubtype);
     });
     
-    // Если нет visions, которые скрывают этот тип - НЕ скрываем
     if (relevantVisions.length === 0) return false;
 
-    // Проверяем каждую relevant vision - если хотя бы одна видит сущность, НЕ скрываем
     for (const { vision, position, rotation, mirrorDirection } of relevantVisions) {
       const inVision = vision.isPointInVision(
         entityPosition.x, entityPosition.y,
@@ -1186,7 +1207,6 @@ export class EntityRenderer {
       }
     }
 
-    // Сущность не видна ни через одну relevant vision - скрываем
     return true;
   }
   

@@ -103,6 +103,10 @@
           <input type="checkbox" v-model="visionUi.detectProp" @change="applyVisionUi" />
           <span class="field__label">Prop (пропсы)</span>
         </label>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.detectProjectile" @change="applyVisionUi" />
+          <span class="field__label">Projectile (пули)</span>
+        </label>
       </template>
     </div>
 
@@ -136,6 +140,10 @@
           <input type="checkbox" v-model="visionUi.hideProp" @change="applyVisionUi" />
           <span class="field__label">Prop (пропсы)</span>
         </label>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.hideProjectile" @change="applyVisionUi" />
+          <span class="field__label">Projectile (пули)</span>
+        </label>
       </template>
     </div>
   </div>
@@ -166,10 +174,12 @@ const visionUi = reactive({
   detectUnit: props.vision.detectTypes?.includes('unit') ?? true,
   detectBuild: props.vision.detectTypes?.includes('build') ?? false,
   detectProp: props.vision.detectTypes?.includes('prop') ?? false,
+  detectProjectile: props.vision.detectTypes?.includes('projectile') ?? false,
   hideOutOfVision: props.vision.hideOutOfVision || false,
   hideUnit: props.vision.hideTypes?.includes('unit') ?? true,
   hideBuild: props.vision.hideTypes?.includes('build') ?? false,
-  hideProp: props.vision.hideTypes?.includes('prop') ?? false
+  hideProp: props.vision.hideTypes?.includes('prop') ?? false,
+  hideProjectile: props.vision.hideTypes?.includes('projectile') ?? false
 });
 
 const detectedEntities = computed(() => {
@@ -189,10 +199,12 @@ watch(() => props.vision, (newVision) => {
   visionUi.detectUnit = newVision.detectTypes?.includes('unit') ?? true;
   visionUi.detectBuild = newVision.detectTypes?.includes('build') ?? false;
   visionUi.detectProp = newVision.detectTypes?.includes('prop') ?? false;
+  visionUi.detectProjectile = newVision.detectTypes?.includes('projectile') ?? false;
   visionUi.hideOutOfVision = newVision.hideOutOfVision || false;
   visionUi.hideUnit = newVision.hideTypes?.includes('unit') ?? true;
   visionUi.hideBuild = newVision.hideTypes?.includes('build') ?? false;
   visionUi.hideProp = newVision.hideTypes?.includes('prop') ?? false;
+  visionUi.hideProjectile = newVision.hideTypes?.includes('projectile') ?? false;
 }, { deep: true });
 
 function applyVisionUi() {
@@ -212,6 +224,7 @@ function applyVisionUi() {
   if (visionUi.detectUnit) detectTypes.push('unit');
   if (visionUi.detectBuild) detectTypes.push('build');
   if (visionUi.detectProp) detectTypes.push('prop');
+  if (visionUi.detectProjectile) detectTypes.push('projectile');
   if (detectTypes.length === 0) detectTypes.push('unit');
   instance.detectTypes = detectTypes;
 
@@ -221,6 +234,7 @@ function applyVisionUi() {
   if (visionUi.hideUnit) hideTypes.push('unit');
   if (visionUi.hideBuild) hideTypes.push('build');
   if (visionUi.hideProp) hideTypes.push('prop');
+  if (visionUi.hideProjectile) hideTypes.push('projectile');
   if (hideTypes.length === 0) hideTypes.push('unit');
   instance.hideTypes = hideTypes;
 
