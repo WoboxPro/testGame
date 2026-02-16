@@ -1210,8 +1210,14 @@ const gameEntityForm = reactive({
   id: '',
   worldId: '',
   subtype: 'unit', // unit | build
+  // Positioning
+  positionMode: 'world', // 'world' | 'tile' | 'hex'
   x: 0,
   y: 0,
+  tileX: 0,
+  tileY: 0,
+  hexQ: 0,
+  hexR: 0,
   shape: 'circle', // circle | rect | sprite
   color: '#4fc3f7',
   size: 30, // для circle
@@ -2600,6 +2606,23 @@ function createGameEntityFromForm() {
   // If worldId provided but world doesn't exist - return
   if (gameEntityForm.worldId && !worldModel) return;
 
+  // Resolve initial world position based on requested coordinate mode
+  // (world coords by default; optionally tile/hex coords if the world has those systems enabled).
+  let initialPos = { x: Number(gameEntityForm.x) || 0, y: Number(gameEntityForm.y) || 0 };
+  const worldInstance = worldModel?.instance;
+  const mode = (gameEntityForm.positionMode || 'world');
+  if (mode === 'tile' && worldInstance?.tileSystem?.enabled) {
+    const tx = Number(gameEntityForm.tileX) || 0;
+    const ty = Number(gameEntityForm.tileY) || 0;
+    const p = worldInstance.tileSystem.tileToWorld?.(tx, ty, 'center');
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) initialPos = { x: p.x, y: p.y };
+  } else if (mode === 'hex' && worldInstance?.hexTileSystem?.enabled) {
+    const q = Number(gameEntityForm.hexQ) || 0;
+    const r = Number(gameEntityForm.hexR) || 0;
+    const p = worldInstance.hexTileSystem.hexToWorld?.(q, r, 'center');
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) initialPos = { x: p.x, y: p.y };
+  }
+
   // Validation: если shape не circle/rect и есть коллизия - обязательно выбрать collisionShape
   if (gameEntityForm.hasCollision && !['circle', 'rect'].includes(gameEntityForm.shape) && !gameEntityForm.collisionShape) {
     alert(`Shape "${gameEntityForm.shape}" requires explicit collision shape selection for collision.`);
@@ -2616,7 +2639,7 @@ function createGameEntityFromForm() {
     worldId: gameEntityForm.worldId,
     subtype: gameEntityForm.subtype || 'unit',
     collisionType: gameEntityForm.subtype || 'unit',  // collision type = subtype
-    position: { x: Number(gameEntityForm.x) || 0, y: Number(gameEntityForm.y) || 0 },
+    position: { x: initialPos.x, y: initialPos.y },
     velocity: { x: 0, y: 0 },
     rotation: 0,
     baseScale: { x: Number(gameEntityForm.scale) || 1, y: Number(gameEntityForm.scale) || 1 },

@@ -30,16 +30,56 @@
       <span class="field__label">Color</span>
       <input class="field__input" v-model.trim="model.color" placeholder="#4fc3f7" />
     </label>
-    <div class="grid2">
+
+    <div class="form__section">
+      <div class="form__section-title">Position</div>
+
       <label class="field">
-        <span class="field__label">X</span>
-        <input class="field__input" type="number" v-model.number="model.x" />
+        <span class="field__label">Position Mode</span>
+        <select class="field__input" v-model="model.positionMode">
+          <option value="world">World (x,y)</option>
+          <option value="tile" :disabled="!hasTileSystem">Tile (tileX,tileY)</option>
+          <option value="hex" :disabled="!hasHexSystem">Hex (q,r)</option>
+        </select>
+        <span class="field__hint">
+          Tile/Hex modes convert to world coords on create (requires the system enabled in the selected world)
+        </span>
       </label>
-      <label class="field">
-        <span class="field__label">Y</span>
-        <input class="field__input" type="number" v-model.number="model.y" />
-      </label>
+
+      <div class="grid2" v-if="model.positionMode === 'world' || !model.positionMode">
+        <label class="field">
+          <span class="field__label">X</span>
+          <input class="field__input" type="number" v-model.number="model.x" />
+        </label>
+        <label class="field">
+          <span class="field__label">Y</span>
+          <input class="field__input" type="number" v-model.number="model.y" />
+        </label>
+      </div>
+
+      <div class="grid2" v-else-if="model.positionMode === 'tile'">
+        <label class="field">
+          <span class="field__label">Tile X</span>
+          <input class="field__input" type="number" v-model.number="model.tileX" />
+        </label>
+        <label class="field">
+          <span class="field__label">Tile Y</span>
+          <input class="field__input" type="number" v-model.number="model.tileY" />
+        </label>
+      </div>
+
+      <div class="grid2" v-else-if="model.positionMode === 'hex'">
+        <label class="field">
+          <span class="field__label">Hex Q</span>
+          <input class="field__input" type="number" v-model.number="model.hexQ" />
+        </label>
+        <label class="field">
+          <span class="field__label">Hex R</span>
+          <input class="field__input" type="number" v-model.number="model.hexR" />
+        </label>
+      </div>
     </div>
+
     <div v-if="model.shape === 'circle'">
       <label class="field">
         <span class="field__label">Size (diameter)</span>
@@ -258,14 +298,29 @@
 <script setup>
 import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
   worlds: Array
 });
 
 const model = defineModel();
 
 const needsCollisionShape = computed(() => {
-  return model.hasCollision && !['circle', 'rect'].includes(model.shape);
+  const m = model.value;
+  return !!m?.hasCollision && !['circle', 'rect'].includes(m?.shape);
+});
+
+const selectedWorld = computed(() => {
+  const id = model.value?.worldId;
+  if (!id) return null;
+  return props.worlds?.find?.((w) => w.id === id) || null;
+});
+
+const hasTileSystem = computed(() => {
+  return !!(selectedWorld.value?.instance?.tileSystem?.enabled);
+});
+
+const hasHexSystem = computed(() => {
+  return !!(selectedWorld.value?.instance?.hexTileSystem?.enabled);
 });
 </script>
 
