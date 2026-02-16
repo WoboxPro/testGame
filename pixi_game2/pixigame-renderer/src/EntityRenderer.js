@@ -87,7 +87,7 @@ export class EntityRenderer {
       // 🙈 Проверка скрытия сущности вне зоны видимости
       if (hidingVisions.length > 0 && entityRef?.type === 'game' && !isMuzzle && !isVision) {
         const entitySubtype = entityRef?.subtype || 'unit';
-        if (this._isEntityHiddenByVision(entityId, entitySubtype, position, hidingVisions, world)) {
+        if (this._isEntityHiddenByVision(entityId, entitySubtype, position, hidingVisions, world, entityRef)) {
           // Сущность скрыта - удаляем графику и пропускаем
           const cacheKey = `${cachePrefix}${entityId}`;
           const displayObj = this._cache.get(cacheKey);
@@ -866,6 +866,7 @@ export class EntityRenderer {
       const visionX = position.x;
       const visionY = position.y;
       const detectTypes = entityRef.detectTypes || ['unit'];
+      const visionRootId = entityRef._rootEntityId;
       const detectedEntities = [];
 
       for (const [otherEntityId, otherComponents] of world.entities) {
@@ -873,6 +874,9 @@ export class EntityRenderer {
 
         const otherEntityRef = otherComponents.get('_entityRef');
         if (!otherEntityRef || otherEntityRef.type !== 'game') continue;
+
+        // Пропускаем сущности того же root (себя и свои дочерние сущности)
+        if (visionRootId && otherEntityRef._rootEntityId === visionRootId) continue;
 
         const otherSubtype = otherEntityRef.subtype || 'unit';
         if (!detectTypes.includes(otherSubtype)) continue;
@@ -1110,7 +1114,7 @@ export class EntityRenderer {
   /**
    * 🙈 Собрать все VisionEntity с включенным hideOutOfVision
    * @param {World} world
-   * @returns {Array<{vision: VisionEntity, position: {x: number, y: number}, rotation: number, mirrorDirection: {x: number, y: number}}>}
+   * @returns {Array<{vision: VisionEntity, position: {x: number, y: number}, rotation: number, mirrorDirection: {x: number, y: number}, rootEntityId: string}>}
    */
   _collectHidingVisions(world) {
     const visions = [];
@@ -1134,7 +1138,8 @@ export class EntityRenderer {
         vision: entityRef,
         position: position || { x: 0, y: 0 },
         rotation,
-        mirrorDirection
+        mirrorDirection,
+        rootEntityId: entityRef._rootEntityId
       });
     }
 
@@ -1148,15 +1153,22 @@ export class EntityRenderer {
    * @param {{x: number, y: number}} entityPosition
    * @param {Array} hidingVisions
    * @param {World} world
+   * @param {Object} entityRef - Reference to entity для проверки _rootEntityId
    * @returns {boolean}
    */
-  _isEntityHiddenByVision(entityId, entitySubtype, entityPosition, hidingVisions, world) {
+  _isEntityHiddenByVision(entityId, entitySubtype, entityPosition, hidingVisions, world, entityRef) {
     if (hidingVisions.length === 0) return false;
 
-    // Фильтруем только visions, которые скрывают этот тип сущности
-    const relevantVisions = hidingVisions.filter(
-      ({ vision }) => vision.hideTypes && vision.hideTypes.includes(entitySubtype)
-    );
+    // Получаем rootEntityId проверяемой сущности
+    const entityRootId = entityRef?._rootEntityId;
+
+    // Фильтруем visions: которые скрывают этот тип И не принадлежат тому же root
+    const relevantVisions = hidingVisions.filter(({ vision, rootEntityId }) => {
+      // Не скрываем себя и свои дочерние сущности
+      if (rootEntityId && entityRootId && rootEntityId === entityRootId) return false;
+      // Проверяем тип
+      return vision.hideTypes && vision.hideTypes.includes(entitySubtype);
+    });
     
     // Если нет visions, которые скрывают этот тип - НЕ скрываем
     if (relevantVisions.length === 0) return false;
