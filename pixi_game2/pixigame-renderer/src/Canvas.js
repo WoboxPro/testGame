@@ -433,7 +433,6 @@ export class Canvas {
 
     const bounds = camera._getWorldBoundsInView();
     const hexSize = hexTileSystem.hexSize;
-    const orientation = hexTileSystem.orientation;
 
     const graphics = new PIXI.Graphics();
     graphics.setStrokeStyle({
@@ -442,13 +441,33 @@ export class Canvas {
       alpha: hexTileSystem.gridAlpha || 0.3
     });
 
-    // Находим границы в hex координатах с запасом
-    const minHex = hexTileSystem.worldToHex(bounds.minX - hexSize * 2, bounds.minY - hexSize * 2);
-    const maxHex = hexTileSystem.worldToHex(bounds.maxX + hexSize * 2, bounds.maxY + hexSize * 2);
+    // Находим границы в hex координатах с запасом.
+    // ВАЖНО: для axial-координат нельзя корректно получить min/max (q,r),
+    // используя только (minX,minY) и (maxX,maxY) — по диагональным углам
+    // будут пропуски (особенно заметно при зуме/панорамировании).
+    const pad = hexSize * 2;
+    const corners = [
+      { x: bounds.minX - pad, y: bounds.minY - pad },
+      { x: bounds.minX - pad, y: bounds.maxY + pad },
+      { x: bounds.maxX + pad, y: bounds.minY - pad },
+      { x: bounds.maxX + pad, y: bounds.maxY + pad }
+    ];
+    const cornerHexes = corners.map(p => hexTileSystem.worldToHex(p.x, p.y));
+    let minQ = Math.min(...cornerHexes.map(h => h.q));
+    let maxQ = Math.max(...cornerHexes.map(h => h.q));
+    let minR = Math.min(...cornerHexes.map(h => h.r));
+    let maxR = Math.max(...cornerHexes.map(h => h.r));
+
+    // Доп. запас на округления worldToHex на границах
+    const axialPadding = 2;
+    minQ -= axialPadding;
+    maxQ += axialPadding;
+    minR -= axialPadding;
+    maxR += axialPadding;
 
     // Рендерим все гексы в видимой области
-    for (let q = minHex.q; q <= maxHex.q; q++) {
-      for (let r = minHex.r; r <= maxHex.r; r++) {
+    for (let q = minQ; q <= maxQ; q++) {
+      for (let r = minR; r <= maxR; r++) {
         const center = hexTileSystem.hexToWorld(q, r, 'center');
         
         // Пропускаем гексы далеко за пределами видимости

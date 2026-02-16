@@ -337,15 +337,32 @@ export class HexTileSystem {
   getHexesInRect(minX, minY, maxX, maxY) {
     const tiles = [];
 
-    // Находим приблизительные границы в hex координатах
-    const minHex = this.worldToHex(minX, minY);
-    const maxHex = this.worldToHex(maxX, maxY);
+    // Находим приблизительные границы в hex координатах.
+    // ВАЖНО: для axial-координат нельзя корректно получить min/max (q,r),
+    // используя только (minX,minY) и (maxX,maxY) — по диагональным углам
+    // будут пропуски. Берём все 4 угла и делаем min/max по q/r.
+    const corners = [
+      { x: minX, y: minY },
+      { x: minX, y: maxY },
+      { x: maxX, y: minY },
+      { x: maxX, y: maxY }
+    ];
+    const cornerHexes = corners.map(p => this.worldToHex(p.x, p.y));
 
-    // Добавляем запас для гексов на границах
+    let minQ = Math.min(...cornerHexes.map(h => h.q));
+    let maxQ = Math.max(...cornerHexes.map(h => h.q));
+    let minR = Math.min(...cornerHexes.map(h => h.r));
+    let maxR = Math.max(...cornerHexes.map(h => h.r));
+
+    // Добавляем запас для гексов на границах и округлений worldToHex
     const padding = 2;
+    minQ -= padding;
+    maxQ += padding;
+    minR -= padding;
+    maxR += padding;
 
-    for (let q = minHex.q - padding; q <= maxHex.q + padding; q++) {
-      for (let r = minHex.r - padding; r <= maxHex.r + padding; r++) {
+    for (let q = minQ; q <= maxQ; q++) {
+      for (let r = minR; r <= maxR; r++) {
         const center = this.hexToWorld(q, r, 'center');
         
         // Проверяем, что центр гекса в пределах прямоугольника (с запасом на размер)
