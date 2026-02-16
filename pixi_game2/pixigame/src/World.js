@@ -13,6 +13,7 @@ import { ProjectileSystem } from './ProjectileSystem.js';
 import { StatsSystem } from './StatsSystem.js';
 import { TileSystem } from './TileSystem.js';
 import { HexTileSystem } from './HexTileSystem.js';
+import { LightingSystem } from './LightingSystem.js';
 
 export class World {
   constructor(options = {}) {
@@ -67,6 +68,12 @@ export class World {
     this.hexTileSystem = null;
     if (options.hexTileSystem?.enabled) {
       this.hexTileSystem = new HexTileSystem(this, options.hexTileSystem);
+    }
+
+    // 💡 Система освещения (опционально)
+    this.lightingSystem = null;
+    if (options.lightingSystem?.enabled) {
+      this.lightingSystem = new LightingSystem(this, options.lightingSystem);
     }
 
     this.entities = new Map();
@@ -454,7 +461,8 @@ export class World {
        height: this.height,
        backgroundColor: this.backgroundColor,
        backgroundTexture: this.backgroundTexture,
-       entityCount: this.entities.size
+       entityCount: this.entities.size,
+       lighting: this.lightingSystem?.getInfo() || null
      };
    }
  }

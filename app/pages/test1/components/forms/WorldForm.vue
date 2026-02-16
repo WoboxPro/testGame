@@ -190,11 +190,66 @@
         </template>
       </template>
     </div>
+
+    <!-- 💡 Lighting System -->
+    <div class="form__divider"></div>
+    <div class="form__section form__section--lighting">
+      <div class="form__section-title">💡 Lighting System</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.lightingEnabled" />
+        <span class="field__label">Включить освещение</span>
+      </label>
+      <span class="field__hint">Затемняет мир, создаёт эффект дня/ночи</span>
+
+      <template v-if="model.lightingEnabled">
+        <div class="form__subsection">
+          <div class="form__subsection-title">Ambient (базовый свет)</div>
+          <label class="field">
+            <span class="field__label">Яркость: {{ model.ambientIntensity?.toFixed(2) || '0.10' }}</span>
+            <input class="field__input field__input--range" type="range" min="0" max="1" step="0.05" v-model.number="model.ambientIntensity" />
+            <span class="field__hint">0 = тьма, 1 = полный свет</span>
+          </label>
+        </div>
+
+        <div class="form__subsection">
+          <div class="form__subsection-title">Global (направленный свет)</div>
+          <label class="field field--row">
+            <input type="checkbox" v-model="model.globalEnabled" />
+            <span class="field__label">Включить</span>
+          </label>
+          
+          <template v-if="model.globalEnabled">
+            <label class="field">
+              <span class="field__label">Яркость: {{ model.globalIntensity?.toFixed(2) || '0.50' }}</span>
+              <input class="field__input field__input--range" type="range" min="0" max="1" step="0.05" v-model.number="model.globalIntensity" />
+            </label>
+            <label class="field">
+              <span class="field__label">Угол: {{ model.globalAngle }}° ({{ getAngleDescription(model.globalAngle) }})</span>
+              <input class="field__input field__input--range" type="range" min="0" max="360" step="15" v-model.number="model.globalAngle" />
+              <span class="field__hint">0°=верх, 90°=право, 180°=низ, 270°=лево</span>
+            </label>
+          </template>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup>
 const model = defineModel();
+
+const getAngleDescription = (angle) => {
+  const a = angle || 0;
+  if (a >= 337.5 || a < 22.5) return 'сверху';
+  if (a >= 22.5 && a < 67.5) return 'сверху-справа';
+  if (a >= 67.5 && a < 112.5) return 'справа';
+  if (a >= 112.5 && a < 157.5) return 'снизу-справа';
+  if (a >= 157.5 && a < 202.5) return 'снизу';
+  if (a >= 202.5 && a < 247.5) return 'снизу-слева';
+  if (a >= 247.5 && a < 292.5) return 'слева';
+  if (a >= 292.5 && a < 337.5) return 'сверху-слева';
+  return 'сверху';
+};
 </script>
 
 <style scoped>
@@ -215,6 +270,19 @@ const model = defineModel();
 .field__input:focus { outline: 2px solid rgba(79, 195, 247, 0.25); border-color: rgba(79, 195, 247, 0.30); }
 .form__divider { height: 1px; background: rgba(255, 255, 255, 0.10); margin: 4px 0; }
 .form__section { display: grid; gap: 10px; padding: 10px; border-radius: 8px; background: rgba(79, 195, 247, 0.06); border: 1px solid rgba(79, 195, 247, 0.12); }
+.form__section--lighting { background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.2); }
+.form__section--lighting .form__section-title { color: #ffd54f; }
 .form__section-title { font-weight: 700; font-size: 14px; color: #bfe7ff; }
+.form__subsection { padding: 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); }
+.form__subsection-title { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.7); margin-bottom: 6px; }
 input[type="color"].field__input { padding: 2px; height: 36px; cursor: pointer; }
+input[type="range"].field__input { height: 8px; padding: 0; cursor: pointer; background: rgba(255, 255, 255, 0.1); }
+input[type="range"].field__input::-webkit-slider-thumb { 
+  -webkit-appearance: none; 
+  width: 16px; 
+  height: 16px; 
+  border-radius: 50%; 
+  background: #4fc3f7; 
+  cursor: pointer; 
+}
 </style>

@@ -101,6 +101,11 @@ export class Camera {
     this.worldBoundsLayer.zIndex = 3;
     this.worldLayer.addChild(this.worldBoundsLayer);
 
+    // 💡 Слой освещения — поверх всего мира (затемняет сущности)
+    this.lightingLayer = new PIXI.Container();
+    this.lightingLayer.zIndex = 4;
+    this.worldLayer.addChild(this.lightingLayer);
+
     // 🎨 Фон/оверлей камеры — поверх мира (не должен масштабироваться вместе с миром)
     this.cameraBackgroundLayer = new PIXI.Container();
     this.cameraBackgroundLayer.zIndex = 3;
@@ -361,6 +366,10 @@ export class Camera {
     if (this.worldBoundsLayer) {
       this.worldBoundsLayer.destroy({ children: true });
       this.worldBoundsLayer = null;
+    }
+    if (this.lightingLayer) {
+      this.lightingLayer.destroy({ children: true });
+      this.lightingLayer = null;
     }
     if (this.cameraBackgroundLayer) {
       this.cameraBackgroundLayer.destroy({ children: true });

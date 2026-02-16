@@ -237,6 +237,9 @@ export class Canvas {
 
       // Рендерим границы мира после сущностей (поверх всего)
       this._renderWorldBounds(camera);
+
+      // 💡 Рендерим освещение (затемняет всё поверх границ мира)
+      this._renderLighting(camera);
     }
 
     // Рендерим все UI сущности
@@ -333,6 +336,93 @@ export class Canvas {
 
     camera.worldBoundsLayer.addChild(boundsGraphics);
     // console.log(`🔲 _renderWorldBounds: rendered ${camera.world.width}x${camera.world.height} in ${camera.world.boundsColor}`);
+  }
+
+  /**
+   * 💡 Рендеринг системы освещения
+   */
+  _renderLighting(camera) {
+    if (!camera.lightingLayer || !camera.world) return;
+
+    const lightingSystem = camera.world.lightingSystem;
+    if (!lightingSystem || !lightingSystem.enabled) return;
+
+    camera.lightingLayer.removeChildren();
+
+    const bounds = camera._getWorldBoundsInView();
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+
+    // Контейнер для всех слоёв освещения
+    const lightingContainer = new PIXI.Container();
+
+    // 1. Ambient overlay - равномерное затемнение
+    const ambientAlpha = 1 - lightingSystem.ambientIntensity;
+    if (ambientAlpha > 0.01) {
+      const ambientOverlay = new PIXI.Graphics();
+      ambientOverlay.rect(bounds.minX, bounds.minY, width, height);
+      ambientOverlay.fill({ color: 0x000000, alpha: ambientAlpha });
+      lightingContainer.addChild(ambientOverlay);
+    }
+
+    // 2. Global overlay - градиент по направлению
+    if (lightingSystem.globalEnabled) {
+      const globalAlpha = 1 - lightingSystem.globalIntensity;
+      if (globalAlpha > 0.01) {
+        const globalOverlay = this._createGlobalLightGradient(
+          bounds,
+          lightingSystem.globalAngle,
+          globalAlpha
+        );
+        lightingContainer.addChild(globalOverlay);
+      }
+    }
+
+    // Применяем blend mode multiply для затемнения
+    lightingContainer.blendMode = 'multiply';
+    camera.lightingLayer.addChild(lightingContainer);
+  }
+
+  /**
+   * Создать градиент для направленного света
+   */
+  _createGlobalLightGradient(bounds, angle, alpha) {
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    const centerX = bounds.minX + width / 2;
+    const centerY = bounds.minY + height / 2;
+
+    // Направление света (откуда светит)
+    const radians = (angle - 90) * (Math.PI / 180);
+    const dirX = Math.cos(radians);
+    const dirY = Math.sin(radians);
+
+    // Создаём Graphics с градиентом
+    const graphics = new PIXI.Graphics();
+
+    // Для простоты используем несколько полос для имитации градиента
+    // PixiJS v8 не поддерживает нативный градиент в Graphics
+    const steps = 20;
+    const stepAlpha = alpha / steps;
+
+    for (let i = 0; i < steps; i++) {
+      const progress = i / steps;
+      const currentAlpha = stepAlpha * (steps - i);
+
+      // Сдвигаем прямоугольник в направлении, противоположном свету
+      const offsetX = -dirX * width * progress * 0.5;
+      const offsetY = -dirY * height * progress * 0.5;
+
+      const rectWidth = width * (1 - progress * 0.3);
+      const rectHeight = height * (1 - progress * 0.3);
+      const rectX = centerX - rectWidth / 2 + offsetX;
+      const rectY = centerY - rectHeight / 2 + offsetY;
+
+      graphics.rect(rectX, rectY, rectWidth, rectHeight);
+      graphics.fill({ color: 0x000000, alpha: currentAlpha });
+    }
+
+    return graphics;
   }
 
   _renderRegions(camera) {

@@ -1115,7 +1115,14 @@ const worldForm = reactive({
   hexShowGrid: true,
   hexGridColor: '#4fc3f7',
   hexGridAlpha: 0.3,
-  hexGridLineWidth: 1
+  hexGridLineWidth: 1,
+  hexGridRenderMode: 'graphics',
+  // 💡 Lighting System
+  lightingEnabled: false,
+  ambientIntensity: 0.1,
+  globalEnabled: false,
+  globalIntensity: 0.5,
+  globalAngle: 45
 });
 
 const canvasForm = reactive({
@@ -1519,7 +1526,8 @@ function createWorldFromForm() {
     showGrid: worldForm.tileShowGrid !== false,
     gridColor: worldForm.tileGridColor || '#444444',
     gridAlpha: Number(worldForm.tileGridAlpha) || 0.3,
-    gridLineWidth: Number(worldForm.tileGridLineWidth) || 1
+    gridLineWidth: Number(worldForm.tileGridLineWidth) || 1,
+    gridRenderMode: worldForm.tileGridRenderMode || 'graphics'
   } : undefined;
 
   // ⬡ Hex Tile System конфигурация
@@ -1534,7 +1542,17 @@ function createWorldFromForm() {
     showGrid: worldForm.hexShowGrid !== false,
     gridColor: worldForm.hexGridColor || '#4fc3f7',
     gridAlpha: Number(worldForm.hexGridAlpha) || 0.3,
-    gridLineWidth: Number(worldForm.hexGridLineWidth) || 1
+    gridLineWidth: Number(worldForm.hexGridLineWidth) || 1,
+    gridRenderMode: worldForm.hexGridRenderMode || 'graphics'
+  } : undefined;
+
+  // 💡 Lighting System конфигурация
+  const lightingSystem = worldForm.lightingEnabled ? {
+    enabled: true,
+    ambientIntensity: Number(worldForm.ambientIntensity) || 0.1,
+    globalEnabled: worldForm.globalEnabled === true,
+    globalIntensity: Number(worldForm.globalIntensity) || 0.5,
+    globalAngle: Number(worldForm.globalAngle) || 45
   } : undefined;
 
   const instance = markRaw(new World({
@@ -1547,7 +1565,8 @@ function createWorldFromForm() {
     showBounds: !!worldForm.showBounds,
     boundsColor: worldForm.boundsColor || '#FF4444',
     tileSystem,
-    hexTileSystem
+    hexTileSystem,
+    lightingSystem
   }));
 
   // 🎯 Добавляем дефолтные collision relations для projectile
@@ -1565,6 +1584,7 @@ function createWorldFromForm() {
     backgroundColor: instance.backgroundColor,
     tileEnabled: worldForm.tileEnabled,
     hexEnabled: worldForm.hexEnabled,
+    lightingEnabled: worldForm.lightingEnabled,
     instance
   };
 
@@ -3318,6 +3338,57 @@ watch(selectedCamera, () => syncCameraUiFromSelected());
 
 // 🔫 Keep muzzle inspector in sync when muzzle selection changes
 watch(selectedMuzzle, () => syncMuzzleUiFromSelected());
+
+// 💡 Keep world lighting in sync when world selection changes or lighting settings change
+watch(selectedWorld, (world) => {
+  if (world?.instance?.lightingSystem) {
+    const ls = world.instance.lightingSystem;
+    worldForm.lightingEnabled = ls.enabled;
+    worldForm.ambientIntensity = ls.ambientIntensity;
+    worldForm.globalEnabled = ls.globalEnabled;
+    worldForm.globalIntensity = ls.globalIntensity;
+    worldForm.globalAngle = ls.globalAngle;
+  } else if (world) {
+    worldForm.lightingEnabled = false;
+    worldForm.globalEnabled = false;
+  }
+});
+
+// Live update lighting when worldForm changes
+watch(() => worldForm.ambientIntensity, (val) => {
+  const world = selectedWorld.value;
+  if (world?.instance?.lightingSystem) {
+    world.instance.lightingSystem.setAmbientIntensity(val);
+  }
+});
+
+watch(() => worldForm.globalIntensity, (val) => {
+  const world = selectedWorld.value;
+  if (world?.instance?.lightingSystem) {
+    world.instance.lightingSystem.setGlobalIntensity(val);
+  }
+});
+
+watch(() => worldForm.globalAngle, (val) => {
+  const world = selectedWorld.value;
+  if (world?.instance?.lightingSystem) {
+    world.instance.lightingSystem.setGlobalAngle(val);
+  }
+});
+
+watch(() => worldForm.lightingEnabled, (val) => {
+  const world = selectedWorld.value;
+  if (world?.instance?.lightingSystem) {
+    world.instance.lightingSystem.setEnabled(val);
+  }
+});
+
+watch(() => worldForm.globalEnabled, (val) => {
+  const world = selectedWorld.value;
+  if (world?.instance?.lightingSystem) {
+    world.instance.lightingSystem.setGlobalEnabled(val);
+  }
+});
 </script>
 
 <style scoped>
