@@ -1004,7 +1004,7 @@ const uiEntities = reactive([]); // { id, subtype, bindingLabel, instance }
 const gameEntities = reactive([]); // { id, subtype, worldId, instance }
 const unattachedEntities = reactive([]); // { id, subtype, instance }
 const muzzles = reactive([]); // { id, direction, showDebug, debugColor, instance }
-const visions = reactive([]); // { id, shape, range, fovAngle, direction, directionMode, showDebug, debugColor, detectEntities, detectTypes, instance }
+const visions = reactive([]); // { id, shape, range, fovAngle, direction, directionMode, showDebug, debugColor, detectEntities, detectTypes, hideOutOfVision, hideTypes, instance }
 const regions = reactive([]);  // { id, worldId, displayName, bounds, regionType, regionInstanceId }
 const controllers = reactive([]); // { id, type, targetId, instance }
 const keyActions = reactive([]); // 🎮 { id, name, displayName, description, defaultKey }
@@ -1364,7 +1364,9 @@ const visionForm = reactive({
   showDebug: true,
   debugColor: '#00FF00',
   detectEntities: false,
-  detectTypes: ['unit']
+  detectTypes: ['unit'],
+  hideOutOfVision: false,
+  hideTypes: ['unit']
 });
 
  // Slot form
@@ -1960,6 +1962,8 @@ function applySelectedVisionUi(data) {
   selectedVisionEntity.debugColor = data.debugColor;
   selectedVisionEntity.detectEntities = data.detectEntities;
   selectedVisionEntity.detectTypes = data.detectTypes;
+  selectedVisionEntity.hideOutOfVision = data.hideOutOfVision;
+  selectedVisionEntity.hideTypes = data.hideTypes;
 
   console.log('👁️ Vision settings applied:', selectedVisionEntity.id);
 }
@@ -2910,6 +2914,8 @@ function createVisionFromForm() {
     debugColor: visionForm.debugColor?.trim() || '#00FF00',
     detectEntities: visionForm.detectEntities || false,
     detectTypes: visionForm.detectTypes || ['unit'],
+    hideOutOfVision: visionForm.hideOutOfVision || false,
+    hideTypes: visionForm.hideTypes || ['unit'],
     position: { x: 0, y: 0 },
     rotation: 0,
     scale: { x: 1, y: 1 }
@@ -2941,6 +2947,8 @@ function createVisionFromForm() {
     debugColor: instance.debugColor,
     detectEntities: instance.detectEntities,
     detectTypes: instance.detectTypes,
+    hideOutOfVision: instance.hideOutOfVision,
+    hideTypes: instance.hideTypes,
     instance,
     worldId: worldModel?.id
   };

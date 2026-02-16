@@ -115,6 +115,39 @@
       </template>
     </div>
 
+    <div class="form__section form__section--hiding">
+      <div class="form__section-title">🙈 Fog of War</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.hideOutOfVision" />
+        <span class="field__label">Hide Out of Vision (скрывать вне зоны)</span>
+      </label>
+      <div class="field__hint" style="margin-bottom: 8px;">
+        Сущности не рендерятся пока не попадут в зону видимости
+      </div>
+      
+      <template v-if="model.hideOutOfVision">
+        <div class="form__section-title form__section-title--small">Скрывать типы:</div>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.hideTypes?.includes('unit')" 
+                 @change="toggleHideType('unit')" />
+          <span class="field__label">Unit (юниты)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.hideTypes?.includes('build')" 
+                 @change="toggleHideType('build')" />
+          <span class="field__label">Build (здания)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" 
+                 :checked="model.hideTypes?.includes('prop')" 
+                 @change="toggleHideType('prop')" />
+          <span class="field__label">Prop (пропсы)</span>
+        </label>
+      </template>
+    </div>
+
     <div class="form__section form__section--info">
       <div class="form__section-title">Примечание</div>
       <div class="field__hint">
@@ -146,6 +179,21 @@ function toggleDetectType(type) {
     }
   } else {
     model.value.detectTypes.push(type);
+  }
+}
+
+function toggleHideType(type) {
+  if (!model.value.hideTypes) {
+    model.value.hideTypes = ['unit'];
+  }
+  
+  const index = model.value.hideTypes.indexOf(type);
+  if (index > -1) {
+    if (model.value.hideTypes.length > 1) {
+      model.value.hideTypes.splice(index, 1);
+    }
+  } else {
+    model.value.hideTypes.push(type);
   }
 }
 </script>
@@ -211,6 +259,11 @@ function toggleDetectType(type) {
   background: rgba(255, 100, 100, 0.05);
   border: 1px solid rgba(255, 100, 100, 0.15);
 }
+.form__section--hiding {
+  background: rgba(128, 100, 255, 0.05);
+  border: 1px solid rgba(128, 100, 255, 0.15);
+}
+.form__section--hiding .form__section-title { color: #8064ff; }
 .form__section-title--small {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.6);

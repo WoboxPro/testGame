@@ -26,6 +26,9 @@ export class EntityRenderer {
     const cachePrefix = `${camera.id}::`;
     const visibleBounds = camera._getWorldBoundsInView();
 
+    // 🙈 Собираем VisionEntity с hideOutOfVision для фильтрации
+    const hidingVisions = this._collectHidingVisions(world);
+
     const activeEntityIds = new Set();
 
     for (const [entityId, components] of world.entities) {
@@ -80,6 +83,39 @@ export class EntityRenderer {
       const isVision = entityRef?.subtype === 'vision';
 
       if (!position || (!appearance && !isMuzzle && !isVision)) continue;
+
+      // 🙈 Проверка скрытия сущности вне зоны видимости
+      if (hidingVisions.length > 0 && entityRef?.type === 'game' && !isMuzzle && !isVision) {
+        const entitySubtype = entityRef?.subtype || 'unit';
+        if (this._isEntityHiddenByVision(entityId, entitySubtype, position, hidingVisions, world)) {
+          // Сущность скрыта - удаляем графику и пропускаем
+          const cacheKey = `${cachePrefix}${entityId}`;
+          const displayObj = this._cache.get(cacheKey);
+          if (displayObj && displayObj.parent === container) {
+            container.removeChild(displayObj);
+          }
+          
+          const boundsKey = `${cachePrefix}bounds::${entityId}`;
+          const boundsGraphics = this._collisionBoundsCache.get(boundsKey);
+          if (boundsGraphics && boundsGraphics.parent === container) {
+            container.removeChild(boundsGraphics);
+          }
+          
+          const slotsKey = `${cachePrefix}slots::${entityId}`;
+          const slotsGraphics = this._slotsCache.get(slotsKey);
+          if (slotsGraphics && slotsGraphics.parent === container) {
+            container.removeChild(slotsGraphics);
+          }
+          
+          const muzzleKey = `${cachePrefix}muzzle::${entityId}`;
+          const muzzleGraphics = this._muzzleCache.get(muzzleKey);
+          if (muzzleGraphics && muzzleGraphics.parent === container) {
+            container.removeChild(muzzleGraphics);
+          }
+          
+          continue;
+        }
+      }
 
       // Rotation can be stored as:
       // - number (radians)
@@ -1069,6 +1105,77 @@ export class EntityRenderer {
       tileGridGraphics.destroy({ children: true });
     }
     this._tileGridCache.clear();
+  }
+
+  /**
+   * 🙈 Собрать все VisionEntity с включенным hideOutOfVision
+   * @param {World} world
+   * @returns {Array<{vision: VisionEntity, position: {x: number, y: number}, rotation: number, mirrorDirection: {x: number, y: number}}>}
+   */
+  _collectHidingVisions(world) {
+    const visions = [];
+
+    for (const [entityId, components] of world.entities) {
+      const entityRef = components.get('_entityRef');
+      if (!entityRef || entityRef.subtype !== 'vision') continue;
+      if (!entityRef.hideOutOfVision) continue;
+
+      const position = components.get('position');
+      const rotationComp = components.get('rotation');
+      const mirrorDirectionComp = components.get('mirrorDirection');
+
+      const rotation = rotationComp != null
+        ? (typeof rotationComp === 'number' ? rotationComp : (Number(rotationComp?.value) || 0))
+        : (Number(entityRef?.rotation) || 0);
+
+      const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
+
+      visions.push({
+        vision: entityRef,
+        position: position || { x: 0, y: 0 },
+        rotation,
+        mirrorDirection
+      });
+    }
+
+    return visions;
+  }
+
+  /**
+   * 🙈 Проверить, скрыта ли сущность всеми VisionEntity
+   * @param {string} entityId
+   * @param {string} entitySubtype
+   * @param {{x: number, y: number}} entityPosition
+   * @param {Array} hidingVisions
+   * @param {World} world
+   * @returns {boolean}
+   */
+  _isEntityHiddenByVision(entityId, entitySubtype, entityPosition, hidingVisions, world) {
+    if (hidingVisions.length === 0) return false;
+
+    // Фильтруем только visions, которые скрывают этот тип сущности
+    const relevantVisions = hidingVisions.filter(
+      ({ vision }) => vision.hideTypes && vision.hideTypes.includes(entitySubtype)
+    );
+    
+    // Если нет visions, которые скрывают этот тип - НЕ скрываем
+    if (relevantVisions.length === 0) return false;
+
+    // Проверяем каждую relevant vision - если хотя бы одна видит сущность, НЕ скрываем
+    for (const { vision, position, rotation, mirrorDirection } of relevantVisions) {
+      const inVision = vision.isPointInVision(
+        entityPosition.x, entityPosition.y,
+        position.x, position.y,
+        rotation, mirrorDirection
+      );
+
+      if (inVision) {
+        return false;
+      }
+    }
+
+    // Сущность не видна ни через одну relevant vision - скрываем
+    return true;
   }
   
   getCacheSize() {

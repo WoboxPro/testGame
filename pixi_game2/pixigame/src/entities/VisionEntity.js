@@ -62,6 +62,10 @@ export class VisionEntity extends Entity {
     this.visibleEntities = [];
     this._lastDetectionTime = 0;
     this._detectionInterval = 100;
+
+    // Скрытие сущностей вне зоны видимости (туман войны)
+    this.hideOutOfVision = options.hideOutOfVision || false;
+    this.hideTypes = options.hideTypes || ['unit'];
   }
 
   /**
@@ -250,6 +254,43 @@ export class VisionEntity extends Entity {
     return [...this.visibleEntities];
   }
 
+  /**
+   * Включить/выключить скрытие вне зоны видимости
+   * @param {boolean} hide
+   */
+  setHideOutOfVision(hide) {
+    this.hideOutOfVision = hide;
+  }
+
+  /**
+   * Установить типы сущностей для скрытия
+   * @param {string[]} types - Массив типов (unit, build, prop)
+   */
+  setHideTypes(types) {
+    this.hideTypes = types.filter(t => VISION_DETECT_TYPES.includes(t));
+  }
+
+  /**
+   * Добавить тип для скрытия
+   * @param {string} type - Тип сущности (unit, build, prop)
+   */
+  addHideType(type) {
+    if (VISION_DETECT_TYPES.includes(type) && !this.hideTypes.includes(type)) {
+      this.hideTypes.push(type);
+    }
+  }
+
+  /**
+   * Удалить тип из скрытия
+   * @param {string} type - Тип сущности
+   */
+  removeHideType(type) {
+    const index = this.hideTypes.indexOf(type);
+    if (index > -1) {
+      this.hideTypes.splice(index, 1);
+    }
+  }
+
   getInfo() {
     return {
       ...super.getInfo?.() || {},
@@ -262,7 +303,9 @@ export class VisionEntity extends Entity {
       debugColor: this.debugColor,
       detectEntities: this.detectEntities,
       detectTypes: this.detectTypes,
-      visibleEntities: this.visibleEntities
+      visibleEntities: this.visibleEntities,
+      hideOutOfVision: this.hideOutOfVision,
+      hideTypes: this.hideTypes
     };
   }
 }

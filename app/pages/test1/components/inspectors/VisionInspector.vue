@@ -114,6 +114,30 @@
         <span class="detected-item__dist">{{ entity.distance }}px</span>
       </div>
     </div>
+
+    <div class="inspector__section inspector__section--hiding">
+      <div class="inspector__section-title">🙈 Fog of War</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="visionUi.hideOutOfVision" @change="applyVisionUi" />
+        <span class="field__label">Hide Out of Vision</span>
+      </label>
+      
+      <template v-if="visionUi.hideOutOfVision">
+        <div class="inspector__subsection-title">Скрывать типы:</div>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.hideUnit" @change="applyVisionUi" />
+          <span class="field__label">Unit (юниты)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.hideBuild" @change="applyVisionUi" />
+          <span class="field__label">Build (здания)</span>
+        </label>
+        <label class="field field--row">
+          <input type="checkbox" v-model="visionUi.hideProp" @change="applyVisionUi" />
+          <span class="field__label">Prop (пропсы)</span>
+        </label>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -141,7 +165,11 @@ const visionUi = reactive({
   detectEntities: props.vision.detectEntities || false,
   detectUnit: props.vision.detectTypes?.includes('unit') ?? true,
   detectBuild: props.vision.detectTypes?.includes('build') ?? false,
-  detectProp: props.vision.detectTypes?.includes('prop') ?? false
+  detectProp: props.vision.detectTypes?.includes('prop') ?? false,
+  hideOutOfVision: props.vision.hideOutOfVision || false,
+  hideUnit: props.vision.hideTypes?.includes('unit') ?? true,
+  hideBuild: props.vision.hideTypes?.includes('build') ?? false,
+  hideProp: props.vision.hideTypes?.includes('prop') ?? false
 });
 
 const detectedEntities = computed(() => {
@@ -161,6 +189,10 @@ watch(() => props.vision, (newVision) => {
   visionUi.detectUnit = newVision.detectTypes?.includes('unit') ?? true;
   visionUi.detectBuild = newVision.detectTypes?.includes('build') ?? false;
   visionUi.detectProp = newVision.detectTypes?.includes('prop') ?? false;
+  visionUi.hideOutOfVision = newVision.hideOutOfVision || false;
+  visionUi.hideUnit = newVision.hideTypes?.includes('unit') ?? true;
+  visionUi.hideBuild = newVision.hideTypes?.includes('build') ?? false;
+  visionUi.hideProp = newVision.hideTypes?.includes('prop') ?? false;
 }, { deep: true });
 
 function applyVisionUi() {
@@ -183,6 +215,15 @@ function applyVisionUi() {
   if (detectTypes.length === 0) detectTypes.push('unit');
   instance.detectTypes = detectTypes;
 
+  instance.hideOutOfVision = visionUi.hideOutOfVision;
+  
+  const hideTypes = [];
+  if (visionUi.hideUnit) hideTypes.push('unit');
+  if (visionUi.hideBuild) hideTypes.push('build');
+  if (visionUi.hideProp) hideTypes.push('prop');
+  if (hideTypes.length === 0) hideTypes.push('unit');
+  instance.hideTypes = hideTypes;
+
   emit('apply', {
     shape: visionUi.shape,
     range: visionUi.range,
@@ -192,7 +233,9 @@ function applyVisionUi() {
     showDebug: visionUi.showDebug,
     debugColor: visionUi.debugColor,
     detectEntities: visionUi.detectEntities,
-    detectTypes: detectTypes
+    detectTypes: detectTypes,
+    hideOutOfVision: visionUi.hideOutOfVision,
+    hideTypes: hideTypes
   });
 }
 </script>
@@ -353,5 +396,14 @@ function applyVisionUi() {
 
 .detected-item__dist {
   color: rgba(255, 255, 255, 0.6);
+}
+
+.inspector__section--hiding {
+  background: rgba(128, 100, 255, 0.05);
+  border: 1px solid rgba(128, 100, 255, 0.15);
+}
+
+.inspector__section--hiding .inspector__section-title {
+  color: #8064ff;
 }
 </style>
