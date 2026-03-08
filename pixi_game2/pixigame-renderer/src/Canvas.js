@@ -48,6 +48,10 @@ export class Canvas {
     // key: camera.id -> { graphics: PIXI.Graphics, lastKey: string }
     this._hexGridCache = new Map();
 
+    // Lighting caches (per camera)
+    // key: camera.id -> { darkContainer, ambientGfx, globalGfx, maskRt, maskSprite, maskContainer, maskBg, lightHoles, lastSizeKey, lastGlobalKey }
+    this._lightingCache = new Map();
+
     console.log(`🖼️ Canvas создан: ${this.id}, mode=${this.sizeMode}`);
   }
   
@@ -168,6 +172,16 @@ export class Canvas {
 
     camera._cleanupFromCanvas();
     this.entityRenderer.clearCameraCache(cameraId);
+
+    // Clean lighting cache for this camera
+    const lightingCache = this._lightingCache.get(cameraId);
+    if (lightingCache) {
+      try { lightingCache.maskRt?.destroy?.(true); } catch (_) {}
+      try { lightingCache.maskSprite?.destroy?.({ children: true }); } catch (_) {}
+      try { lightingCache.darkContainer?.destroy?.({ children: true }); } catch (_) {}
+      try { lightingCache.maskContainer?.destroy?.({ children: true }); } catch (_) {}
+      this._lightingCache.delete(cameraId);
+    }
 
     // Clean up UI cache for this camera
     const cameraPrefix = `::camera:${cameraId}`;
@@ -345,42 +359,261 @@ export class Canvas {
     if (!camera.lightingLayer || !camera.world) return;
 
     const lightingSystem = camera.world.lightingSystem;
-    if (!lightingSystem || !lightingSystem.enabled) return;
+    if (!lightingSystem || !lightingSystem.enabled) {
+      camera.lightingLayer.visible = false;
+      return;
+    }
+    camera.lightingLayer.visible = true;
 
-    camera.lightingLayer.removeChildren();
+    // Lighting is rendered in camera viewport coords (0..width/height) inside camera.container.
+    // We build a darkness container and apply an alpha mask which has "holes" for each LightEntity.
+    const vpW = camera.width;
+    const vpH = camera.height;
 
-    const bounds = camera._getWorldBoundsInView();
-    const width = bounds.maxX - bounds.minX;
-    const height = bounds.maxY - bounds.minY;
+    // Lazy init cache
+    let cache = this._lightingCache.get(camera.id);
+    if (!cache) {
+      const darkContainer = new PIXI.Container();
+      const ambientGfx = new PIXI.Graphics();
+      const globalGfx = new PIXI.Graphics();
+      darkContainer.addChild(ambientGfx);
+      darkContainer.addChild(globalGfx);
 
-    // Контейнер для всех слоёв освещения
-    const lightingContainer = new PIXI.Container();
+      const maskContainer = new PIXI.Container();
+      const maskBg = new PIXI.Graphics();
+      maskContainer.addChild(maskBg);
 
-    // 1. Ambient overlay - равномерное затемнение
-    const ambientAlpha = 1 - lightingSystem.ambientIntensity;
-    if (ambientAlpha > 0.01) {
-      const ambientOverlay = new PIXI.Graphics();
-      ambientOverlay.rect(bounds.minX, bounds.minY, width, height);
-      ambientOverlay.fill({ color: 0x000000, alpha: ambientAlpha });
-      lightingContainer.addChild(ambientOverlay);
+      const lightHoles = new Map(); // lightId -> PIXI.Graphics (blendMode ERASE)
+
+      // Create initial RT (will be resized if needed)
+      const maskRt = PIXI.RenderTexture.create({ width: Math.max(1, vpW), height: Math.max(1, vpH) });
+      const maskSprite = new PIXI.Sprite(maskRt);
+      maskSprite.position.set(0, 0);
+      // Mask sprite should not render to screen; it's only used as an alpha mask.
+      // Keeping it in the display tree improves transform consistency across Pixi versions.
+      maskSprite.renderable = false;
+
+      darkContainer.mask = maskSprite;
+
+      cache = {
+        darkContainer,
+        ambientGfx,
+        globalGfx,
+        maskRt,
+        maskSprite,
+        maskContainer,
+        maskBg,
+        lightHoles,
+        lastSizeKey: null,
+        lastGlobalKey: null
+      };
+
+      this._lightingCache.set(camera.id, cache);
+
+      camera.lightingLayer.removeChildren();
+      camera.lightingLayer.addChild(darkContainer);
+      camera.lightingLayer.addChild(maskSprite);
     }
 
-    // 2. Global overlay - градиент по направлению
+    // Ensure correct placement inside viewport
+    camera.lightingLayer.position.set(0, 0);
+
+    // Resize mask RT if viewport size changed
+    const sizeKey = `${vpW}x${vpH}`;
+    if (cache.lastSizeKey !== sizeKey) {
+      cache.lastSizeKey = sizeKey;
+      try {
+        cache.maskRt.destroy(true);
+      } catch (_) {}
+      cache.maskRt = PIXI.RenderTexture.create({ width: Math.max(1, vpW), height: Math.max(1, vpH) });
+      cache.maskSprite.texture = cache.maskRt;
+      cache.maskSprite.position.set(0, 0);
+    }
+
+    // 1) Build darkness overlays (ambient + global) in viewport coords
+    const ambientAlpha = 1 - lightingSystem.ambientIntensity;
+    cache.ambientGfx.clear();
+    if (ambientAlpha > 0.01) {
+      cache.ambientGfx.rect(0, 0, vpW, vpH).fill({ color: 0x000000, alpha: ambientAlpha });
+    }
+
+    cache.globalGfx.clear();
     if (lightingSystem.globalEnabled) {
       const globalAlpha = 1 - lightingSystem.globalIntensity;
       if (globalAlpha > 0.01) {
-        const globalOverlay = this._createGlobalLightGradient(
-          bounds,
-          lightingSystem.globalAngle,
-          globalAlpha
-        );
-        lightingContainer.addChild(globalOverlay);
+        const bounds = { minX: 0, minY: 0, maxX: vpW, maxY: vpH };
+        this._drawGlobalLightGradient(cache.globalGfx, bounds, lightingSystem.globalAngle, globalAlpha);
       }
     }
 
-    // Применяем blend mode multiply для затемнения
-    lightingContainer.blendMode = 'multiply';
-    camera.lightingLayer.addChild(lightingContainer);
+    // 2) Build mask: start fully opaque (dark everywhere), then erase holes for lights
+    cache.maskBg.clear();
+    cache.maskBg.rect(0, 0, vpW, vpH).fill({ color: 0xFFFFFF, alpha: 1 });
+
+    const usedLightIds = new Set();
+    const world = camera.world;
+    for (const [entityId, components] of world.entities) {
+      const entityRef = components.get('_entityRef');
+      if (!entityRef || entityRef.subtype !== 'light') continue;
+
+      const position = components.get('position');
+      if (!position) continue;
+
+      usedLightIds.add(entityId);
+
+      let holeGfx = cache.lightHoles.get(entityId);
+      if (!holeGfx) {
+        holeGfx = new PIXI.Graphics();
+        holeGfx.blendMode = 'erase';
+        cache.lightHoles.set(entityId, holeGfx);
+        cache.maskContainer.addChild(holeGfx);
+      }
+
+      // Convert world -> camera viewport coords
+      const p = camera.worldToScreen(position.x, position.y);
+      const cx = p.x - (camera.container?.x || 0);
+      const cy = p.y - (camera.container?.y || 0);
+
+      const intensity = Math.max(0, Math.min(1, Number(entityRef.intensity) || 0));
+      const baseRadius = Math.max(0, Number(entityRef.radius) || 0) * (Number(camera.zoom) || 1);
+      const falloff = Math.max(0, Number(entityRef.falloffRadius) || 0) * (Number(camera.zoom) || 1);
+
+      holeGfx.clear();
+      if (intensity <= 0 || baseRadius <= 0) continue;
+
+      const shape = entityRef.shape || 'circle';
+      const totalRadius = baseRadius + falloff;
+      const steps = Math.max(6, Math.min(28, Math.round(totalRadius / 18)));
+
+      if (shape === 'circle') {
+        this._drawLightHoleCircle(holeGfx, cx, cy, baseRadius, falloff, intensity, steps);
+      } else {
+        // arc
+        const rotationComp = components.get('rotation');
+        const mirrorDirectionComp = components.get('mirrorDirection');
+        const rotation =
+          rotationComp != null
+            ? (typeof rotationComp === 'number' ? rotationComp : (Number(rotationComp?.value) || 0))
+            : (Number(entityRef?.rotation) || 0);
+        const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
+
+        const direction = entityRef.direction || { x: 1, y: 0 };
+        const directionMode = entityRef.directionMode || 'relative';
+        const fovAngle = Math.max(1, Math.min(360, Number(entityRef.fovAngle) || 90));
+
+        const { baseAngle, fovRad } = this._computeDirectionalArc(direction, directionMode, rotation, mirrorDirection, fovAngle);
+        const startAngle = baseAngle - fovRad / 2;
+        const endAngle = baseAngle + fovRad / 2;
+        this._drawLightHoleArc(holeGfx, cx, cy, baseRadius, falloff, intensity, steps, startAngle, endAngle);
+      }
+    }
+
+    // Remove unused cached holes
+    for (const [lightId, gfx] of cache.lightHoles) {
+      if (usedLightIds.has(lightId)) continue;
+      try {
+        if (gfx.parent === cache.maskContainer) cache.maskContainer.removeChild(gfx);
+        gfx.destroy({ children: true });
+      } catch (_) {}
+      cache.lightHoles.delete(lightId);
+    }
+
+    // Render maskContainer -> maskRt (offscreen)
+    if (this.app?.renderer) {
+      this.app.renderer.render({
+        container: cache.maskContainer,
+        target: cache.maskRt,
+        clear: true
+      });
+    }
+  }
+
+  _drawGlobalLightGradient(graphics, bounds, angle, alpha) {
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    const centerX = bounds.minX + width / 2;
+    const centerY = bounds.minY + height / 2;
+
+    const radians = (angle - 90) * (Math.PI / 180);
+    const dirX = Math.cos(radians);
+    const dirY = Math.sin(radians);
+
+    const steps = 20;
+    const stepAlpha = alpha / steps;
+
+    for (let i = 0; i < steps; i++) {
+      const progress = i / steps;
+      const currentAlpha = stepAlpha * (steps - i);
+
+      const offsetX = -dirX * width * progress * 0.5;
+      const offsetY = -dirY * height * progress * 0.5;
+
+      const rectWidth = width * (1 - progress * 0.3);
+      const rectHeight = height * (1 - progress * 0.3);
+      const rectX = centerX - rectWidth / 2 + offsetX;
+      const rectY = centerY - rectHeight / 2 + offsetY;
+
+      graphics.rect(rectX, rectY, rectWidth, rectHeight);
+      graphics.fill({ color: 0x000000, alpha: currentAlpha });
+    }
+  }
+
+  _drawLightHoleCircle(graphics, x, y, radius, falloff, intensity, steps) {
+    const total = radius + falloff;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const r = radius + (total - radius) * t;
+      const a = intensity * (1 - t);
+      if (a <= 0.001) continue;
+      graphics.circle(x, y, r).fill({ color: 0x000000, alpha: a });
+    }
+    // Inner fully-lit core
+    graphics.circle(x, y, radius).fill({ color: 0x000000, alpha: intensity });
+  }
+
+  _drawLightHoleArc(graphics, x, y, radius, falloff, intensity, steps, startAngle, endAngle) {
+    const total = radius + falloff;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const r = radius + (total - radius) * t;
+      const a = intensity * (1 - t);
+      if (a <= 0.001) continue;
+      graphics
+        .moveTo(x, y)
+        .arc(x, y, r, startAngle, endAngle)
+        .closePath()
+        .fill({ color: 0x000000, alpha: a });
+    }
+    graphics
+      .moveTo(x, y)
+      .arc(x, y, radius, startAngle, endAngle)
+      .closePath()
+      .fill({ color: 0x000000, alpha: intensity });
+  }
+
+  _computeDirectionalArc(direction, directionMode, rotation, mirrorDirection, fovAngle) {
+    let dirX = Number(direction?.x) || 0;
+    let dirY = Number(direction?.y) || 0;
+
+    if (directionMode === 'relative') {
+      const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+      const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+      dirX = rotatedDirX * (Number(mirrorDirection?.x) || 1);
+      dirY = rotatedDirY * (Number(mirrorDirection?.y) || 1);
+    }
+
+    const len = Math.sqrt(dirX * dirX + dirY * dirY);
+    if (len > 0) {
+      dirX /= len;
+      dirY /= len;
+    } else {
+      dirX = 1;
+      dirY = 0;
+    }
+
+    const baseAngle = Math.atan2(dirY, dirX);
+    const fovRad = (Math.max(1, Math.min(360, Number(fovAngle) || 90)) * Math.PI) / 180;
+    return { baseAngle, fovRad };
   }
 
   /**

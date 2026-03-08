@@ -48,6 +48,7 @@ export class Camera {
     this.entitiesContainer = null;
     this.worldBoundsLayer = null;
     this.cameraBackgroundLayer = null;
+    this.lightingLayer = null;
     
     if (this.canvas) {
       this.canvas.addCamera(this);
@@ -101,10 +102,11 @@ export class Camera {
     this.worldBoundsLayer.zIndex = 3;
     this.worldLayer.addChild(this.worldBoundsLayer);
 
-    // 💡 Слой освещения — поверх всего мира (затемняет сущности)
+    // 💡 Слой освещения — screen-space overlay внутри viewport (НЕ масштабируется/не двигается вместе с worldLayer)
+    // Это позволяет делать "вырезание света" из слоя темноты без перекрытия сущностей.
     this.lightingLayer = new PIXI.Container();
-    this.lightingLayer.zIndex = 4;
-    this.worldLayer.addChild(this.lightingLayer);
+    this.lightingLayer.zIndex = 3.5;
+    this.container.addChild(this.lightingLayer);
 
     // 🎨 Фон/оверлей камеры — поверх мира (не должен масштабироваться вместе с миром)
     this.cameraBackgroundLayer = new PIXI.Container();

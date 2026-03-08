@@ -14,6 +14,7 @@ export function useCreateFlow({
   unattachedEntities,
   muzzles,
   visions,
+  lights,
   regions,
   controllers,
   worldForm,
@@ -24,6 +25,7 @@ export function useCreateFlow({
   gameEntityForm,
   muzzleForm,
   visionForm,
+  lightForm,
   regionForm,
   controllerForm,
   collisionTypeForm,
@@ -132,6 +134,18 @@ export function useCreateFlow({
       visionForm.directionMode = 'relative';
       visionForm.showDebug = true;
       visionForm.debugColor = '#00FF00';
+    } else if (type === 'light') {
+      lightForm.id = suggestId('light', lights);
+      lightForm.shape = 'circle';
+      lightForm.radius = 220;
+      lightForm.falloffRadius = 140;
+      lightForm.intensity = 1.0;
+      lightForm.tint = null;
+      lightForm.fovAngle = 90;
+      lightForm.direction = { x: 1, y: 0 };
+      lightForm.directionMode = 'relative';
+      lightForm.showDebug = true;
+      lightForm.debugColor = '#FFD54F';
     }
   }
 

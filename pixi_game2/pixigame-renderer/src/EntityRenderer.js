@@ -12,6 +12,7 @@ export class EntityRenderer {
     this._slotsCache = new Map(); // Кеш для визуализации слотов
     this._muzzleCache = new Map(); // Кеш для визуализации muzzle
     this._visionCache = new Map(); // Кеш для визуализации vision
+    this._lightCache = new Map(); // Кеш для визуализации light (debug)
     this._tileGridCache = new Map(); // Кеш для визуализации тайловой сетки
   }
   
@@ -72,6 +73,12 @@ export class EntityRenderer {
         if (visionGraphics && visionGraphics.parent === container) {
           container.removeChild(visionGraphics);
         }
+
+        const lightKey = `${cachePrefix}light::${entityId}`;
+        const lightGraphics = this._lightCache.get(lightKey);
+        if (lightGraphics && lightGraphics.parent === container) {
+          container.removeChild(lightGraphics);
+        }
         
         continue;
       }
@@ -82,13 +89,16 @@ export class EntityRenderer {
       // 👁️ Special handling for vision - no appearance component required
       const isVision = entityRef?.subtype === 'vision';
 
+      // 💡 Special handling for light - no appearance component required
+      const isLight = entityRef?.subtype === 'light';
+
       // 🔫 Projectile handling
       const isProjectile = entityRef?.type === 'projectile';
 
-      if (!position || (!appearance && !isMuzzle && !isVision && !isProjectile)) continue;
+      if (!position || (!appearance && !isMuzzle && !isVision && !isLight && !isProjectile)) continue;
 
       // 🙈 Проверка скрытия сущности вне зоны видимости
-      if (hidingVisions.length > 0 && !isMuzzle && !isVision) {
+      if (hidingVisions.length > 0 && !isMuzzle && !isVision && !isLight) {
         const isGameEntity = entityRef?.type === 'game';
         // isProjectile уже определён выше
         if (isGameEntity || isProjectile) {
@@ -139,7 +149,7 @@ export class EntityRenderer {
 
       // 🔫 For muzzle, always consider visible (no culling based on appearance size)
       // 👁️ For vision, always consider visible (no culling based on appearance size)
-      const isVisible = isMuzzle || isVision || this._isEntityVisible(
+      const isVisible = isMuzzle || isVision || isLight || this._isEntityVisible(
         { x: position.x, y: position.y },
         appearance?.size || 0,
         visibleBounds
@@ -180,6 +190,13 @@ export class EntityRenderer {
           container.removeChild(visionGraphics);
         }
 
+        // Remove light graphics
+        const lightKey = `${cachePrefix}light::${entityId}`;
+        const lightGraphics = this._lightCache.get(lightKey);
+        if (lightGraphics && lightGraphics.parent === container) {
+          container.removeChild(lightGraphics);
+        }
+
         continue;
       }
 
@@ -194,6 +211,12 @@ export class EntityRenderer {
       // 👁️ Vision rendering - skip appearance-based rendering
       if (isVision) {
         this._renderVision(camera, entityId, components, container, world);
+        continue;
+      }
+
+      // 💡 Light debug rendering - skip appearance-based rendering
+      if (isLight) {
+        this._renderLight(camera, entityId, components, container);
         continue;
       }
 
@@ -286,6 +309,20 @@ export class EntityRenderer {
           }
           visionGraphics.destroy({ children: true });
           this._visionCache.delete(visionKey);
+        }
+      }
+    }
+
+    // Очистка неактивных light
+    for (const [lightKey, lightGraphics] of this._lightCache) {
+      if (lightKey.startsWith(cachePrefix + 'light::')) {
+        const entityId = lightKey.substring((cachePrefix + 'light::').length);
+        if (!activeEntityIds.has(entityId)) {
+          if (lightGraphics.parent === container) {
+            container.removeChild(lightGraphics);
+          }
+          lightGraphics.destroy({ children: true });
+          this._lightCache.delete(lightKey);
         }
       }
     }
@@ -962,6 +999,113 @@ export class EntityRenderer {
   }
 
   /**
+   * 💡 Отрисовка light (только debug визуализация)
+   */
+  _renderLight(camera, entityId, components, container) {
+    const entityRef = components.get('_entityRef');
+    const position = components.get('position');
+    const rotationComp = components.get('rotation');
+
+    if (!entityRef || entityRef.subtype !== 'light' || !position) {
+      const lightKey = `${camera.id}::light::${entityId}`;
+      const lightGraphics = this._lightCache.get(lightKey);
+      if (lightGraphics && lightGraphics.parent === container) {
+        container.removeChild(lightGraphics);
+      }
+      return;
+    }
+
+    if (!entityRef.showDebug) {
+      const lightKey = `${camera.id}::light::${entityId}`;
+      const lightGraphics = this._lightCache.get(lightKey);
+      if (lightGraphics && lightGraphics.parent === container) {
+        container.removeChild(lightGraphics);
+      }
+      return;
+    }
+
+    const rotation =
+      rotationComp != null
+        ? (typeof rotationComp === 'number'
+            ? rotationComp
+            : (Number(rotationComp?.value) || 0))
+        : (Number(entityRef?.rotation) || 0);
+
+    const mirrorDirectionComp = components.get('mirrorDirection');
+    const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
+
+    const lightKey = `${camera.id}::light::${entityId}`;
+    let lightGraphics = this._lightCache.get(lightKey);
+
+    if (!lightGraphics) {
+      lightGraphics = new PIXI.Graphics();
+      this._lightCache.set(lightKey, lightGraphics);
+    }
+
+    lightGraphics.clear();
+
+    const debugColor = entityRef.debugColor || '#FFD54F';
+    const colorInt = parseInt(String(debugColor).replace('#', ''), 16);
+
+    const radius = Math.max(0, Number(entityRef.radius) || 0);
+    const falloff = Math.max(0, Number(entityRef.falloffRadius) || 0);
+    const total = radius + falloff;
+    const shape = entityRef.shape || 'circle';
+
+    if (shape === 'circle') {
+      lightGraphics
+        .circle(0, 0, total)
+        .stroke({ width: 2, color: colorInt, alpha: 0.35 });
+
+      lightGraphics
+        .circle(0, 0, radius)
+        .stroke({ width: 2, color: colorInt, alpha: 0.55 });
+    } else {
+      const fovAngle = Math.max(1, Math.min(360, Number(entityRef.fovAngle) || 90));
+      const direction = entityRef.direction || { x: 1, y: 0 };
+      const directionMode = entityRef.directionMode || 'relative';
+
+      let dirX = Number(direction.x) || 0;
+      let dirY = Number(direction.y) || 0;
+
+      if (directionMode === 'relative') {
+        const rotatedDirX = dirX * Math.cos(rotation) - dirY * Math.sin(rotation);
+        const rotatedDirY = dirX * Math.sin(rotation) + dirY * Math.cos(rotation);
+        dirX = rotatedDirX * (Number(mirrorDirection?.x) || 1);
+        dirY = rotatedDirY * (Number(mirrorDirection?.y) || 1);
+      }
+
+      const baseAngle = Math.atan2(dirY, dirX);
+      const fovRad = (fovAngle * Math.PI) / 180;
+      const startAngle = baseAngle - fovRad / 2;
+      const endAngle = baseAngle + fovRad / 2;
+
+      lightGraphics
+        .moveTo(0, 0)
+        .arc(0, 0, total, startAngle, endAngle)
+        .closePath()
+        .stroke({ width: 2, color: colorInt, alpha: 0.35 });
+
+      lightGraphics
+        .moveTo(0, 0)
+        .arc(0, 0, radius, startAngle, endAngle)
+        .closePath()
+        .stroke({ width: 2, color: colorInt, alpha: 0.55 });
+
+      lightGraphics
+        .moveTo(0, 0)
+        .lineTo(Math.cos(baseAngle) * (radius * 0.6), Math.sin(baseAngle) * (radius * 0.6))
+        .stroke({ width: 2, color: colorInt, alpha: 0.7 });
+    }
+
+    lightGraphics.position.set(position.x, position.y);
+
+    if (lightGraphics.parent !== container) {
+      container.addChild(lightGraphics);
+    }
+  }
+
+  /**
    * 📐 Отрисовка тайловой сетки
    */
   _renderTileGrid(camera, world, container) {
@@ -1090,6 +1234,14 @@ export class EntityRenderer {
       }
     }
 
+    // Очистка кеша light
+    for (const [lightKey, lightGraphics] of this._lightCache) {
+      if (lightKey.startsWith(cachePrefix + 'light::')) {
+        lightGraphics.destroy({ children: true });
+        this._lightCache.delete(lightKey);
+      }
+    }
+
     // Очистка кеша тайловой сетки
     for (const [tileGridKey, tileGridGraphics] of this._tileGridCache) {
       if (tileGridKey.startsWith(cachePrefix + 'tilegrid')) {
@@ -1124,6 +1276,11 @@ export class EntityRenderer {
       visionGraphics.destroy({ children: true });
     }
     this._visionCache.clear();
+
+    for (const lightGraphics of this._lightCache.values()) {
+      lightGraphics.destroy({ children: true });
+    }
+    this._lightCache.clear();
 
     for (const tileGridGraphics of this._tileGridCache.values()) {
       tileGridGraphics.destroy({ children: true });

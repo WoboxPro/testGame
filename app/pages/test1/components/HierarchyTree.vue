@@ -213,6 +213,27 @@
       <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'vision', v.id)">×</button>
     </div>
 
+    <!-- Lights Section -->
+    <div class="tree__section">
+      <div class="tree__title">💡 Lights</div>
+      <div class="tree__actions">
+        <button class="tree__add" @click="$emit('add', 'light')">+ Add</button>
+        <button class="tree__json" @click="$emit('json', 'light')" title="Export JSON">{ }</button>
+      </div>
+    </div>
+    <div v-if="lights.length === 0" class="tree__empty">No lights</div>
+    <div
+      v-for="l in lights"
+      :key="l.id"
+      class="tree__item"
+      :class="{ 'is-selected': selected?.type === 'light' && selected?.id === l.id }"
+      @click="$emit('select', { type: 'light', id: l.id })"
+    >
+      <span class="tree__name">💡 {{ l.id }}</span>
+      <span class="tree__meta">{{ l.shape }} • R{{ l.radius }} • I{{ Number(l.intensity ?? 1).toFixed(2) }}</span>
+      <button class="tree__delete" title="Delete" @click.stop="$emit('delete', 'light', l.id)">×</button>
+    </div>
+
     <!-- Regions Section -->
     <div class="tree__section">
       <div class="tree__title">Regions</div>
@@ -321,6 +342,7 @@
     unattachedEntities: { type: Array, default: () => [] },
     muzzles: { type: Array, default: () => [] },
     visions: { type: Array, default: () => [] },
+    lights: { type: Array, default: () => [] },
     regions: { type: Array, default: () => [] },
     controllers: { type: Array, default: () => [] },
     keyActions: { type: Array, default: () => [] },
@@ -357,6 +379,12 @@ function getEntityLabel(entityId) {
   const vision = props.visions.find(v => v.id === entityId);
   if (vision) {
     return `👁️ ${vision.id}`;
+  }
+
+  // Search in lights
+  const light = props.lights.find(l => l.id === entityId);
+  if (light) {
+    return `💡 ${light.id}`;
   }
 
   return entityId;

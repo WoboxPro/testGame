@@ -12,6 +12,7 @@ import { reactive, watch } from 'vue';
     gameEntities,
     muzzles,
     visions,
+    lights,
     regions,
     controllers
   }) {
@@ -110,6 +111,14 @@ import { reactive, watch } from 'vue';
             id: v.id,
             name: `Vision: ${v.id}`,
             json: JSON.stringify(getVisionJsonConfig(v), null, 2)
+          }));
+          break;
+        case 'light':
+          jsonModal.title = 'Lights';
+          jsonModal.items = lights.map((l) => ({
+            id: l.id,
+            name: `Light: ${l.id}`,
+            json: JSON.stringify(getLightJsonConfig(l), null, 2)
           }));
           break;
         case 'region':
@@ -344,6 +353,26 @@ import { reactive, watch } from 'vue';
     };
   }
 
+  function getLightJsonConfig(lightModel) {
+    const l = lightModel.instance;
+    return {
+      id: lightModel.id,
+      shape: l.shape,
+      radius: l.radius,
+      falloffRadius: l.falloffRadius,
+      intensity: l.intensity,
+      tint: l.tint,
+      fovAngle: l.fovAngle,
+      direction: l.direction,
+      directionMode: l.directionMode,
+      showDebug: l.showDebug,
+      debugColor: l.debugColor,
+      position: l.position,
+      rotation: l.rotation,
+      scale: l.scale
+    };
+  }
+
    function getAllProjectJson() {
       return {
         version: '1.0',
@@ -355,6 +384,7 @@ import { reactive, watch } from 'vue';
         gameEntities: gameEntities.map((e) => getEntityJsonConfig(e)),
         muzzles: muzzles.map((m) => getMuzzleJsonConfig(m)),
         visions: visions.map((v) => getVisionJsonConfig(v)),
+        lights: lights.map((l) => getLightJsonConfig(l)),
         regions: regions.map((r) => getRegionJsonConfig(r)),
         controllers: controllers.map((c) => getControllerJsonConfig(c)),
         summary: {
@@ -365,6 +395,7 @@ import { reactive, watch } from 'vue';
           gameEntityCount: gameEntities.length,
           muzzleCount: muzzles.length,
           visionCount: visions.length,
+          lightCount: lights.length,
           regionCount: regions.length,
           controllerCount: controllers.length
         }
