@@ -49,7 +49,7 @@ export class Canvas {
     this._hexGridCache = new Map();
 
     // Lighting caches (per camera)
-    // key: camera.id -> { darkContainer, ambientGfx, globalGfx, maskRt, maskSprite, maskContainer, maskBg, lightHoles, lastSizeKey, lastGlobalKey }
+    // key: camera.id -> { darkContainer, ambientGfx, globalGfx, maskRt, maskSprite, maskContainer, maskBg, lightHoles, tintContainer, tintLights, lastSizeKey, lastGlobalKey }
     this._lightingCache = new Map();
 
     console.log(`🖼️ Canvas создан: ${this.id}, mode=${this.sizeMode}`);
@@ -379,6 +379,12 @@ export class Canvas {
       darkContainer.addChild(ambientGfx);
       darkContainer.addChild(globalGfx);
 
+      // Optional colored tint overlay. This is NOT part of the darkness mask:
+      // it's a screen-blended overlay that gives lights a warm/cold color.
+      const tintContainer = new PIXI.Container();
+      tintContainer.blendMode = 'screen';
+      const tintLights = new Map(); // lightId -> PIXI.Graphics
+
       const maskContainer = new PIXI.Container();
       const maskBg = new PIXI.Graphics();
       maskContainer.addChild(maskBg);
@@ -404,6 +410,8 @@ export class Canvas {
         maskContainer,
         maskBg,
         lightHoles,
+        tintContainer,
+        tintLights,
         lastSizeKey: null,
         lastGlobalKey: null
       };
@@ -412,6 +420,7 @@ export class Canvas {
 
       camera.lightingLayer.removeChildren();
       camera.lightingLayer.addChild(darkContainer);
+      camera.lightingLayer.addChild(tintContainer);
       camera.lightingLayer.addChild(maskSprite);
     }
 
@@ -451,6 +460,7 @@ export class Canvas {
     cache.maskBg.rect(0, 0, vpW, vpH).fill({ color: 0xFFFFFF, alpha: 1 });
 
     const usedLightIds = new Set();
+    const usedTintIds = new Set();
     const world = camera.world;
     for (const [entityId, components] of world.entities) {
       const entityRef = components.get('_entityRef');
@@ -506,6 +516,48 @@ export class Canvas {
         const endAngle = baseAngle + fovRad / 2;
         this._drawLightHoleArc(holeGfx, cx, cy, baseRadius, falloff, intensity, steps, startAngle, endAngle);
       }
+
+      // 3) Optional colored tint overlay (screen) when tint is set
+      const tint = (typeof entityRef.tint === 'string' && entityRef.tint.trim()) ? entityRef.tint.trim() : null;
+      if (tint) {
+        usedTintIds.add(entityId);
+
+        let tintGfx = cache.tintLights.get(entityId);
+        if (!tintGfx) {
+          tintGfx = new PIXI.Graphics();
+          cache.tintLights.set(entityId, tintGfx);
+          cache.tintContainer.addChild(tintGfx);
+        }
+
+        tintGfx.clear();
+
+        const tintColor = this._parseHexColorToInt(tint, 0xFFFFFF);
+        // Keep tint subtle and soft:
+        // - lower overall alpha multiplier
+        // - smoother falloff curve (handled in _drawTintCircle/_drawTintArc)
+        const tintStrength = Math.max(0, Math.min(1, intensity)) * 0.28;
+
+        if (shape === 'circle') {
+          this._drawTintCircle(tintGfx, cx, cy, baseRadius, falloff, tintStrength, Math.max(12, steps), tintColor);
+        } else {
+          const rotationComp = components.get('rotation');
+          const mirrorDirectionComp = components.get('mirrorDirection');
+          const rotation =
+            rotationComp != null
+              ? (typeof rotationComp === 'number' ? rotationComp : (Number(rotationComp?.value) || 0))
+              : (Number(entityRef?.rotation) || 0);
+          const mirrorDirection = mirrorDirectionComp || entityRef?.mirrorDirection || { x: 1, y: 1 };
+
+          const direction = entityRef.direction || { x: 1, y: 0 };
+          const directionMode = entityRef.directionMode || 'relative';
+          const fovAngle = Math.max(1, Math.min(360, Number(entityRef.fovAngle) || 90));
+
+          const { baseAngle, fovRad } = this._computeDirectionalArc(direction, directionMode, rotation, mirrorDirection, fovAngle);
+          const startAngle = baseAngle - fovRad / 2;
+          const endAngle = baseAngle + fovRad / 2;
+          this._drawTintArc(tintGfx, cx, cy, baseRadius, falloff, tintStrength, Math.max(12, steps), tintColor, startAngle, endAngle);
+        }
+      }
     }
 
     // Remove unused cached holes
@@ -518,6 +570,16 @@ export class Canvas {
       cache.lightHoles.delete(lightId);
     }
 
+    // Remove unused cached tint graphics
+    for (const [lightId, gfx] of cache.tintLights) {
+      if (usedTintIds.has(lightId)) continue;
+      try {
+        if (gfx.parent === cache.tintContainer) cache.tintContainer.removeChild(gfx);
+        gfx.destroy({ children: true });
+      } catch (_) {}
+      cache.tintLights.delete(lightId);
+    }
+
     // Render maskContainer -> maskRt (offscreen)
     if (this.app?.renderer) {
       this.app.renderer.render({
@@ -526,6 +588,47 @@ export class Canvas {
         clear: true
       });
     }
+  }
+
+  _parseHexColorToInt(hex, fallback = 0xFFFFFF) {
+    if (!hex) return fallback;
+    const s = String(hex).trim();
+    const m = s.match(/^#?([0-9a-fA-F]{6})$/);
+    if (!m) return fallback;
+    return parseInt(m[1], 16);
+  }
+
+  _drawTintCircle(graphics, x, y, radius, falloff, intensity, steps, color) {
+    const total = radius + falloff;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const r = radius + (total - radius) * t;
+      // Softer curve than linear: keeps tint airy and less "hard".
+      const a = intensity * Math.pow(1 - t, 1.85);
+      if (a <= 0.001) continue;
+      graphics.circle(x, y, r).fill({ color, alpha: a });
+    }
+    graphics.circle(x, y, radius).fill({ color, alpha: intensity * 0.65 });
+  }
+
+  _drawTintArc(graphics, x, y, radius, falloff, intensity, steps, color, startAngle, endAngle) {
+    const total = radius + falloff;
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const r = radius + (total - radius) * t;
+      const a = intensity * Math.pow(1 - t, 1.85);
+      if (a <= 0.001) continue;
+      graphics
+        .moveTo(x, y)
+        .arc(x, y, r, startAngle, endAngle)
+        .closePath()
+        .fill({ color, alpha: a });
+    }
+    graphics
+      .moveTo(x, y)
+      .arc(x, y, radius, startAngle, endAngle)
+      .closePath()
+      .fill({ color, alpha: intensity * 0.65 });
   }
 
   _drawGlobalLightGradient(graphics, bounds, angle, alpha) {
