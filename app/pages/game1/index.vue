@@ -2,7 +2,7 @@
   <div class="game1-page">
     <header class="header">
       <h1>Game1 - Top-Down Shooter</h1>
-      <p class="hint">WASD to move | Mouse to aim | Left Click to shoot</p>
+      <p class="hint">WASD to move | Mouse to aim | Left Click to shoot | <span class="hp">HP: <span id="hp-display">3</span>/3</span></p>
     </header>
     <div ref="canvasHost" class="canvas-container"></div>
   </div>
@@ -26,6 +26,117 @@ let muzzle = null;
 let controller = null;
 let rafId = null;
 let lastTime = performance.now();
+let enemyCounter = 0;
+let spawnTimer = 0;
+const SPAWN_INTERVAL = 5;
+const MAX_ENEMIES = 15;
+const ENEMY_SPEED = 40;
+const ENEMY_DAMAGE_COOLDOWN = 1000;
+
+let lastDamageTime = 0;
+
+function spawnEnemy() {
+  const margin = 50;
+  const x = margin + Math.random() * (800 - margin * 2);
+  const y = margin + Math.random() * (600 - margin * 2);
+
+  const enemy = markRaw(new GameEntity({
+    id: `enemy_${++enemyCounter}`,
+    subtype: 'enemy',
+    worldId: 'game_world',
+    position: { x, y },
+    velocity: { x: 0, y: 0 },
+    movement: { maxSpeed: 0, acceleration: 0, friction: 0 },
+    appearance: {
+      shape: 'circle',
+      color: 0xff4444,
+      size: 20
+    },
+    hasCollision: true,
+    collisionType: 'enemy',
+    collisionShape: 'circle',
+    collisionSize: 20,
+    statsSystem: true,
+    stats: {
+      hp: { current: 1, max: 1 }
+    },
+    deathBehavior: 'stay'
+  }));
+
+  world.addEntity(enemy);
+}
+
+function getAliveEnemyCount() {
+  if (!world) return 0;
+  let count = 0;
+  for (const [, components] of world.entities) {
+    const entityRef = components.get('_entityRef');
+    if (entityRef?.subtype === 'enemy' && !entityRef._isDead) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function updateEnemyMovement(dt) {
+  if (!player || !world) return;
+
+  const playerPos = player.position;
+
+  for (const [, components] of world.entities) {
+    const entityRef = components.get('_entityRef');
+    if (entityRef?.subtype !== 'enemy' || entityRef._isDead) continue;
+
+    const enemyPos = entityRef.position;
+    const dx = playerPos.x - enemyPos.x;
+    const dy = playerPos.y - enemyPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 0) {
+      const speed = ENEMY_SPEED * dt;
+      entityRef.position.x += (dx / dist) * speed;
+      entityRef.position.y += (dy / dist) * speed;
+    }
+  }
+}
+
+function checkEnemyPlayerCollision() {
+  if (!player || !world || player._isDead) return;
+
+  const playerPos = player.position;
+  const playerRadius = 25;
+  const enemyRadius = 20;
+  const collisionDist = playerRadius + enemyRadius;
+
+  for (const [, components] of world.entities) {
+    const entityRef = components.get('_entityRef');
+    if (entityRef?.subtype !== 'enemy' || entityRef._isDead) continue;
+
+    const enemyPos = entityRef.position;
+    const dx = playerPos.x - enemyPos.x;
+    const dy = playerPos.y - enemyPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < collisionDist) {
+      const now = performance.now();
+      if (now - lastDamageTime >= ENEMY_DAMAGE_COOLDOWN) {
+        lastDamageTime = now;
+        player.takeDamage(1);
+        
+        const hpDisplay = document.getElementById('hp-display');
+        if (hpDisplay) {
+          hpDisplay.textContent = player.stats.hp.current;
+        }
+        console.log(`💔 Player HP: ${player.stats.hp.current}/${player.stats.hp.max}`);
+
+        if (player.stats.hp.current <= 0) {
+          console.log('💀 Player died!');
+        }
+      }
+      break;
+    }
+  }
+}
 
 onMounted(async () => {
   world = markRaw(new World({
@@ -82,7 +193,15 @@ onMounted(async () => {
       color: 0x4fc3f7,
       size: 25
     },
-    hasCollision: false,
+    hasCollision: true,
+    collisionType: 'player',
+    collisionShape: 'circle',
+    collisionSize: 25,
+    statsSystem: true,
+    stats: {
+      hp: { current: 3, max: 3 }
+    },
+    deathBehavior: 'stay',
     rotationBehavior: 'mouse',
     rotationSpeed: 20
   }));
@@ -100,9 +219,9 @@ onMounted(async () => {
     direction: { x: 1, y: 0 },
     directionMode: 'relative',
     fireType: 'projectile',
-    fireRate: 8,
-    bulletSpeed: 600,
-    bulletRange: 800,
+    fireRate: 2,
+    bulletSpeed: 300,
+    bulletRange: 300,
     bulletSize: 6,
     bulletColor: '#FFD700',
     bulletPiercing: 1,
@@ -121,40 +240,12 @@ onMounted(async () => {
   world.projectileSystem.registerMuzzle(muzzle);
 
   world.collisionSystem.addCollisionType('enemy', { name: 'Enemy', defaultShape: 'circle' });
+  world.collisionSystem.addCollisionType('player', { name: 'Player', defaultShape: 'circle' });
   world.collisionSystem.setCollisionRelation('projectile', 'enemy', { block: false, trigger: true });
 
-  const enemyPositions = [
-    { x: 150, y: 150 },
-    { x: 650, y: 150 },
-    { x: 400, y: 500 }
-  ];
-
-  enemyPositions.forEach((pos, i) => {
-    const enemy = markRaw(new GameEntity({
-      id: `enemy_${i + 1}`,
-      subtype: 'enemy',
-      worldId: 'game_world',
-      position: { ...pos },
-      velocity: { x: 0, y: 0 },
-      movement: { maxSpeed: 0, acceleration: 0, friction: 0 },
-      appearance: {
-        shape: 'circle',
-        color: 0xff4444,
-        size: 20
-      },
-      hasCollision: true,
-      collisionType: 'enemy',
-      collisionShape: 'circle',
-      collisionSize: 20,
-      statsSystem: true,
-      stats: {
-        hp: { current: 1, max: 1 }
-      },
-      deathBehavior: 'stay'
-    }));
-
-    world.addEntity(enemy);
-  });
+  for (let i = 0; i < 3; i++) {
+    spawnEnemy();
+  }
 
   controller = markRaw(new EntityController({
     id: 'player_controller',
@@ -195,7 +286,17 @@ function startRenderLoop() {
     }
 
     if (world) {
+      updateEnemyMovement(dt);
+      checkEnemyPlayerCollision();
       world.update(dt * 1000);
+
+      spawnTimer += dt;
+      if (spawnTimer >= SPAWN_INTERVAL) {
+        spawnTimer = 0;
+        if (getAliveEnemyCount() < MAX_ENEMIES) {
+          spawnEnemy();
+        }
+      }
     }
 
     if (canvas) {
@@ -256,6 +357,11 @@ onUnmounted(() => {
   margin: 0;
   color: #666;
   font-size: 14px;
+}
+
+.hint .hp {
+  color: #ff6b6b;
+  font-weight: bold;
 }
 
 .canvas-container {
