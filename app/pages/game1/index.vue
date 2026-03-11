@@ -187,7 +187,7 @@ function spawnEnemy() {
       size: 20
     },
     hasCollision: true,
-    collisionType: 'enemy',
+    collisionType: 'unit',
     collisionShape: 'circle',
     collisionSize: 20,
     statsSystem: true,
@@ -330,7 +330,7 @@ onMounted(async () => {
       size: 25
     },
     hasCollision: true,
-    collisionType: 'player',
+    collisionType: 'unit',
     collisionShape: 'circle',
     collisionSize: 25,
     statsSystem: true,
@@ -375,9 +375,9 @@ onMounted(async () => {
 
   world.projectileSystem.registerMuzzle(muzzle);
 
-  world.collisionSystem.addCollisionType('enemy', { name: 'Enemy', defaultShape: 'circle' });
-  world.collisionSystem.addCollisionType('player', { name: 'Player', defaultShape: 'circle' });
-  world.collisionSystem.setCollisionRelation('projectile', 'enemy', { block: false, trigger: true });
+  world.collisionSystem.addCollisionType('unit', { name: 'Unit', defaultShape: 'circle' });
+  world.collisionSystem.setCollisionRelation('projectile', 'unit', { block: false, trigger: true });
+  world.collisionSystem.setCollisionRelation('unit', 'unit', { block: true, trigger: false });
 
   for (let i = 0; i < 3; i++) {
     spawnEnemy();
