@@ -2,9 +2,39 @@
   <div class="game1-page">
     <header class="header">
       <h1>Game1 - Top-Down Shooter</h1>
-      <p class="hint">WASD to move | Mouse to aim | Left Click to shoot | <span class="wave">Wave: <span id="wave-display">1</span></span> | <span class="hp">HP: <span id="hp-display">3</span>/3</span></p>
+      <p class="hint">
+        WASD to move | Mouse to aim | Left Click to shoot | 
+        <span class="wave">Wave: <span id="wave-display">1</span></span> | 
+        <span class="level">Lv: <span id="level-display">1</span></span> | 
+        <span class="exp">EXP: <span id="exp-display">0</span>/<span id="exp-max-display">5</span></span> | 
+        <span class="hp">HP: <span id="hp-display">3</span>/3</span>
+      </p>
     </header>
     <div ref="canvasHost" class="canvas-container"></div>
+    
+    <div v-if="showUpgradeModal" class="modal-overlay">
+      <div class="modal">
+        <h2>Level Up!</h2>
+        <p>Choose an upgrade:</p>
+        <div class="upgrade-options">
+          <button @click="applyUpgrade('fireRate')" class="upgrade-btn">
+            <span class="upgrade-icon">⚡</span>
+            <span class="upgrade-name">Fire Rate</span>
+            <span class="upgrade-desc">+0.5 shots/sec</span>
+          </button>
+          <button @click="applyUpgrade('bulletSpeed')" class="upgrade-btn">
+            <span class="upgrade-icon">💨</span>
+            <span class="upgrade-name">Bullet Speed</span>
+            <span class="upgrade-desc">+30 speed</span>
+          </button>
+          <button @click="applyUpgrade('bulletRange')" class="upgrade-btn">
+            <span class="upgrade-icon">🎯</span>
+            <span class="upgrade-name">Bullet Range</span>
+            <span class="upgrade-desc">+30 range</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -17,6 +47,7 @@ import { MuzzleEntity } from '../../pixi_game2/pixigame/src/entities/MuzzleEntit
 import { EntityController } from '../../pixi_game2/pixigame/src/EntityController.js';
 
 const canvasHost = ref(null);
+const showUpgradeModal = ref(false);
 
 let world = null;
 let canvas = null;
@@ -30,12 +61,76 @@ let enemyCounter = 0;
 let spawnTimer = 0;
 let currentWave = 1;
 let waveTimer = 0;
+let playerLevel = 1;
+let playerExp = 0;
+let isPaused = false;
 const SPAWN_INTERVAL = 5;
 const MAX_ENEMIES = 15;
 const WAVE_DURATION = 30;
 const ENEMY_DAMAGE_COOLDOWN = 1000;
 
 let lastDamageTime = 0;
+
+function getExpForLevel(level) {
+  if (level <= 50) {
+    return level * 5;
+  }
+  return 250 + (level - 50) * 1;
+}
+
+function addExp(amount) {
+  playerExp += amount;
+  const expNeeded = getExpForLevel(playerLevel);
+  
+  while (playerExp >= expNeeded) {
+    playerExp -= expNeeded;
+    playerLevel++;
+    pauseGame();
+    console.log(`⬆️ Level Up! Now level ${playerLevel}`);
+  }
+  
+  updateExpDisplay();
+}
+
+function pauseGame() {
+  isPaused = true;
+  showUpgradeModal.value = true;
+  window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => true };
+}
+
+function resumeGame() {
+  isPaused = false;
+  showUpgradeModal.value = false;
+  window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
+}
+
+function updateExpDisplay() {
+  const levelDisplay = document.getElementById('level-display');
+  const expDisplay = document.getElementById('exp-display');
+  const expMaxDisplay = document.getElementById('exp-max-display');
+  
+  if (levelDisplay) levelDisplay.textContent = playerLevel;
+  if (expDisplay) expDisplay.textContent = playerExp;
+  if (expMaxDisplay) expMaxDisplay.textContent = getExpForLevel(playerLevel);
+}
+
+function applyUpgrade(type) {
+  switch (type) {
+    case 'fireRate':
+      muzzle.fireRate += 0.5;
+      console.log(`🔼 Fire Rate: ${muzzle.fireRate}`);
+      break;
+    case 'bulletSpeed':
+      muzzle.bulletSpeed += 30;
+      console.log(`🔼 Bullet Speed: ${muzzle.bulletSpeed}`);
+      break;
+    case 'bulletRange':
+      muzzle.bulletRange += 30;
+      console.log(`🔼 Bullet Range: ${muzzle.bulletRange}`);
+      break;
+  }
+  resumeGame();
+}
 
 function getEnemySpeed() {
   const baseSpeed = 40;
@@ -45,8 +140,25 @@ function getEnemySpeed() {
 
 function spawnEnemy() {
   const margin = 50;
-  const x = margin + Math.random() * (800 - margin * 2);
-  const y = margin + Math.random() * (600 - margin * 2);
+  const minDistanceFromPlayer = 400;
+  let x, y;
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  do {
+    x = margin + Math.random() * (800 - margin * 2);
+    y = margin + Math.random() * (600 - margin * 2);
+    attempts++;
+
+    if (player) {
+      const dx = player.position.x - x;
+      const dy = player.position.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist >= minDistanceFromPlayer) break;
+    } else {
+      break;
+    }
+  } while (attempts < maxAttempts);
 
   const enemy = markRaw(new GameEntity({
     id: `enemy_${++enemyCounter}`,
@@ -72,6 +184,7 @@ function spawnEnemy() {
   }));
 
   world.addEntity(enemy);
+  world.statsSystem.on(enemy.id, 'onDeath', () => addExp(1));
 }
 
 function getAliveEnemyCount() {
@@ -294,7 +407,7 @@ function startRenderLoop() {
       controller.update(dt);
     }
 
-    if (world) {
+    if (world && !isPaused) {
       updateEnemyMovement(dt);
       checkEnemyPlayerCollision();
       world.update(dt * 1000);
@@ -384,6 +497,16 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
+.hint .level {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.hint .exp {
+  color: #99ff99;
+  font-weight: bold;
+}
+
 .hint .hp {
   color: #ff6b6b;
   font-weight: bold;
@@ -396,5 +519,77 @@ onUnmounted(() => {
   border-radius: 8px;
   overflow: hidden;
   border: 2px solid #333;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #1a1a2e;
+  padding: 30px;
+  border-radius: 12px;
+  border: 2px solid #4fc3f7;
+  text-align: center;
+}
+
+.modal h2 {
+  color: #ffd700;
+  margin: 0 0 10px 0;
+  font-size: 28px;
+}
+
+.modal p {
+  color: #ccc;
+  margin: 0 0 20px 0;
+}
+
+.upgrade-options {
+  display: flex;
+  gap: 15px;
+}
+
+.upgrade-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: #2a2a4e;
+  border: 2px solid #4fc3f7;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.upgrade-btn:hover {
+  background: #3a3a6e;
+  transform: scale(1.05);
+}
+
+.upgrade-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.upgrade-name {
+  color: #fff;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.upgrade-desc {
+  color: #888;
+  font-size: 12px;
 }
 </style>
