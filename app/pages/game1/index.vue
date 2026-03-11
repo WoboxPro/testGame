@@ -563,7 +563,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -571,61 +571,90 @@ onUnmounted(() => {
 }
 
 .modal {
-  background: #1a1a2e;
-  padding: 30px;
-  border-radius: 12px;
-  border: 2px solid #4fc3f7;
+  background: #0a0a14;
+  padding: 0;
+  border: 3px solid #4fc3f7;
   text-align: center;
+  box-shadow: 
+    4px 4px 0 #1a3a4a,
+    -2px -2px 0 #0a1a2a inset;
 }
 
 .modal h2 {
+  background: linear-gradient(180deg, #1a1a2e 0%, #0a0a14 100%);
   color: #ffd700;
-  margin: 0 0 10px 0;
-  font-size: 28px;
+  margin: 0;
+  padding: 12px 24px;
+  font-size: 18px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-bottom: 3px solid #4fc3f7;
+  text-shadow: 1px 1px 0 #8b6914;
 }
 
 .modal p {
-  color: #ccc;
-  margin: 0 0 20px 0;
+  color: #aaa;
+  margin: 10px 0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .upgrade-options {
   display: flex;
-  gap: 15px;
+  gap: 0;
+  padding: 0 12px 12px;
 }
 
 .upgrade-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
-  background: #2a2a4e;
-  border: 2px solid #4fc3f7;
-  border-radius: 8px;
+  padding: 12px 16px;
+  background: #1a1a2e;
+  border: 2px solid #3a3a5e;
   cursor: pointer;
-  transition: all 0.2s;
-  min-width: 120px;
+  min-width: 90px;
+  margin: 0 6px;
+  transition: none;
+  box-shadow: 2px 2px 0 #0a0a14;
 }
 
 .upgrade-btn:hover {
-  background: #3a3a6e;
-  transform: scale(1.05);
+  background: #2a2a4e;
+  border-color: #4fc3f7;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #0a0a14;
+}
+
+.upgrade-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 #0a0a14;
 }
 
 .upgrade-icon {
-  font-size: 32px;
-  margin-bottom: 10px;
+  font-size: 24px;
+  margin-bottom: 6px;
+  filter: drop-shadow(1px 1px 0 #000);
 }
 
 .upgrade-name {
   color: #fff;
   font-weight: bold;
-  font-size: 16px;
-  margin-bottom: 5px;
+  font-size: 11px;
+  margin-bottom: 4px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .upgrade-desc {
-  color: #888;
-  font-size: 12px;
+  color: #4fc3f7;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  text-shadow: 1px 1px 0 #000;
 }
 </style>
