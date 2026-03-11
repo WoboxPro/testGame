@@ -1,8 +1,8 @@
 <template>
   <div class="game1-page">
     <header class="header">
-      <h1>Game1 - WASD Movement</h1>
-      <p class="hint">Use WASD to move the circle</p>
+      <h1>Game1 - WASD Movement + Shooting</h1>
+      <p class="hint">WASD to move | Left Mouse Button to shoot</p>
     </header>
     <div ref="canvasHost" class="canvas-container"></div>
   </div>
@@ -13,6 +13,7 @@ import { markRaw, onMounted, onUnmounted, ref } from 'vue';
 import { World } from '../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../pixi_game2/pixigame-renderer/src/index.js';
 import { GameEntity } from '../../pixi_game2/pixigame/src/entities/GameEntity.js';
+import { MuzzleEntity } from '../../pixi_game2/pixigame/src/entities/MuzzleEntity.js';
 import { EntityController } from '../../pixi_game2/pixigame/src/EntityController.js';
 
 const canvasHost = ref(null);
@@ -21,6 +22,7 @@ let world = null;
 let canvas = null;
 let camera = null;
 let player = null;
+let muzzle = null;
 let controller = null;
 let rafId = null;
 let lastTime = performance.now();
@@ -83,7 +85,38 @@ onMounted(async () => {
     hasCollision: false
   }));
 
+  player.addSlot({
+    id: 'weapon_slot',
+    offset: { x: 30, y: 0 },
+    transformBehavior: 'follow_entity',
+    physicsMode: 'instant',
+    keyActionId: 'fire'
+  });
+
+  muzzle = markRaw(new MuzzleEntity({
+    id: 'weapon_muzzle',
+    direction: { x: 1, y: 0 },
+    directionMode: 'relative',
+    fireType: 'projectile',
+    fireRate: 8,
+    bulletSpeed: 600,
+    bulletRange: 800,
+    bulletSize: 6,
+    bulletColor: '#FFD700',
+    bulletPiercing: 1,
+    autoFire: true,
+    showDebug: false,
+    stats: { damage: 10 }
+  }));
+
+  muzzle._rootEntityId = player.id;
+
+  player.attachEntityToSlot(muzzle, 'weapon_slot');
+
   world.addEntity(player);
+  world.addEntity(muzzle);
+
+  world.projectileSystem.registerMuzzle(muzzle);
 
   controller = markRaw(new EntityController({
     id: 'player_controller',
@@ -95,8 +128,13 @@ onMounted(async () => {
       move_down: { primary: 'KeyS', secondary: 'ArrowDown' },
       move_left: { primary: 'KeyA', secondary: 'ArrowLeft' },
       move_right: { primary: 'KeyD', secondary: 'ArrowRight' }
+    },
+    keyActions: {
+      fire: 'Mouse0'
     }
   }));
+
+  window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
 
   startRenderLoop();
 });
@@ -107,8 +145,17 @@ function startRenderLoop() {
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
+    if (controller && muzzle) {
+      const isFiring = controller.isKeyActionActive('fire');
+      muzzle.setFiring(isFiring);
+    }
+
     if (controller) {
       controller.update(dt);
+    }
+
+    if (world) {
+      world.update(dt * 1000);
     }
 
     if (canvas) {
@@ -140,6 +187,7 @@ onUnmounted(() => {
   world = null;
   camera = null;
   player = null;
+  muzzle = null;
 });
 </script>
 
