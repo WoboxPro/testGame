@@ -15,7 +15,8 @@
 
     <div class="game-wrapper" :class="{ 'game-hidden': !gameStarted }">
       <div id="game-canvas-container" ref="canvasHost" class="canvas-container"/>
-      <button v-if="gameStarted" :class="['pause-btn']" @click="togglePause">{{ isPaused && !showUpgradeModal ? '▶ Resume' : '⏸ Pause' }}</button>
+      <button v-if="gameStarted" :class="['pause-btn']" @click="togglePause">{{ isPaused && !showUpgradeModal && !showBuildModal ? '▶ Resume' : '⏸ Pause' }}</button>
+      <button v-if="gameStarted" class="build-btn" @click="openBuildModal">+</button>
     </div>
     
     <!-- Upgrade Modal -->
@@ -42,6 +43,27 @@
         </div>
       </div>
     </div>
+
+    <!-- Build Modal -->
+    <div v-if="showBuildModal" class="modal-overlay" @click.self="closeBuildModal">
+      <div class="modal build-modal">
+        <div class="modal-header">
+          <h2>Build</h2>
+          <button class="close-btn" @click="closeBuildModal">✕</button>
+        </div>
+        <div class="build-options">
+          <div class="build-card" @click="selectTower">
+            <div class="build-icon tower-icon"></div>
+            <span class="build-name">Tower</span>
+            <div class="build-stats">
+              <div class="stat">Range: 150</div>
+              <div class="stat">Atk Speed: 1.0/sec</div>
+              <div class="stat">Damage: 10</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -56,6 +78,7 @@ import { EntityController } from '../../pixi_game2/pixigame/src/EntityController
 
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
+const showBuildModal = ref(false);
 const isPaused = ref(false);
 const showMainMenu = ref(true);
 const gameStarted = ref(false);
@@ -139,6 +162,25 @@ function updateUIHp() {
   }
 }
 
+function openBuildModal() {
+  isPaused.value = true;
+  showBuildModal.value = true;
+  window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => true };
+}
+
+function closeBuildModal() {
+  showBuildModal.value = false;
+  if (!showUpgradeModal.value) {
+    isPaused.value = false;
+    window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
+  }
+}
+
+function selectTower() {
+  console.log('Selected: Tower');
+  closeBuildModal();
+}
+
 function getExpForLevel(level) {
   if (level <= 50) {
     return level * 5;
@@ -173,7 +215,7 @@ function resumeGame() {
 }
 
 function togglePause() {
-  if (showUpgradeModal.value) return;
+  if (showUpgradeModal.value || showBuildModal.value) return;
   
   if (isPaused.value) {
     resumeGame();
@@ -600,6 +642,30 @@ onUnmounted(() => {
   background: rgba(79, 195, 247, 0.4);
 }
 
+.build-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: rgba(79, 195, 247, 0.2);
+  border: 1px solid #4fc3f7;
+  border-radius: 4px;
+  color: #4fc3f7;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.build-btn:hover {
+  background: rgba(79, 195, 247, 0.4);
+}
+
 .main-menu {
   position: fixed;
   top: 0;
@@ -776,5 +842,92 @@ onUnmounted(() => {
   font-size: 10px;
   font-family: 'Courier New', monospace;
   text-shadow: 1px 1px 0 #000;
+}
+
+.build-modal {
+  min-width: 280px;
+}
+
+.build-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(180deg, #1a1a2e 0%, #0a0a14 100%);
+  border-bottom: 3px solid #4fc3f7;
+  padding: 12px 16px;
+}
+
+.build-modal .modal-header h2 {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #4fc3f7;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #ffffff;
+}
+
+.build-options {
+  padding: 16px;
+}
+
+.build-card {
+  background: #1a1a2e;
+  border: 2px solid #3a3a5e;
+  padding: 16px;
+  cursor: pointer;
+  transition: none;
+  box-shadow: 2px 2px 0 #0a0a14;
+  text-align: left;
+}
+
+.build-card:hover {
+  background: #2a2a4e;
+  border-color: #4fc3f7;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #0a0a14;
+}
+
+.build-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+.tower-icon {
+  background: #4fc3f7;
+  border: 2px solid #ffffff;
+}
+
+.build-name {
+  display: block;
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.build-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.build-stats .stat {
+  color: #888;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
 }
 </style>
