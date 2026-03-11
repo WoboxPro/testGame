@@ -12,17 +12,7 @@
       </div>
     </div>
 
-    <!-- Game UI (always in DOM, hidden until game starts) -->
-    <header v-show="gameStarted" class="header">
-      <h1>Шутер Даун</h1>
-      <p class="hint">
-        WASD to move | Mouse to aim | Left Click to shoot | 
-        <span class="wave">Wave: <span id="wave-display">1</span></span> | 
-        <span class="level">Lv: <span id="level-display">1</span></span> | 
-        <span class="exp">EXP: <span id="exp-display">0</span>/<span id="exp-max-display">5</span></span> | 
-        <span class="hp">HP: <span id="hp-display">3</span>/3</span>
-      </p>
-    </header>
+
     <div class="game-wrapper" :class="{ 'game-hidden': !gameStarted }">
       <div id="game-canvas-container" ref="canvasHost" class="canvas-container"/>
       <button v-if="gameStarted" :class="['pause-btn']" @click="togglePause">{{ isPaused && !showUpgradeModal ? '▶ Resume' : '⏸ Pause' }}</button>
@@ -56,6 +46,7 @@
 </template>
 
 <script setup>
+import * as PIXI from 'pixi.js';
 import { markRaw, nextTick, onUnmounted, ref } from 'vue';
 import { World } from '../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../pixi_game2/pixigame-renderer/src/index.js';
@@ -89,6 +80,64 @@ const WAVE_DURATION = 30;
 const ENEMY_DAMAGE_COOLDOWN = 1000;
 
 let lastDamageTime = 0;
+
+let uiWaveText = null;
+let uiLevelText = null;
+let uiExpText = null;
+let uiHpText = null;
+
+function createUITexts() {
+  const styleWave = new PIXI.TextStyle({
+    fontFamily: 'Arial',
+    fontSize: 24,
+    fill: '#4fc3f7',
+    fontWeight: 'bold'
+  });
+  const styleStats = new PIXI.TextStyle({
+    fontFamily: 'Arial',
+    fontSize: 16,
+    fill: '#ffffff'
+  });
+
+  uiWaveText = new PIXI.Text({ text: 'Wave: 1', style: styleWave });
+  uiWaveText.anchor.set(0.5, 0);
+  uiWaveText.x = 400;
+  uiWaveText.y = 10;
+  canvas._uiOverlay.addChild(uiWaveText);
+
+  uiLevelText = new PIXI.Text({ text: 'Lv: 1', style: styleStats });
+  uiLevelText.anchor.set(0, 0);
+  uiLevelText.x = 10;
+  uiLevelText.y = 10;
+  canvas._uiOverlay.addChild(uiLevelText);
+
+  uiExpText = new PIXI.Text({ text: 'EXP: 0/5', style: styleStats });
+  uiExpText.anchor.set(0, 0);
+  uiExpText.x = 10;
+  uiExpText.y = 32;
+  canvas._uiOverlay.addChild(uiExpText);
+
+  uiHpText = new PIXI.Text({ text: 'HP: 3/3', style: styleStats });
+  uiHpText.anchor.set(0, 0);
+  uiHpText.x = 10;
+  uiHpText.y = 54;
+  canvas._uiOverlay.addChild(uiHpText);
+}
+
+function updateUIWave() {
+  if (uiWaveText) uiWaveText.text = `Wave: ${currentWave}`;
+}
+
+function updateUIExp() {
+  if (uiLevelText) uiLevelText.text = `Lv: ${playerLevel}`;
+  if (uiExpText) uiExpText.text = `EXP: ${playerExp}/${getExpForLevel(playerLevel)}`;
+}
+
+function updateUIHp() {
+  if (uiHpText && player) {
+    uiHpText.text = `HP: ${player.stats.hp.current}/${player.stats.hp.max}`;
+  }
+}
 
 function getExpForLevel(level) {
   if (level <= 50) {
@@ -135,13 +184,7 @@ function togglePause() {
 }
 
 function updateExpDisplay() {
-  const levelDisplay = document.getElementById('level-display');
-  const expDisplay = document.getElementById('exp-display');
-  const expMaxDisplay = document.getElementById('exp-max-display');
-  
-  if (levelDisplay) levelDisplay.textContent = playerLevel;
-  if (expDisplay) expDisplay.textContent = playerExp;
-  if (expMaxDisplay) expMaxDisplay.textContent = getExpForLevel(playerLevel);
+  updateUIExp();
 }
 
 function applyUpgrade(type) {
@@ -306,6 +349,8 @@ async function startGame() {
 
   window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
 
+  createUITexts();
+
   gameStarted.value = true;
   startRenderLoop();
 }
@@ -422,11 +467,7 @@ function checkEnemyPlayerCollision() {
       if (now - lastDamageTime >= ENEMY_DAMAGE_COOLDOWN) {
         lastDamageTime = now;
         player.takeDamage(1);
-        
-        const hpDisplay = document.getElementById('hp-display');
-        if (hpDisplay) {
-          hpDisplay.textContent = player.stats.hp.current;
-        }
+        updateUIHp();
         console.log(`💔 Player HP: ${player.stats.hp.current}/${player.stats.hp.max}`);
 
         if (player.stats.hp.current <= 0) {
@@ -462,10 +503,7 @@ function startRenderLoop() {
       if (waveTimer >= WAVE_DURATION) {
         waveTimer = 0;
         currentWave++;
-        const waveDisplay = document.getElementById('wave-display');
-        if (waveDisplay) {
-          waveDisplay.textContent = currentWave;
-        }
+        updateUIWave();
         console.log(`🌊 Wave ${currentWave} started! Enemy speed: ${getEnemySpeed()}`);
       }
 
@@ -499,6 +537,11 @@ onUnmounted(() => {
     controller = null;
   }
 
+  uiWaveText = null;
+  uiLevelText = null;
+  uiExpText = null;
+  uiHpText = null;
+
   if (canvas) {
     canvas.destroy();
     canvas = null;
@@ -519,43 +562,6 @@ onUnmounted(() => {
   min-height: 100vh;
   background: #0a0a14;
   padding: 20px;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.header h1 {
-  margin: 0 0 8px 0;
-  color: #4fc3f7;
-  font-size: 24px;
-}
-
-.hint {
-  margin: 0;
-  color: #666;
-  font-size: 14px;
-}
-
-.hint .wave {
-  color: #4fc3f7;
-  font-weight: bold;
-}
-
-.hint .level {
-  color: #ffd700;
-  font-weight: bold;
-}
-
-.hint .exp {
-  color: #99ff99;
-  font-weight: bold;
-}
-
-.hint .hp {
-  color: #ff6b6b;
-  font-weight: bold;
 }
 
 .game-wrapper {
