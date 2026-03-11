@@ -1,7 +1,20 @@
 <template>
   <div class="game1-page">
-    <header class="header">
-      <h1>Game1 - Top-Down Shooter</h1>
+    <!-- Main Menu -->
+    <div v-if="showMainMenu" class="main-menu">
+      <div class="menu-content">
+        <h1 class="game-title">ШУТЕР ДАУН</h1>
+        <p class="game-subtitle">Top-Down Survival Shooter</p>
+        <button class="start-btn" @click="startGame">НАЧАТЬ ИГРУ</button>
+        <div class="controls-hint">
+          <p>WASD - движение | Мышь - прицеливание | ЛКМ - стрельба</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game UI (always in DOM, hidden until game starts) -->
+    <header v-show="gameStarted" class="header">
+      <h1>Шутер Даун</h1>
       <p class="hint">
         WASD to move | Mouse to aim | Left Click to shoot | 
         <span class="wave">Wave: <span id="wave-display">1</span></span> | 
@@ -10,27 +23,28 @@
         <span class="hp">HP: <span id="hp-display">3</span>/3</span>
       </p>
     </header>
-    <div class="game-wrapper">
-      <div ref="canvasHost" class="canvas-container"></div>
-      <button @click="togglePause" class="pause-btn">{{ isPaused && !showUpgradeModal ? '▶ Resume' : '⏸ Pause' }}</button>
+    <div class="game-wrapper" :class="{ 'game-hidden': !gameStarted }">
+      <div id="game-canvas-container" ref="canvasHost" class="canvas-container"/>
+      <button v-if="gameStarted" :class="['pause-btn']" @click="togglePause">{{ isPaused && !showUpgradeModal ? '▶ Resume' : '⏸ Pause' }}</button>
     </div>
     
+    <!-- Upgrade Modal -->
     <div v-if="showUpgradeModal" class="modal-overlay">
       <div class="modal">
         <h2>Level Up!</h2>
         <p>Choose an upgrade:</p>
         <div class="upgrade-options">
-          <button @click="applyUpgrade('fireRate')" class="upgrade-btn">
+          <button class="upgrade-btn" @click="applyUpgrade('fireRate')">
             <span class="upgrade-icon">⚡</span>
             <span class="upgrade-name">Fire Rate</span>
             <span class="upgrade-desc">+0.5 shots/sec</span>
           </button>
-          <button @click="applyUpgrade('bulletSpeed')" class="upgrade-btn">
+          <button class="upgrade-btn" @click="applyUpgrade('bulletSpeed')">
             <span class="upgrade-icon">💨</span>
             <span class="upgrade-name">Bullet Speed</span>
             <span class="upgrade-desc">+30 speed</span>
           </button>
-          <button @click="applyUpgrade('bulletRange')" class="upgrade-btn">
+          <button class="upgrade-btn" @click="applyUpgrade('bulletRange')">
             <span class="upgrade-icon">🎯</span>
             <span class="upgrade-name">Bullet Range</span>
             <span class="upgrade-desc">+30 range</span>
@@ -42,7 +56,7 @@
 </template>
 
 <script setup>
-import { markRaw, onMounted, onUnmounted, ref } from 'vue';
+import { markRaw, nextTick, onUnmounted, ref } from 'vue';
 import { World } from '../../pixi_game2/pixigame/src/World.js';
 import { Canvas, Camera } from '../../pixi_game2/pixigame-renderer/src/index.js';
 import { GameEntity } from '../../pixi_game2/pixigame/src/entities/GameEntity.js';
@@ -52,6 +66,8 @@ import { EntityController } from '../../pixi_game2/pixigame/src/EntityController
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
 const isPaused = ref(false);
+const showMainMenu = ref(true);
+const gameStarted = ref(false);
 
 let world = null;
 let canvas = null;
@@ -144,6 +160,154 @@ function applyUpgrade(type) {
       break;
   }
   resumeGame();
+}
+
+async function startGame() {
+  showMainMenu.value = false;
+  
+  await nextTick();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  if (!canvasHost.value) {
+    console.error('canvasHost not found');
+    return;
+  }
+  
+  world = markRaw(new World({
+    id: 'game_world',
+    type: 'bounded',
+    width: 800,
+    height: 600,
+    backgroundColor: '#1a1a2e',
+    showBounds: true,
+    boundsColor: '#444466'
+  }));
+
+  canvas = markRaw(new Canvas({
+    id: 'game_canvas',
+    sizeMode: 'fixed',
+    width: 800,
+    height: 600,
+    backgroundColor: '#0a0a14',
+    antialias: false,
+    resolution: 1
+  }));
+
+  if (!canvasHost.value) {
+    console.error('canvasHost not ready');
+    return;
+  }
+
+  await canvas.start(canvasHost.value);
+
+  camera = markRaw(new Camera({
+    id: 'main_camera',
+    canvas,
+    world,
+    anchor: 'center',
+    width: 800,
+    height: 600,
+    x: 0,
+    y: 0,
+    focusX: 400,
+    focusY: 300,
+    zoom: 1,
+    minZoom: 0.5,
+    maxZoom: 2
+  }));
+
+  player = markRaw(new GameEntity({
+    id: 'player',
+    subtype: 'unit',
+    worldId: 'game_world',
+    position: { x: 400, y: 300 },
+    velocity: { x: 0, y: 0 },
+    movement: {
+      maxSpeed: 250,
+      acceleration: 800,
+      friction: 6
+    },
+    appearance: {
+      shape: 'circle',
+      color: 0x4fc3f7,
+      size: 25
+    },
+    hasCollision: true,
+    collisionType: 'unit',
+    collisionShape: 'circle',
+    collisionSize: 25,
+    statsSystem: true,
+    stats: {
+      hp: { current: 3, max: 3 }
+    },
+    deathBehavior: 'stay',
+    rotationBehavior: 'mouse',
+    rotationSpeed: 20
+  }));
+
+  player.addSlot({
+    id: 'weapon_slot',
+    offset: { x: 30, y: 0 },
+    transformBehavior: 'follow_entity',
+    physicsMode: 'instant',
+    keyActionId: 'fire'
+  });
+
+  muzzle = markRaw(new MuzzleEntity({
+    id: 'weapon_muzzle',
+    direction: { x: 1, y: 0 },
+    directionMode: 'relative',
+    fireType: 'projectile',
+    fireRate: 2,
+    bulletSpeed: 300,
+    bulletRange: 300,
+    bulletSize: 6,
+    bulletColor: '#FFD700',
+    bulletPiercing: 1,
+    autoFire: true,
+    showDebug: false,
+    stats: { damage: 10 }
+  }));
+
+  muzzle._rootEntityId = player.id;
+
+  player.attachEntityToSlot(muzzle, 'weapon_slot');
+
+  world.addEntity(player);
+  world.addEntity(muzzle);
+
+  world.projectileSystem.registerMuzzle(muzzle);
+
+  world.collisionSystem.addCollisionType('unit', { name: 'Unit', defaultShape: 'circle' });
+  world.collisionSystem.setCollisionRelation('projectile', 'unit', { block: false, trigger: true });
+  world.collisionSystem.setCollisionRelation('unit', 'unit', { block: true, trigger: false });
+
+  for (let i = 0; i < 3; i++) {
+    spawnEnemy();
+  }
+
+  controller = markRaw(new EntityController({
+    id: 'player_controller',
+    target: player,
+    targetId: 'player',
+    inputType: 'keyboard',
+    rotationMode: 'mouse',
+    aimCamera: () => camera,
+    bindings: {
+      move_up: { primary: 'KeyW', secondary: 'ArrowUp' },
+      move_down: { primary: 'KeyS', secondary: 'ArrowDown' },
+      move_left: { primary: 'KeyA', secondary: 'ArrowLeft' },
+      move_right: { primary: 'KeyD', secondary: 'ArrowRight' }
+    },
+    keyActions: {
+      fire: 'Mouse0'
+    }
+  }));
+
+  window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
+
+  gameStarted.value = true;
+  startRenderLoop();
 }
 
 function getEnemySpeed() {
@@ -273,138 +437,6 @@ function checkEnemyPlayerCollision() {
     }
   }
 }
-
-onMounted(async () => {
-  world = markRaw(new World({
-    id: 'game_world',
-    type: 'bounded',
-    width: 800,
-    height: 600,
-    backgroundColor: '#1a1a2e',
-    showBounds: true,
-    boundsColor: '#444466'
-  }));
-
-  canvas = markRaw(new Canvas({
-    id: 'game_canvas',
-    sizeMode: 'fixed',
-    width: 800,
-    height: 600,
-    backgroundColor: '#0a0a14',
-    antialias: false,
-    resolution: 1
-  }));
-
-  await canvas.start(canvasHost.value);
-
-  camera = markRaw(new Camera({
-    id: 'main_camera',
-    canvas,
-    world,
-    anchor: 'center',
-    width: 800,
-    height: 600,
-    x: 0,
-    y: 0,
-    focusX: 400,
-    focusY: 300,
-    zoom: 1,
-    minZoom: 0.5,
-    maxZoom: 2
-  }));
-
-  player = markRaw(new GameEntity({
-    id: 'player',
-    subtype: 'unit',
-    worldId: 'game_world',
-    position: { x: 400, y: 300 },
-    velocity: { x: 0, y: 0 },
-    movement: {
-      maxSpeed: 250,
-      acceleration: 800,
-      friction: 6
-    },
-    appearance: {
-      shape: 'circle',
-      color: 0x4fc3f7,
-      size: 25
-    },
-    hasCollision: true,
-    collisionType: 'unit',
-    collisionShape: 'circle',
-    collisionSize: 25,
-    statsSystem: true,
-    stats: {
-      hp: { current: 3, max: 3 }
-    },
-    deathBehavior: 'stay',
-    rotationBehavior: 'mouse',
-    rotationSpeed: 20
-  }));
-
-  player.addSlot({
-    id: 'weapon_slot',
-    offset: { x: 30, y: 0 },
-    transformBehavior: 'follow_entity',
-    physicsMode: 'instant',
-    keyActionId: 'fire'
-  });
-
-  muzzle = markRaw(new MuzzleEntity({
-    id: 'weapon_muzzle',
-    direction: { x: 1, y: 0 },
-    directionMode: 'relative',
-    fireType: 'projectile',
-    fireRate: 2,
-    bulletSpeed: 300,
-    bulletRange: 300,
-    bulletSize: 6,
-    bulletColor: '#FFD700',
-    bulletPiercing: 1,
-    autoFire: true,
-    showDebug: false,
-    stats: { damage: 10 }
-  }));
-
-  muzzle._rootEntityId = player.id;
-
-  player.attachEntityToSlot(muzzle, 'weapon_slot');
-
-  world.addEntity(player);
-  world.addEntity(muzzle);
-
-  world.projectileSystem.registerMuzzle(muzzle);
-
-  world.collisionSystem.addCollisionType('unit', { name: 'Unit', defaultShape: 'circle' });
-  world.collisionSystem.setCollisionRelation('projectile', 'unit', { block: false, trigger: true });
-  world.collisionSystem.setCollisionRelation('unit', 'unit', { block: true, trigger: false });
-
-  for (let i = 0; i < 3; i++) {
-    spawnEnemy();
-  }
-
-  controller = markRaw(new EntityController({
-    id: 'player_controller',
-    target: player,
-    targetId: 'player',
-    inputType: 'keyboard',
-    rotationMode: 'mouse',
-    aimCamera: () => camera,
-    bindings: {
-      move_up: { primary: 'KeyW', secondary: 'ArrowUp' },
-      move_down: { primary: 'KeyS', secondary: 'ArrowDown' },
-      move_left: { primary: 'KeyA', secondary: 'ArrowLeft' },
-      move_right: { primary: 'KeyD', secondary: 'ArrowRight' }
-    },
-    keyActions: {
-      fire: 'Mouse0'
-    }
-  }));
-
-  window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
-
-  startRenderLoop();
-});
 
 function startRenderLoop() {
   const loop = () => {
@@ -539,6 +571,11 @@ onUnmounted(() => {
   border: 2px solid #333;
 }
 
+.game-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .pause-btn {
   position: absolute;
   top: 10px;
@@ -555,6 +592,83 @@ onUnmounted(() => {
 
 .pause-btn:hover {
   background: rgba(79, 195, 247, 0.4);
+}
+
+.main-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #0a0a14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-content {
+  text-align: center;
+}
+
+.game-title {
+  font-family: 'Courier New', monospace;
+  font-size: 64px;
+  color: #4fc3f7;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  text-shadow: 4px 4px 0 #1a3a4a;
+  animation: title-pulse 2s ease-in-out infinite;
+}
+
+@keyframes title-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.game-subtitle {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 50px 0;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+}
+
+.start-btn {
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  padding: 14px 40px;
+  background: #1a1a2e;
+  border: 3px solid #4fc3f7;
+  color: #4fc3f7;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 #1a3a4a;
+  transition: none;
+}
+
+.start-btn:hover {
+  background: #2a2a4e;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #1a3a4a;
+}
+
+.start-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #1a3a4a;
+}
+
+.controls-hint {
+  margin-top: 40px;
+}
+
+.controls-hint p {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #444;
+  margin: 0;
 }
 
 .modal-overlay {
