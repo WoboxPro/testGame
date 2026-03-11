@@ -2,7 +2,7 @@
   <div class="game1-page">
     <header class="header">
       <h1>Game1 - Top-Down Shooter</h1>
-      <p class="hint">WASD to move | Mouse to aim | Left Click to shoot | <span class="hp">HP: <span id="hp-display">3</span>/3</span></p>
+      <p class="hint">WASD to move | Mouse to aim | Left Click to shoot | <span class="wave">Wave: <span id="wave-display">1</span></span> | <span class="hp">HP: <span id="hp-display">3</span>/3</span></p>
     </header>
     <div ref="canvasHost" class="canvas-container"></div>
   </div>
@@ -28,12 +28,20 @@ let rafId = null;
 let lastTime = performance.now();
 let enemyCounter = 0;
 let spawnTimer = 0;
+let currentWave = 1;
+let waveTimer = 0;
 const SPAWN_INTERVAL = 5;
 const MAX_ENEMIES = 15;
-const ENEMY_SPEED = 40;
+const WAVE_DURATION = 30;
 const ENEMY_DAMAGE_COOLDOWN = 1000;
 
 let lastDamageTime = 0;
+
+function getEnemySpeed() {
+  const baseSpeed = 40;
+  const speedIncrease = 10;
+  return baseSpeed + (currentWave - 1) * speedIncrease;
+}
 
 function spawnEnemy() {
   const margin = 50;
@@ -82,6 +90,7 @@ function updateEnemyMovement(dt) {
   if (!player || !world) return;
 
   const playerPos = player.position;
+  const enemySpeed = getEnemySpeed();
 
   for (const [, components] of world.entities) {
     const entityRef = components.get('_entityRef');
@@ -93,7 +102,7 @@ function updateEnemyMovement(dt) {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist > 0) {
-      const speed = ENEMY_SPEED * dt;
+      const speed = enemySpeed * dt;
       entityRef.position.x += (dx / dist) * speed;
       entityRef.position.y += (dy / dist) * speed;
     }
@@ -155,7 +164,7 @@ onMounted(async () => {
     width: 800,
     height: 600,
     backgroundColor: '#0a0a14',
-    antialias: true,
+    antialias: false,
     resolution: 1
   }));
 
@@ -290,6 +299,17 @@ function startRenderLoop() {
       checkEnemyPlayerCollision();
       world.update(dt * 1000);
 
+      waveTimer += dt;
+      if (waveTimer >= WAVE_DURATION) {
+        waveTimer = 0;
+        currentWave++;
+        const waveDisplay = document.getElementById('wave-display');
+        if (waveDisplay) {
+          waveDisplay.textContent = currentWave;
+        }
+        console.log(`🌊 Wave ${currentWave} started! Enemy speed: ${getEnemySpeed()}`);
+      }
+
       spawnTimer += dt;
       if (spawnTimer >= SPAWN_INTERVAL) {
         spawnTimer = 0;
@@ -357,6 +377,11 @@ onUnmounted(() => {
   margin: 0;
   color: #666;
   font-size: 14px;
+}
+
+.hint .wave {
+  color: #4fc3f7;
+  font-weight: bold;
 }
 
 .hint .hp {
