@@ -1,8 +1,8 @@
 <template>
   <div class="game1-page">
     <header class="header">
-      <h1>Game1 - WASD Movement + Shooting</h1>
-      <p class="hint">WASD to move | Left Mouse Button to shoot</p>
+      <h1>Game1 - Top-Down Shooter</h1>
+      <p class="hint">WASD to move | Mouse to aim | Left Click to shoot</p>
     </header>
     <div ref="canvasHost" class="canvas-container"></div>
   </div>
@@ -82,7 +82,9 @@ onMounted(async () => {
       color: 0x4fc3f7,
       size: 25
     },
-    hasCollision: false
+    hasCollision: false,
+    rotationBehavior: 'mouse',
+    rotationSpeed: 20
   }));
 
   player.addSlot({
@@ -118,11 +120,49 @@ onMounted(async () => {
 
   world.projectileSystem.registerMuzzle(muzzle);
 
+  world.collisionSystem.addCollisionType('enemy', { name: 'Enemy', defaultShape: 'circle' });
+  world.collisionSystem.setCollisionRelation('projectile', 'enemy', { block: false, trigger: true });
+
+  const enemyPositions = [
+    { x: 150, y: 150 },
+    { x: 650, y: 150 },
+    { x: 400, y: 500 }
+  ];
+
+  enemyPositions.forEach((pos, i) => {
+    const enemy = markRaw(new GameEntity({
+      id: `enemy_${i + 1}`,
+      subtype: 'enemy',
+      worldId: 'game_world',
+      position: { ...pos },
+      velocity: { x: 0, y: 0 },
+      movement: { maxSpeed: 0, acceleration: 0, friction: 0 },
+      appearance: {
+        shape: 'circle',
+        color: 0xff4444,
+        size: 20
+      },
+      hasCollision: true,
+      collisionType: 'enemy',
+      collisionShape: 'circle',
+      collisionSize: 20,
+      statsSystem: true,
+      stats: {
+        hp: { current: 1, max: 1 }
+      },
+      deathBehavior: 'stay'
+    }));
+
+    world.addEntity(enemy);
+  });
+
   controller = markRaw(new EntityController({
     id: 'player_controller',
     target: player,
     targetId: 'player',
     inputType: 'keyboard',
+    rotationMode: 'mouse',
+    aimCamera: () => camera,
     bindings: {
       move_up: { primary: 'KeyW', secondary: 'ArrowUp' },
       move_down: { primary: 'KeyS', secondary: 'ArrowDown' },
