@@ -10,7 +10,10 @@
         <span class="hp">HP: <span id="hp-display">3</span>/3</span>
       </p>
     </header>
-    <div ref="canvasHost" class="canvas-container"></div>
+    <div class="game-wrapper">
+      <div ref="canvasHost" class="canvas-container"></div>
+      <button @click="togglePause" class="pause-btn">{{ isPaused && !showUpgradeModal ? '▶ Resume' : '⏸ Pause' }}</button>
+    </div>
     
     <div v-if="showUpgradeModal" class="modal-overlay">
       <div class="modal">
@@ -48,6 +51,7 @@ import { EntityController } from '../../pixi_game2/pixigame/src/EntityController
 
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
+const isPaused = ref(false);
 
 let world = null;
 let canvas = null;
@@ -63,7 +67,6 @@ let currentWave = 1;
 let waveTimer = 0;
 let playerLevel = 1;
 let playerExp = 0;
-let isPaused = false;
 const SPAWN_INTERVAL = 5;
 const MAX_ENEMIES = 15;
 const WAVE_DURATION = 30;
@@ -93,15 +96,26 @@ function addExp(amount) {
 }
 
 function pauseGame() {
-  isPaused = true;
+  isPaused.value = true;
   showUpgradeModal.value = true;
   window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => true };
 }
 
 function resumeGame() {
-  isPaused = false;
+  isPaused.value = false;
   showUpgradeModal.value = false;
   window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
+}
+
+function togglePause() {
+  if (showUpgradeModal.value) return;
+  
+  if (isPaused.value) {
+    resumeGame();
+  } else {
+    isPaused.value = true;
+    window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => true };
+  }
 }
 
 function updateExpDisplay() {
@@ -398,16 +412,16 @@ function startRenderLoop() {
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
-    if (controller && muzzle) {
-      const isFiring = controller.isKeyActionActive('fire');
-      muzzle.setFiring(isFiring);
-    }
+    if (world && !isPaused.value) {
+      if (controller && muzzle) {
+        const isFiring = controller.isKeyActionActive('fire');
+        muzzle.setFiring(isFiring);
+      }
 
-    if (controller) {
-      controller.update(dt);
-    }
+      if (controller) {
+        controller.update(dt);
+      }
 
-    if (world && !isPaused) {
       updateEnemyMovement(dt);
       checkEnemyPlayerCollision();
       world.update(dt * 1000);
@@ -512,6 +526,10 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
+.game-wrapper {
+  position: relative;
+}
+
 .canvas-container {
   width: 800px;
   height: 600px;
@@ -519,6 +537,24 @@ onUnmounted(() => {
   border-radius: 8px;
   overflow: hidden;
   border: 2px solid #333;
+}
+
+.pause-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 8px 16px;
+  background: rgba(79, 195, 247, 0.2);
+  border: 1px solid #4fc3f7;
+  border-radius: 4px;
+  color: #4fc3f7;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pause-btn:hover {
+  background: rgba(79, 195, 247, 0.4);
 }
 
 .modal-overlay {
