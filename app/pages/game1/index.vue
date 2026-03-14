@@ -411,7 +411,7 @@ async function startGame() {
     sizeMode: 'fixed',
     width: 800,
     height: 600,
-    //backgroundColor: '#000000',
+    backgroundColor: '#000000',
     antialias: false,
     resolution: 1
   }));
