@@ -411,7 +411,7 @@ async function startGame() {
     sizeMode: 'fixed',
     width: 800,
     height: 600,
-    backgroundColor: '#000000',
+    //backgroundColor: '#000000',
     antialias: false,
     resolution: 1
   }));
@@ -436,7 +436,8 @@ async function startGame() {
     focusY: 300,
     zoom: 1,
     minZoom: 0.5,
-    maxZoom: 2
+    maxZoom: 2,
+    showBorder: false
   }));
 
   player = markRaw(new GameEntity({

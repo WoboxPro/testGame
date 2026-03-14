@@ -248,6 +248,30 @@
             </template>
           </div>
 
+          <div class="inspector__section">
+            <div class="inspector__section-title">Viewport Border</div>
+            <label class="field field--row">
+              <input type="checkbox" v-model="cameraUi.showBorder" @change="applySelectedCameraUi" />
+              <span class="field__label">Show border</span>
+            </label>
+            <template v-if="cameraUi.showBorder">
+              <label class="field">
+                <span class="field__label">Color</span>
+                <input class="field__input" type="color" v-model="cameraUi.borderColor" @input="applySelectedCameraUi" />
+              </label>
+              <div class="grid2">
+                <label class="field">
+                  <span class="field__label">Width</span>
+                  <input class="field__input" type="number" min="0" step="1" v-model.number="cameraUi.borderWidth" @input="applySelectedCameraUi" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Alpha</span>
+                  <input class="field__input" type="number" min="0" max="1" step="0.05" v-model.number="cameraUi.borderAlpha" @input="applySelectedCameraUi" />
+                </label>
+              </div>
+            </template>
+          </div>
+
           <div class="actions">
             <button class="btn" @click="focusCameraOnWorldCenter(selectedCamera.id)">🎯 Focus center</button>
           </div>
@@ -1035,7 +1059,20 @@ const selected = ref(null); // { type: 'world'|'canvas'|'camera'|'ui'|'region', 
 // Режим левой панели: 'hierarchy' (Game Settings) или 'general' (General Settings)
 const leftPanelMode = ref('hierarchy');
 
-const cameraUi = reactive({ zoom: 1, focusX: 0, focusY: 0, showMode: 'all', showRegions: true, showRegionBorders: true, showGameEntities: true, showUIEntities: true });
+const cameraUi = reactive({
+  zoom: 1,
+  focusX: 0,
+  focusY: 0,
+  showMode: 'all',
+  showRegions: true,
+  showRegionBorders: true,
+  showGameEntities: true,
+  showUIEntities: true,
+  showBorder: true,
+  borderColor: '#00FF00',
+  borderWidth: 2,
+  borderAlpha: 1.0
+});
 
 // 🔫 Muzzle UI state for inspector
 const muzzleUi = reactive({
@@ -1178,7 +1215,11 @@ const cameraForm = reactive({
   showRegions: true,
   showRegionBorders: true,
   showGameEntities: true,
-  showUIEntities: true
+  showUIEntities: true,
+  showBorder: true,
+  borderColor: '#00FF00',
+  borderWidth: 2,
+  borderAlpha: 1.0
 });
 
 const uiTextForm = reactive({
@@ -1714,6 +1755,10 @@ function createCameraFromForm() {
     priority: Number(cameraForm.priority) || 0,
     worldBackgroundColor: cameraForm.worldBackgroundColor || '#2a2a2a',
     followEntityId: cameraForm.followEntityId || null,
+    showBorder: cameraForm.showBorder !== false,
+    borderColor: cameraForm.borderColor || '#00FF00',
+    borderWidth: Number(cameraForm.borderWidth) || 2,
+    borderAlpha: Number.isFinite(cameraForm.borderAlpha) ? Number(cameraForm.borderAlpha) : 1.0,
     visibleTypes,
     world: worldModel.instance,
     canvas: canvasModel.instance
@@ -1833,6 +1878,10 @@ function syncCameraUiFromSelected() {
   cameraUi.zoom = Number(cam.zoom) || 1;
   cameraUi.focusX = Number(cam.focusX) || 0;
   cameraUi.focusY = Number(cam.focusY) || 0;
+  cameraUi.showBorder = cam.showBorder !== false;
+  cameraUi.borderColor = cam.borderColor || '#00FF00';
+  cameraUi.borderWidth = Number.isFinite(cam.borderWidth) ? cam.borderWidth : 2;
+  cameraUi.borderAlpha = Number.isFinite(cam.borderAlpha) ? cam.borderAlpha : 1.0;
 
   // Determine show mode based on visibleTypes
   const visibleTypes = cam.visibleTypes || [];
@@ -1896,6 +1945,11 @@ function applySelectedCameraUi() {
   const cam = selectedCamera.value.instance;
   cam.setZoom?.(cameraUi.zoom);
   cam.setFocus?.(cameraUi.focusX, cameraUi.focusY);
+
+  cam.showBorder = cameraUi.showBorder !== false;
+  cam.borderColor = cameraUi.borderColor || '#00FF00';
+  cam.borderWidth = Number(cameraUi.borderWidth) || 2;
+  cam.borderAlpha = Number.isFinite(cameraUi.borderAlpha) ? Number(cameraUi.borderAlpha) : 1.0;
 
   // Set visibility based on show mode
   if (cameraUi.showMode === 'all') {

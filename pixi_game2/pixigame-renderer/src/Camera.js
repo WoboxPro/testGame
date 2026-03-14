@@ -33,6 +33,12 @@ export class Camera {
     this.worldBackgroundColor = options.worldBackgroundColor || null;
     this.cameraBackgroundColor = options.cameraBackgroundColor || null;
 
+    // Viewport border (editor/debug)
+    this.showBorder = options.showBorder !== false;
+    this.borderColor = options.borderColor || '#00FF00';
+    this.borderWidth = Number.isFinite(options.borderWidth) ? Number(options.borderWidth) : 2;
+    this.borderAlpha = Number.isFinite(options.borderAlpha) ? Number(options.borderAlpha) : 1.0;
+
     // Following entity
     this.followEntityId = options.followEntityId || null;
 
@@ -407,7 +413,11 @@ export class Camera {
       focusY: this.focusY,
       zoom: this.zoom,
       priority: this.priority,
-      visibleTypes: this.visibleTypes
+      visibleTypes: this.visibleTypes,
+      showBorder: this.showBorder,
+      borderColor: this.borderColor,
+      borderWidth: this.borderWidth,
+      borderAlpha: this.borderAlpha
     };
   }
 }

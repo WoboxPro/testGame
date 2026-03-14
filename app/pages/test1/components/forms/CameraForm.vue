@@ -128,6 +128,32 @@
       </template>
     </div>
 
+    <div class="form__section">
+      <div class="form__section-title">Viewport Border</div>
+      <label class="field field--row">
+        <input type="checkbox" v-model="model.showBorder" />
+        <span class="field__label">Show camera border</span>
+      </label>
+
+      <template v-if="model.showBorder">
+        <label class="field">
+          <span class="field__label">Border Color</span>
+          <input class="field__input" type="color" v-model="model.borderColor" />
+        </label>
+
+        <div class="grid2">
+          <label class="field">
+            <span class="field__label">Border Width</span>
+            <input class="field__input" type="number" step="1" min="0" v-model.number="model.borderWidth" />
+          </label>
+          <label class="field">
+            <span class="field__label">Border Alpha</span>
+            <input class="field__input" type="number" step="0.05" min="0" max="1" v-model.number="model.borderAlpha" />
+          </label>
+        </div>
+      </template>
+    </div>
+
     <label class="field field--row">
       <input type="checkbox" v-model="model.createDefaultController" />
       <span class="field__label">Create default controller (5213 movement, Numpad +/- zoom, Tab to switch)</span>

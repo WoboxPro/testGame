@@ -1308,6 +1308,7 @@ export class Canvas {
     
     for (const camera of this.cameras.values()) {
       if (!camera._isInitialized) continue;
+      if (camera.showBorder === false) continue;
       
       const border = new PIXI.Graphics();
       
@@ -1323,9 +1324,10 @@ export class Canvas {
         border.rect(canvasX, canvasY, camera.width, camera.height);
       }
       
-      border.stroke({ 
-        color: '#00FF00', 
-        width: 2
+      border.stroke({
+        color: camera.borderColor || '#00FF00',
+        width: Number.isFinite(camera.borderWidth) ? camera.borderWidth : 2,
+        alpha: Number.isFinite(camera.borderAlpha) ? camera.borderAlpha : 1.0
       });
       
       this._cameraBordersLayer.addChild(border);
