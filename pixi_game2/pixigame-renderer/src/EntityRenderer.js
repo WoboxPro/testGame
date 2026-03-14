@@ -14,6 +14,9 @@ export class EntityRenderer {
     this._visionCache = new Map(); // Кеш для визуализации vision
     this._lightCache = new Map(); // Кеш для визуализации light (debug)
     this._tileGridCache = new Map(); // Кеш для визуализации тайловой сетки
+
+    // Cache textures by URL to avoid reloading and spammy Pixi warnings.
+    this._textureCache = new Map(); // textureUrl -> PIXI.Texture
   }
   
   renderEntities(camera, world, container) {
@@ -347,8 +350,10 @@ export class EntityRenderer {
     const shape = appearance.shape || 'circle';
 
     if (shape === 'sprite' && appearance.textureUrl) {
-      // Если есть анимации - создаем обычный sprite, текстура будет меняться в update
-      const sprite = new PIXI.Sprite(PIXI.Texture.from(appearance.textureUrl));
+      const texture = this._getTextureForUrl(appearance.textureUrl);
+      const sprite = new PIXI.Sprite(texture);
+      // Track the last assigned url ourselves (Pixi v8 may not keep .url stable)
+      sprite.__pixigameTextureUrl = appearance.textureUrl;
       sprite.anchor.set(0.5);
       return sprite;
     }
@@ -387,9 +392,10 @@ export class EntityRenderer {
   }
 
   _updateSprite(sprite, appearance, entityScale, world, animations) {
-    // Обновляем текстуру если она изменилась
-    if (appearance.textureUrl && sprite.texture.url !== appearance.textureUrl) {
-      sprite.texture = PIXI.Texture.from(appearance.textureUrl);
+    // Update texture only when URL changes (avoid per-frame reassignment).
+    if (appearance.textureUrl && sprite.__pixigameTextureUrl !== appearance.textureUrl) {
+      sprite.texture = this._getTextureForUrl(appearance.textureUrl);
+      sprite.__pixigameTextureUrl = appearance.textureUrl;
     }
 
     // Применяем appearance.scale как базовый масштаб, затем entity.scale
@@ -418,12 +424,24 @@ export class EntityRenderer {
       }
     } else {
       // Если анимации выключены, обновляем обычный спрайт
-      if (appearance.textureUrl && sprite.texture.url !== appearance.textureUrl) {
-        sprite.texture = PIXI.Texture.from(appearance.textureUrl);
+      if (appearance.textureUrl && sprite.__pixigameTextureUrl !== appearance.textureUrl) {
+        sprite.texture = this._getTextureForUrl(appearance.textureUrl);
+        sprite.__pixigameTextureUrl = appearance.textureUrl;
       }
     }
 
     sprite.anchor.set(0.5);
+  }
+
+  _getTextureForUrl(textureUrl) {
+    if (!textureUrl) return PIXI.Texture.WHITE;
+    const key = String(textureUrl);
+    let tex = this._textureCache.get(key);
+    if (!tex) {
+      tex = PIXI.Texture.from(key);
+      this._textureCache.set(key, tex);
+    }
+    return tex;
   }
 
   /**

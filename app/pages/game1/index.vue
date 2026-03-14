@@ -76,6 +76,12 @@ import { GameEntity } from '../../pixi_game2/pixigame/src/entities/GameEntity.js
 import { MuzzleEntity } from '../../pixi_game2/pixigame/src/entities/MuzzleEntity.js';
 import { EntityController } from '../../pixi_game2/pixigame/src/EntityController.js';
 
+// Enemy sprite (balloon)
+const RED_BLOON_URL = new URL('./src/img/red_bloon.png', import.meta.url).href;
+const RED_BLOON_SOURCE_SIZE = 1024; // png is 1024x1024
+const ENEMY_SPRITE_SIZE = 50; // desired on-screen size (px)
+const ENEMY_COLLISION_SIZE = 20; // keep as before (diameter, px)
+
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
 const showBuildModal = ref(false);
@@ -395,9 +401,9 @@ async function startGame() {
     type: 'bounded',
     width: 800,
     height: 600,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
     showBounds: true,
-    boundsColor: '#444466'
+    boundsColor: '#000000'
   }));
 
   canvas = markRaw(new Canvas({
@@ -405,7 +411,7 @@ async function startGame() {
     sizeMode: 'fixed',
     width: 800,
     height: 600,
-    backgroundColor: '#0a0a14',
+    backgroundColor: '#000000',
     antialias: false,
     resolution: 1
   }));
@@ -416,6 +422,13 @@ async function startGame() {
   }
 
   await canvas.start(canvasHost.value);
+
+  // Preload enemy sprite to avoid Pixi v8 Assets cache warnings.
+  try {
+    await PIXI.Assets.load(RED_BLOON_URL);
+  } catch (e) {
+    console.warn('Failed to preload red_bloon texture:', e);
+  }
 
   camera = markRaw(new Camera({
     id: 'main_camera',
@@ -569,14 +582,18 @@ function spawnEnemy() {
     velocity: { x: 0, y: 0 },
     movement: { maxSpeed: 0, acceleration: 0, friction: 0 },
     appearance: {
-      shape: 'circle',
-      color: 0xff4444,
-      size: 20
+      shape: 'sprite',
+      textureUrl: RED_BLOON_URL,
+      // Use size for culling / collision defaults
+      size: ENEMY_SPRITE_SIZE,
+      // Scale sprite down from source resolution
+      scale: ENEMY_SPRITE_SIZE / RED_BLOON_SOURCE_SIZE
     },
     hasCollision: true,
+    showCollisionBounds: false,
     collisionType: 'unit',
     collisionShape: 'circle',
-    collisionSize: 20,
+    collisionSize: ENEMY_COLLISION_SIZE,
     statsSystem: true,
     stats: {
       hp: { current: 1, max: 1 }
