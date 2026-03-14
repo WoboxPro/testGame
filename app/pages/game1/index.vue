@@ -104,6 +104,10 @@ const ENEMY_DAMAGE_COOLDOWN = 1000;
 
 let lastDamageTime = 0;
 
+let isBuildMode = false;
+let buildPreview = null;
+let towerCount = 0;
+
 let uiWaveText = null;
 let uiLevelText = null;
 let uiExpText = null;
@@ -177,8 +181,136 @@ function closeBuildModal() {
 }
 
 function selectTower() {
-  console.log('Selected: Tower');
   closeBuildModal();
+  isBuildMode = true;
+  createBuildPreview();
+}
+
+function createBuildPreview() {
+  const container = new PIXI.Container();
+  
+  const bg = new PIXI.Graphics();
+  bg.rect(-20, -20, 40, 40);
+  bg.fill({ color: 0x4fc3f7, alpha: 0.5 });
+  bg.stroke({ color: 0x4fc3f7, width: 2 });
+  container.addChild(bg);
+  
+  const rangeCircle = new PIXI.Graphics();
+  rangeCircle.circle(0, 0, 150);
+  rangeCircle.stroke({ color: 0x4fc3f7, alpha: 0.3, width: 1 });
+  container.addChild(rangeCircle);
+  
+  buildPreview = container;
+  buildPreview.visible = false;
+  canvas._uiOverlay.addChild(buildPreview);
+}
+
+function updateBuildPreview(screenX, screenY) {
+  if (!buildPreview || !camera) return;
+  
+  const worldPos = camera.screenToWorld(screenX, screenY);
+  buildPreview.x = screenX;
+  buildPreview.y = screenY;
+  buildPreview.visible = true;
+}
+
+function placeTower(screenX, screenY) {
+  if (!camera || !world) return;
+  
+  const worldPos = camera.screenToWorld(screenX, screenY);
+  
+  const tower = markRaw(new GameEntity({
+    id: `tower_${++towerCount}`,
+    subtype: 'tower',
+    worldId: 'game_world',
+    position: { x: worldPos.x, y: worldPos.y },
+    velocity: { x: 0, y: 0 },
+    movement: { maxSpeed: 0, acceleration: 0, friction: 0 },
+    appearance: {
+      shape: 'rect',
+      color: 0x4fc3f7,
+      size: 40
+    },
+    hasCollision: true,
+    collisionType: 'build',
+    collisionShape: 'rect',
+    collisionSize: 40,
+    deathBehavior: 'stay'
+  }));
+  
+  tower.range = 150;
+  tower.attackSpeed = 1.0;
+  tower.damage = 10;
+  tower.attackCooldown = 0;
+  
+  const towerMuzzle = markRaw(new MuzzleEntity({
+    id: `tower_muzzle_${towerCount}`,
+    worldId: 'game_world',
+    position: { x: worldPos.x, y: worldPos.y },
+    direction: { x: 1, y: 0 },
+    directionMode: 'absolute',
+    fireType: 'projectile',
+    fireRate: 1.0,
+    bulletSpeed: 300,
+    bulletRange: 150,
+    bulletSize: 5,
+    bulletColor: '#00FF00',
+    bulletPiercing: 1,
+    autoFire: true,
+    showDebug: false,
+    stats: { damage: 10 }
+  }));
+  
+  towerMuzzle._rootEntityId = tower.id;
+  world.addEntity(tower);
+  world.addEntity(towerMuzzle);
+  world.projectileSystem.registerMuzzle(towerMuzzle);
+  
+  tower.muzzle = towerMuzzle;
+  
+  cancelBuildMode();
+  console.log(`🏗️ Tower placed at (${Math.round(worldPos.x)}, ${Math.round(worldPos.y)})`);
+}
+
+function cancelBuildMode() {
+  isBuildMode = false;
+  if (buildPreview) {
+    buildPreview.destroy();
+    buildPreview = null;
+  }
+}
+
+function setupBuildEvents() {
+  const canvasEl = canvas.app.canvas;
+  
+  canvasEl.addEventListener('mousemove', (e) => {
+    if (!isBuildMode) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    updateBuildPreview(x, y);
+  });
+  
+  canvasEl.addEventListener('click', (e) => {
+    if (!isBuildMode) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    placeTower(x, y);
+  });
+  
+  canvasEl.addEventListener('contextmenu', (e) => {
+    if (isBuildMode) {
+      e.preventDefault();
+      cancelBuildMode();
+    }
+  });
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isBuildMode) {
+      cancelBuildMode();
+    }
+  });
 }
 
 function getExpForLevel(level) {
@@ -364,8 +496,11 @@ async function startGame() {
   world.projectileSystem.registerMuzzle(muzzle);
 
   world.collisionSystem.addCollisionType('unit', { name: 'Unit', defaultShape: 'circle' });
+  world.collisionSystem.addCollisionType('build', { name: 'Build', defaultShape: 'rect' });
   world.collisionSystem.setCollisionRelation('projectile', 'unit', { block: false, trigger: true });
+  world.collisionSystem.setCollisionRelation('projectile', 'build', { block: false, trigger: false });
   world.collisionSystem.setCollisionRelation('unit', 'unit', { block: true, trigger: false });
+  world.collisionSystem.setCollisionRelation('unit', 'build', { block: true, trigger: false });
 
   for (let i = 0; i < 3; i++) {
     spawnEnemy();
@@ -392,6 +527,7 @@ async function startGame() {
   window.timeSystem = { getTimeScale: () => 1.0, isPaused: () => false };
 
   createUITexts();
+  setupBuildEvents();
 
   gameStarted.value = true;
   startRenderLoop();
@@ -521,6 +657,54 @@ function checkEnemyPlayerCollision() {
   }
 }
 
+function updateTowers(dt) {
+  if (!world) return;
+  
+  for (const [, components] of world.entities) {
+    const entityRef = components.get('_entityRef');
+    if (entityRef?.subtype !== 'tower') continue;
+    
+    const tower = entityRef;
+    const towerPos = tower.position;
+    const range = tower.range || 150;
+    const muzzle = tower.muzzle;
+    
+    if (!muzzle) continue;
+    
+    let nearestEnemy = null;
+    let nearestDist = Infinity;
+    
+    for (const [, enemyComponents] of world.entities) {
+      const enemyRef = enemyComponents.get('_entityRef');
+      if (enemyRef?.subtype !== 'enemy' || enemyRef._isDead) continue;
+      
+      const enemyPos = enemyRef.position;
+      const dx = enemyPos.x - towerPos.x;
+      const dy = enemyPos.y - towerPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist <= range && dist < nearestDist) {
+        nearestDist = dist;
+        nearestEnemy = enemyRef;
+      }
+    }
+    
+    if (nearestEnemy) {
+      const dx = nearestEnemy.position.x - towerPos.x;
+      const dy = nearestEnemy.position.y - towerPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > 0) {
+        muzzle.direction = { x: dx / dist, y: dy / dist };
+        muzzle.position = { x: towerPos.x, y: towerPos.y };
+        muzzle.setFiring(true);
+      }
+    } else {
+      muzzle.setFiring(false);
+    }
+  }
+}
+
 function startRenderLoop() {
   const loop = () => {
     const now = performance.now();
@@ -528,7 +712,7 @@ function startRenderLoop() {
     lastTime = now;
 
     if (world && !isPaused.value) {
-      if (controller && muzzle) {
+      if (controller && muzzle && !isBuildMode) {
         const isFiring = controller.isKeyActionActive('fire');
         muzzle.setFiring(isFiring);
       }
@@ -539,6 +723,7 @@ function startRenderLoop() {
 
       updateEnemyMovement(dt);
       checkEnemyPlayerCollision();
+      updateTowers(dt);
       world.update(dt * 1000);
 
       waveTimer += dt;
@@ -577,6 +762,11 @@ onUnmounted(() => {
   if (controller) {
     controller.destroy();
     controller = null;
+  }
+
+  if (buildPreview) {
+    buildPreview.destroy();
+    buildPreview = null;
   }
 
   uiWaveText = null;
