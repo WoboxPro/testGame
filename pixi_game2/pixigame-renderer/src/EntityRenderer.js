@@ -15,8 +15,13 @@ export class EntityRenderer {
     this._lightCache = new Map(); // Кеш для визуализации light (debug)
     this._tileGridCache = new Map(); // Кеш для визуализации тайловой сетки
 
-    // Cache textures by URL to avoid reloading and spammy Pixi warnings.
+    // Texture loading/caching:
+    // - keep one texture per URL
+    // - auto-preload via PIXI.Assets on first use
+    // - update any sprites waiting for a URL once it loads
     this._textureCache = new Map(); // textureUrl -> PIXI.Texture
+    this._textureLoadPromises = new Map(); // textureUrl -> Promise<PIXI.Texture>
+    this._textureWaiters = new Map(); // textureUrl -> Set<PIXI.Sprite>
   }
   
   renderEntities(camera, world, container) {
@@ -350,9 +355,10 @@ export class EntityRenderer {
     const shape = appearance.shape || 'circle';
 
     if (shape === 'sprite' && appearance.textureUrl) {
-      const texture = this._getTextureForUrl(appearance.textureUrl);
-      const sprite = new PIXI.Sprite(texture);
-      // Track the last assigned url ourselves (Pixi v8 may not keep .url stable)
+      const sprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+      // Trigger auto-load and use cached texture when ready.
+      const texture = this._getOrLoadTextureForUrl(appearance.textureUrl, sprite);
+      sprite.texture = texture;
       sprite.__pixigameTextureUrl = appearance.textureUrl;
       sprite.anchor.set(0.5);
       return sprite;
@@ -394,7 +400,7 @@ export class EntityRenderer {
   _updateSprite(sprite, appearance, entityScale, world, animations) {
     // Update texture only when URL changes (avoid per-frame reassignment).
     if (appearance.textureUrl && sprite.__pixigameTextureUrl !== appearance.textureUrl) {
-      sprite.texture = this._getTextureForUrl(appearance.textureUrl);
+      sprite.texture = this._getOrLoadTextureForUrl(appearance.textureUrl, sprite);
       sprite.__pixigameTextureUrl = appearance.textureUrl;
     }
 
@@ -425,7 +431,7 @@ export class EntityRenderer {
     } else {
       // Если анимации выключены, обновляем обычный спрайт
       if (appearance.textureUrl && sprite.__pixigameTextureUrl !== appearance.textureUrl) {
-        sprite.texture = this._getTextureForUrl(appearance.textureUrl);
+        sprite.texture = this._getOrLoadTextureForUrl(appearance.textureUrl, sprite);
         sprite.__pixigameTextureUrl = appearance.textureUrl;
       }
     }
@@ -433,15 +439,71 @@ export class EntityRenderer {
     sprite.anchor.set(0.5);
   }
 
-  _getTextureForUrl(textureUrl) {
+  _getOrLoadTextureForUrl(textureUrl, sprite = null) {
     if (!textureUrl) return PIXI.Texture.WHITE;
     const key = String(textureUrl);
-    let tex = this._textureCache.get(key);
-    if (!tex) {
-      tex = PIXI.Texture.from(key);
-      this._textureCache.set(key, tex);
+
+    const cached = this._textureCache.get(key);
+    if (cached) return cached;
+
+    // Register waiter sprite to update once texture loads
+    if (sprite) {
+      let waiters = this._textureWaiters.get(key);
+      if (!waiters) {
+        waiters = new Set();
+        this._textureWaiters.set(key, waiters);
+      }
+      waiters.add(sprite);
     }
-    return tex;
+
+    // Start loading once
+    if (!this._textureLoadPromises.has(key)) {
+      const p = (PIXI.Assets?.load ? PIXI.Assets.load(key) : Promise.resolve(null))
+        .then((asset) => {
+          // For images, Pixi returns a Texture. If not, fall back.
+          const tex = asset instanceof PIXI.Texture ? asset : PIXI.Texture.from(key);
+          this._textureCache.set(key, tex);
+
+          const waiters = this._textureWaiters.get(key);
+          if (waiters) {
+            for (const spr of waiters) {
+              if (!spr || spr.destroyed) continue;
+              spr.texture = tex;
+              spr.__pixigameTextureUrl = key;
+            }
+            waiters.clear();
+            this._textureWaiters.delete(key);
+          }
+
+          return tex;
+        })
+        .catch((err) => {
+          // Fallback: still create texture (may log one warning once), but don't crash.
+          try {
+            const tex = PIXI.Texture.from(key);
+            this._textureCache.set(key, tex);
+            const waiters = this._textureWaiters.get(key);
+            if (waiters) {
+              for (const spr of waiters) {
+                if (!spr || spr.destroyed) continue;
+                spr.texture = tex;
+                spr.__pixigameTextureUrl = key;
+              }
+              waiters.clear();
+              this._textureWaiters.delete(key);
+            }
+            return tex;
+          } catch (_) {
+            console.warn('[EntityRenderer] Failed to load texture:', key, err);
+            return PIXI.Texture.WHITE;
+          }
+        });
+
+      this._textureLoadPromises.set(key, p);
+    }
+
+    // Placeholder until the async load completes
+    return PIXI.Texture.WHITE;
   }
 
   /**
@@ -1304,6 +1366,13 @@ export class EntityRenderer {
       tileGridGraphics.destroy({ children: true });
     }
     this._tileGridCache.clear();
+
+    // Clear pending waiters/promises (textures can stay cached and reused)
+    for (const waiters of this._textureWaiters.values()) {
+      waiters.clear();
+    }
+    this._textureWaiters.clear();
+    this._textureLoadPromises.clear();
   }
 
   /**

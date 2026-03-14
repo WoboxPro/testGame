@@ -423,13 +423,6 @@ async function startGame() {
 
   await canvas.start(canvasHost.value);
 
-  // Preload enemy sprite to avoid Pixi v8 Assets cache warnings.
-  try {
-    await PIXI.Assets.load(RED_BLOON_URL);
-  } catch (e) {
-    console.warn('Failed to preload red_bloon texture:', e);
-  }
-
   camera = markRaw(new Camera({
     id: 'main_camera',
     canvas,
