@@ -140,10 +140,20 @@ function createUITexts() {
     fill: '#4fc3f7',
     fontWeight: 'bold'
   });
-  const styleStats = new PIXI.TextStyle({
+  const styleLevel = new PIXI.TextStyle({
     fontFamily: 'Arial',
     fontSize: 16,
     fill: '#ffffff'
+  });
+  const styleExp = new PIXI.TextStyle({
+    fontFamily: 'Arial',
+    fontSize: 16,
+    fill: '#4fc3f7'
+  });
+  const styleHp = new PIXI.TextStyle({
+    fontFamily: 'Arial',
+    fontSize: 16,
+    fill: '#ff4d4d'
   });
 
   uiWaveText = new PIXI.Text({ text: 'Wave: 1', style: styleWave });
@@ -152,19 +162,19 @@ function createUITexts() {
   uiWaveText.y = 10;
   canvas._uiOverlay.addChild(uiWaveText);
 
-  uiLevelText = new PIXI.Text({ text: 'Lv: 1', style: styleStats });
+  uiLevelText = new PIXI.Text({ text: 'Lv: 1', style: styleLevel });
   uiLevelText.anchor.set(0, 0);
   uiLevelText.x = 10;
   uiLevelText.y = 10;
   canvas._uiOverlay.addChild(uiLevelText);
 
-  uiExpText = new PIXI.Text({ text: 'EXP: 0/5', style: styleStats });
+  uiExpText = new PIXI.Text({ text: 'EXP: 0/5', style: styleExp });
   uiExpText.anchor.set(0, 0);
   uiExpText.x = 10;
   uiExpText.y = 32;
   canvas._uiOverlay.addChild(uiExpText);
 
-  uiHpText = new PIXI.Text({ text: 'HP: 3/3', style: styleStats });
+  uiHpText = new PIXI.Text({ text: 'HP: 3/3', style: styleHp });
   uiHpText.anchor.set(0, 0);
   uiHpText.x = 10;
   uiHpText.y = 54;
