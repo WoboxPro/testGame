@@ -93,6 +93,9 @@ const TOWER_URL = new URL('./src/img/tower1.png', import.meta.url).href;
 const TOWER_SOURCE_SIZE = 860;
 const TOWER_SPRITE_SIZE = 50;
 
+// World terrain texture
+const TERRAIN_URL = new URL('./src/img/terrain.png', import.meta.url).href;
+
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
 const showBuildModal = ref(false);
@@ -414,6 +417,13 @@ async function startGame() {
     width: 800,
     height: 600,
     backgroundColor: '#000000',
+    backgroundTexture: {
+      textureUrl: TERRAIN_URL,
+      scaleMode: 'tile',
+      sizeMode: 'dimensions',
+      width: 150,
+      height: 150
+    },
     showBounds: true,
     boundsColor: '#000000'
   }));
@@ -459,7 +469,7 @@ async function startGame() {
     position: { x: 400, y: 300 },
     velocity: { x: 0, y: 0 },
     movement: {
-      maxSpeed: 250,
+      maxSpeed: 100,
       acceleration: 800,
       friction: 6
     },

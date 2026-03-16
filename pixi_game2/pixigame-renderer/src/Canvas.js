@@ -51,6 +51,10 @@ export class Canvas {
     // Lighting caches (per camera)
     // key: camera.id -> { darkContainer, ambientGfx, globalGfx, maskRt, maskSprite, maskContainer, maskBg, lightHoles, tintContainer, tintLights, lastSizeKey, lastGlobalKey }
     this._lightingCache = new Map();
+    // Background/region texture caches
+    this._textureCache = new Map(); // textureUrl -> PIXI.Texture
+    this._textureLoadPromises = new Map(); // textureUrl -> Promise<PIXI.Texture | null>
+    this._failedTextureUrls = new Set(); // textureUrl
 
     console.log(`🖼️ Canvas создан: ${this.id}, mode=${this.sizeMode}`);
   }
@@ -798,9 +802,10 @@ export class Canvas {
     const textureUrl = regionType.groundTexture.textureUrl;
     const scaleMode = regionType.groundTexture.scaleMode || 'tile';
     const tint = regionType.groundTexture.tint;
+    const texture = this._getOrLoadTextureForUrl(textureUrl);
+    if (!texture) return;
 
     if (scaleMode === 'tile') {
-      const texture = PIXI.Texture.from(textureUrl);
       const tilingSprite = new PIXI.TilingSprite({
         texture,
         width: bounds.width,
@@ -816,7 +821,7 @@ export class Canvas {
 
       camera.worldBackgroundLayer.addChild(tilingSprite);
     } else if (scaleMode === 'stretch') {
-      const sprite = PIXI.Sprite.from(textureUrl);
+      const sprite = new PIXI.Sprite(texture);
 
       if (tint) {
         try { sprite.tint = tint; } catch (_) {}
@@ -829,7 +834,7 @@ export class Canvas {
 
       camera.worldBackgroundLayer.addChild(sprite);
     } else if (scaleMode === 'center') {
-      const sprite = PIXI.Sprite.from(textureUrl);
+      const sprite = new PIXI.Sprite(texture);
 
       if (tint) {
         try { sprite.tint = tint; } catch (_) {}
@@ -985,16 +990,17 @@ export class Canvas {
     const textureUrl = bgTexture.textureUrl;
     const scaleMode = bgTexture.scaleMode || 'tile';
     const tint = bgTexture.tint;
+    const texture = this._getOrLoadTextureForUrl(textureUrl);
+    if (!texture) return;
 
     if (scaleMode === 'tile' && world.type === 'infinite') {
       // Для бесконечного мира используем шейдер с бесконечным тайлингом
-      this._renderInfiniteTextureWithShader(camera, textureUrl, tint);
+      this._renderInfiniteTextureWithShader(camera, texture, tint);
       return;
     }
 
     // Для bounded мира или других scaleMode используем старый подход
     if (scaleMode === 'tile') {
-      const texture = PIXI.Texture.from(textureUrl);
       const tilingSprite = new PIXI.TilingSprite({
         texture,
         width: world.width,
@@ -1012,7 +1018,7 @@ export class Canvas {
 
       camera.worldBackgroundLayer.addChild(tilingSprite);
     } else if (scaleMode === 'stretch') {
-      const sprite = PIXI.Sprite.from(textureUrl);
+      const sprite = new PIXI.Sprite(texture);
 
       if (tint) {
         try { sprite.tint = tint; } catch (_) {}
@@ -1033,7 +1039,7 @@ export class Canvas {
 
       camera.worldBackgroundLayer.addChild(sprite);
     } else if (scaleMode === 'center') {
-      const sprite = PIXI.Sprite.from(textureUrl);
+      const sprite = new PIXI.Sprite(texture);
 
       if (tint) {
         try { sprite.tint = tint; } catch (_) {}
@@ -1057,9 +1063,8 @@ export class Canvas {
     }
   }
 
-  _renderInfiniteTextureWithShader(camera, textureUrl, tint) {
+  _renderInfiniteTextureWithShader(camera, texture, tint) {
     // Создаём TilingSprite с огромным размером
-    const texture = PIXI.Texture.from(textureUrl);
     const size = 100000;
 
     const tilingSprite = new PIXI.TilingSprite({
@@ -1085,6 +1090,38 @@ export class Canvas {
     }
 
     camera.worldBackgroundLayer.addChild(tilingSprite);
+  }
+
+  _getOrLoadTextureForUrl(textureUrl) {
+    if (!textureUrl) return null;
+    const key = String(textureUrl);
+
+    const cached = this._textureCache.get(key);
+    if (cached) return cached;
+    if (this._failedTextureUrls.has(key)) return null;
+
+    // Start loading only once. Until loaded, simply skip rendering this texture.
+    if (!this._textureLoadPromises.has(key)) {
+      const p = (PIXI.Assets?.load ? PIXI.Assets.load(key) : Promise.resolve(null))
+        .then((asset) => {
+          const tex = asset instanceof PIXI.Texture ? asset : null;
+          if (tex) {
+            this._textureCache.set(key, tex);
+            return tex;
+          }
+          this._failedTextureUrls.add(key);
+          return null;
+        })
+        .catch((err) => {
+          this._failedTextureUrls.add(key);
+          console.warn('[Canvas] Failed to load texture:', key, err);
+          return null;
+        });
+
+      this._textureLoadPromises.set(key, p);
+    }
+
+    return null;
   }
 
   _getTextureScaleFactors(bgTexture, texture) {
@@ -1517,6 +1554,9 @@ export class Canvas {
       try { cache.graphics?.destroy?.({ children: true }); } catch (_) {}
     }
     this._hexGridCache.clear();
+    this._textureCache.clear();
+    this._textureLoadPromises.clear();
+    this._failedTextureUrls.clear();
 
     // Clean up all UI cache
     for (const [key, obj] of this.uiDisplayCache) {
