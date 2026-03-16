@@ -43,6 +43,30 @@
         <input class="field__input" v-model.trim="model.tint" placeholder="#ffffff" />
       </label>
     </div>
+    <div class="grid2" v-if="model.textureUrl">
+      <label class="field">
+        <span class="field__label">Texture Size Mode</span>
+        <select class="field__input" v-model="model.textureSizeMode">
+          <option value="none">default size</option>
+          <option value="scale">scale</option>
+          <option value="dimensions">width / height</option>
+        </select>
+      </label>
+      <div class="field" v-if="model.textureSizeMode === 'scale'">
+        <span class="field__label">Texture Scale</span>
+        <input class="field__input" type="number" min="0.01" step="0.01" v-model.number="model.textureScale" />
+      </div>
+      <div class="grid2" v-else-if="model.textureSizeMode === 'dimensions'">
+        <label class="field">
+          <span class="field__label">Sprite Width</span>
+          <input class="field__input" type="number" min="1" v-model.number="model.textureWidth" />
+        </label>
+        <label class="field">
+          <span class="field__label">Sprite Height</span>
+          <input class="field__input" type="number" min="1" v-model.number="model.textureHeight" />
+        </label>
+      </div>
+    </div>
     <label class="field field--row">
       <input type="checkbox" v-model="model.showBounds" />
       <span class="field__label">Show world bounds</span>

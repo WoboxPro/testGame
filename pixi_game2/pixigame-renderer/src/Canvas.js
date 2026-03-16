@@ -1004,6 +1004,8 @@ export class Canvas {
       if (tint) {
         try { tilingSprite.tint = tint; } catch (_) {}
       }
+      const { scaleX, scaleY } = this._getTextureScaleFactors(bgTexture, texture);
+      tilingSprite.tileScale.set(scaleX, scaleY);
 
       tilingSprite.x = 0;
       tilingSprite.y = 0;
@@ -1016,17 +1018,18 @@ export class Canvas {
         try { sprite.tint = tint; } catch (_) {}
       }
 
+      let targetRect;
       if (world.type === 'bounded') {
-        sprite.x = 0;
-        sprite.y = 0;
-        sprite.width = world.width;
-        sprite.height = world.height;
+        targetRect = { x: 0, y: 0, width: world.width, height: world.height };
       } else {
-        sprite.x = bounds.minX;
-        sprite.y = bounds.minY;
-        sprite.width = bounds.maxX - bounds.minX;
-        sprite.height = bounds.maxY - bounds.minY;
+        targetRect = {
+          x: bounds.minX,
+          y: bounds.minY,
+          width: bounds.maxX - bounds.minX,
+          height: bounds.maxY - bounds.minY
+        };
       }
+      this._applyTextureSizingToSprite(sprite, bgTexture, targetRect);
 
       camera.worldBackgroundLayer.addChild(sprite);
     } else if (scaleMode === 'center') {
@@ -1038,13 +1041,16 @@ export class Canvas {
 
       const texWidth = sprite.texture.width;
       const texHeight = sprite.texture.height;
+      const { width: finalWidth, height: finalHeight } = this._resolveTextureTargetSize(bgTexture, texWidth, texHeight);
+      sprite.width = finalWidth;
+      sprite.height = finalHeight;
 
       if (world.type === 'bounded') {
-        sprite.x = (world.width - texWidth) / 2;
-        sprite.y = (world.height - texHeight) / 2;
+        sprite.x = (world.width - finalWidth) / 2;
+        sprite.y = (world.height - finalHeight) / 2;
       } else {
-        sprite.x = (bounds.minX + bounds.maxX - texWidth) / 2;
-        sprite.y = (bounds.minY + bounds.maxY - texHeight) / 2;
+        sprite.x = (bounds.minX + bounds.maxX - finalWidth) / 2;
+        sprite.y = (bounds.minY + bounds.maxY - finalHeight) / 2;
       }
 
       camera.worldBackgroundLayer.addChild(sprite);
@@ -1070,6 +1076,8 @@ export class Canvas {
     // Сбрасываем tilePosition чтобы текстура была зафиксирована
     tilingSprite.tilePosition.x = 0;
     tilingSprite.tilePosition.y = 0;
+    const { scaleX, scaleY } = this._getTextureScaleFactors(camera.world?.backgroundTexture, texture);
+    tilingSprite.tileScale.set(scaleX, scaleY);
 
     // Применяем tint если указан
     if (tint) {
@@ -1077,6 +1085,74 @@ export class Canvas {
     }
 
     camera.worldBackgroundLayer.addChild(tilingSprite);
+  }
+
+  _getTextureScaleFactors(bgTexture, texture) {
+    const sizeMode = bgTexture?.sizeMode || 'none';
+    if (sizeMode === 'scale') {
+      const uniformScale = Number(bgTexture?.scale);
+      const safeScale = Number.isFinite(uniformScale) && uniformScale > 0 ? uniformScale : 1;
+      return { scaleX: safeScale, scaleY: safeScale };
+    }
+
+    if (sizeMode === 'dimensions') {
+      const texWidth = Number(texture?.width) || 1;
+      const texHeight = Number(texture?.height) || 1;
+      const targetWidth = Number(bgTexture?.width);
+      const targetHeight = Number(bgTexture?.height);
+      const scaleX = Number.isFinite(targetWidth) && targetWidth > 0 ? targetWidth / texWidth : 1;
+      const scaleY = Number.isFinite(targetHeight) && targetHeight > 0 ? targetHeight / texHeight : 1;
+      return { scaleX, scaleY };
+    }
+
+    return { scaleX: 1, scaleY: 1 };
+  }
+
+  _resolveTextureTargetSize(bgTexture, baseWidth, baseHeight) {
+    const safeBaseWidth = Number(baseWidth) > 0 ? Number(baseWidth) : 1;
+    const safeBaseHeight = Number(baseHeight) > 0 ? Number(baseHeight) : 1;
+    const sizeMode = bgTexture?.sizeMode || 'none';
+
+    if (sizeMode === 'scale') {
+      const uniformScale = Number(bgTexture?.scale);
+      const safeScale = Number.isFinite(uniformScale) && uniformScale > 0 ? uniformScale : 1;
+      return {
+        width: safeBaseWidth * safeScale,
+        height: safeBaseHeight * safeScale
+      };
+    }
+
+    if (sizeMode === 'dimensions') {
+      const customWidth = Number(bgTexture?.width);
+      const customHeight = Number(bgTexture?.height);
+      return {
+        width: Number.isFinite(customWidth) && customWidth > 0 ? customWidth : safeBaseWidth,
+        height: Number.isFinite(customHeight) && customHeight > 0 ? customHeight : safeBaseHeight
+      };
+    }
+
+    return { width: safeBaseWidth, height: safeBaseHeight };
+  }
+
+  _applyTextureSizingToSprite(sprite, bgTexture, targetRect) {
+    if (!sprite || !targetRect) return;
+
+    const sizeMode = bgTexture?.sizeMode || 'none';
+    if (sizeMode === 'none') {
+      sprite.x = targetRect.x;
+      sprite.y = targetRect.y;
+      sprite.width = targetRect.width;
+      sprite.height = targetRect.height;
+      return;
+    }
+
+    const texWidth = Number(sprite.texture?.width) || targetRect.width || 1;
+    const texHeight = Number(sprite.texture?.height) || targetRect.height || 1;
+    const { width, height } = this._resolveTextureTargetSize(bgTexture, texWidth, texHeight);
+    sprite.width = width;
+    sprite.height = height;
+    sprite.x = targetRect.x + (targetRect.width - width) / 2;
+    sprite.y = targetRect.y + (targetRect.height - height) / 2;
   }
   
   _renderCameraBackground(camera) {

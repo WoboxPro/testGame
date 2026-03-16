@@ -31,10 +31,18 @@ export class World {
      *   - 'stretch': растянуть на весь мир (bounded) или вьюпорт (infinite)
      *   - 'tile': замостить повторением
      *   - 'center': центрировать
+     * - sizeMode определяет дополнительное масштабирование самой текстуры:
+     *   - 'none': исходный размер
+     *   - 'scale': равномерный scale
+     *   - 'dimensions': задать width/height
      */
     this.backgroundTexture = {
       textureUrl: options.backgroundTexture?.textureUrl || null,
       scaleMode: options.backgroundTexture?.scaleMode || 'tile',
+      sizeMode: options.backgroundTexture?.sizeMode || 'none',
+      scale: Number.isFinite(Number(options.backgroundTexture?.scale)) ? Number(options.backgroundTexture?.scale) : 1,
+      width: Number.isFinite(Number(options.backgroundTexture?.width)) ? Number(options.backgroundTexture?.width) : null,
+      height: Number.isFinite(Number(options.backgroundTexture?.height)) ? Number(options.backgroundTexture?.height) : null,
       tint: options.backgroundTexture?.tint || null
     };
 

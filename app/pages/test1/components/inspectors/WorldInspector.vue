@@ -9,6 +9,9 @@
       <div class="kv__row"><div class="kv__k">Background</div><div class="kv__v">{{ world.backgroundColor }}</div></div>
       <div class="kv__row" v-if="world.instance.backgroundTexture?.textureUrl"><div class="kv__k">Texture</div><div class="kv__v">{{ world.instance.backgroundTexture.textureUrl }}</div></div>
       <div class="kv__row" v-if="world.instance.backgroundTexture?.textureUrl"><div class="kv__k">Scale Mode</div><div class="kv__v">{{ world.instance.backgroundTexture.scaleMode }}</div></div>
+      <div class="kv__row" v-if="world.instance.backgroundTexture?.textureUrl"><div class="kv__k">Size Mode</div><div class="kv__v">{{ world.instance.backgroundTexture.sizeMode || 'none' }}</div></div>
+      <div class="kv__row" v-if="world.instance.backgroundTexture?.textureUrl && world.instance.backgroundTexture.sizeMode === 'scale'"><div class="kv__k">Texture Scale</div><div class="kv__v">{{ world.instance.backgroundTexture.scale || 1 }}</div></div>
+      <div class="kv__row" v-if="world.instance.backgroundTexture?.textureUrl && world.instance.backgroundTexture.sizeMode === 'dimensions'"><div class="kv__k">Texture Size</div><div class="kv__v">{{ world.instance.backgroundTexture.width || '-' }}×{{ world.instance.backgroundTexture.height || '-' }}</div></div>
       <div class="kv__row"><div class="kv__k">Entities</div><div class="kv__v">{{ world.instance.entities.size }}</div></div>
     </div>
 

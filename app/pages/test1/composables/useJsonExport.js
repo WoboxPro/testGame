@@ -177,6 +177,10 @@ import { reactive, watch } from 'vue';
         ? {
             textureUrl: w.backgroundTexture.textureUrl,
             scaleMode: w.backgroundTexture.scaleMode,
+            sizeMode: w.backgroundTexture.sizeMode,
+            scale: w.backgroundTexture.scale,
+            width: w.backgroundTexture.width,
+            height: w.backgroundTexture.height,
             tint: w.backgroundTexture.tint
           }
         : undefined,

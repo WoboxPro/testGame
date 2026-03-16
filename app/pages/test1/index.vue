@@ -1146,6 +1146,10 @@ const worldForm = reactive({
   backgroundColor: '#000000',
   textureUrl: '',
   textureScaleMode: 'tile',
+  textureSizeMode: 'none',
+  textureScale: 1,
+  textureWidth: 256,
+  textureHeight: 256,
   tint: '',
   showBounds: false,
   boundsColor: '#FF4444',
@@ -1583,6 +1587,22 @@ function createWorldFromForm() {
   if (worldForm.textureUrl?.trim()) {
     backgroundTexture.textureUrl = worldForm.textureUrl.trim();
     backgroundTexture.scaleMode = worldForm.textureScaleMode || 'tile';
+    backgroundTexture.sizeMode = worldForm.textureSizeMode || 'none';
+    if (backgroundTexture.sizeMode === 'scale') {
+      const scale = Number(worldForm.textureScale);
+      if (Number.isFinite(scale) && scale > 0) {
+        backgroundTexture.scale = scale;
+      }
+    } else if (backgroundTexture.sizeMode === 'dimensions') {
+      const width = Number(worldForm.textureWidth);
+      const height = Number(worldForm.textureHeight);
+      if (Number.isFinite(width) && width > 0) {
+        backgroundTexture.width = width;
+      }
+      if (Number.isFinite(height) && height > 0) {
+        backgroundTexture.height = height;
+      }
+    }
     if (worldForm.tint?.trim()) {
       backgroundTexture.tint = worldForm.tint.trim();
     }
