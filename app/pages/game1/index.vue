@@ -721,6 +721,8 @@ function updateTowers(dt) {
       const dist = Math.sqrt(dx * dx + dy * dy);
       
       if (dist > 0) {
+        const angle = Math.atan2(dy, dx) + Math.PI / 2;
+        tower.rotation = angle;
         muzzle.direction = { x: dx / dist, y: dy / dist };
         muzzle.position = { x: towerPos.x, y: towerPos.y };
         muzzle.setFiring(true);
