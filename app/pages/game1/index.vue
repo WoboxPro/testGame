@@ -88,6 +88,11 @@ const DOG_SOURCE_SIZE = 600;
 const PLAYER_SPRITE_SIZE = 50;
 const PLAYER_COLLISION_SIZE = 25;
 
+// Tower sprite
+const TOWER_URL = new URL('./src/img/tower1.png', import.meta.url).href;
+const TOWER_SOURCE_SIZE = 860;
+const TOWER_SPRITE_SIZE = 50;
+
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
 const showBuildModal = ref(false);
@@ -239,9 +244,10 @@ function placeTower(screenX, screenY) {
     velocity: { x: 0, y: 0 },
     movement: { maxSpeed: 0, acceleration: 0, friction: 0 },
     appearance: {
-      shape: 'rect',
-      color: 0x4fc3f7,
-      size: 40
+      shape: 'sprite',
+      textureUrl: TOWER_URL,
+      size: TOWER_SPRITE_SIZE,
+      scale: TOWER_SPRITE_SIZE / TOWER_SOURCE_SIZE
     },
     hasCollision: true,
     collisionType: 'build',
@@ -1115,7 +1121,10 @@ onUnmounted(() => {
 }
 
 .tower-icon {
-  background: #4fc3f7;
+  background-image: url('./src/img/tower1.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
   border: 2px solid #ffffff;
 }
 
