@@ -48,10 +48,11 @@ export class Entity {
      this.scale = options.scale ? { x: Number(options.scale.x) || 1, y: Number(options.scale.y) || 1 } : { ...this.baseScale };
      this.mirrorDirection = options.mirrorDirection || { x: 1, y: 1 }; // Store last mirror direction
 
-    // Rotation behavior (optional, used by controllers)
-     this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'move' | 'mouse'
-     this.reflectionBehavior = options.reflectionBehavior || 'none'; // 'none' | 'mirrorX' | 'mirrorY'
-     this.rotationSpeed = Number.isFinite(options.rotationSpeed) ? Number(options.rotationSpeed) : 8.0; // rad/s (used for smooth turning)
+     // Rotation behavior (optional, used by controllers)
+      this.rotationBehavior = options.rotationBehavior || 'none'; // 'none' | 'move' | 'mouse'
+      this.reflectionBehavior = options.reflectionBehavior || 'none'; // 'none' | 'mirrorX' | 'mirrorY'
+      this.rotationSpeed = Number.isFinite(options.rotationSpeed) ? Number(options.rotationSpeed) : 8.0; // rad/s (used for smooth turning)
+      this.rotationOffset = Number(options.rotationOffset) || 0; // constant rotation offset for rendering
 
     // Visibility
     this.visible = options.visible !== false;

@@ -78,9 +78,15 @@ import { EntityController } from '../../pixi_game2/pixigame/src/EntityController
 
 // Enemy sprite (balloon)
 const RED_BLOON_URL = new URL('./src/img/red_bloon.png', import.meta.url).href;
-const RED_BLOON_SOURCE_SIZE = 1024; // png is 1024x1024
-const ENEMY_SPRITE_SIZE = 50; // desired on-screen size (px)
-const ENEMY_COLLISION_SIZE = 20; // keep as before (diameter, px)
+const RED_BLOON_SOURCE_SIZE = 1024;
+const ENEMY_SPRITE_SIZE = 50;
+const ENEMY_COLLISION_SIZE = 20;
+
+// Player sprite (dog)
+const DOG_URL = new URL('./src/img/dog.png', import.meta.url).href;
+const DOG_SOURCE_SIZE = 1024;
+const PLAYER_SPRITE_SIZE = 50;
+const PLAYER_COLLISION_SIZE = 25;
 
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
@@ -452,21 +458,23 @@ async function startGame() {
       friction: 6
     },
     appearance: {
-      shape: 'circle',
-      color: 0x4fc3f7,
-      size: 25
+      shape: 'sprite',
+      textureUrl: DOG_URL,
+      size: PLAYER_SPRITE_SIZE,
+      scale: PLAYER_SPRITE_SIZE / DOG_SOURCE_SIZE
     },
     hasCollision: true,
     collisionType: 'unit',
     collisionShape: 'circle',
-    collisionSize: 25,
+    collisionSize: PLAYER_COLLISION_SIZE,
     statsSystem: true,
     stats: {
       hp: { current: 3, max: 3 }
     },
     deathBehavior: 'stay',
     rotationBehavior: 'mouse',
-    rotationSpeed: 20
+    rotationSpeed: 20,
+    rotationOffset: Math.PI
   }));
 
   player.addSlot({

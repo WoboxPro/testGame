@@ -146,12 +146,14 @@ export class EntityRenderer {
       // - number (radians)
       // - { value: number }
       // - or on a linked _entityRef (e.g. /test1 editor)
-      const rotation =
+      const baseRotation =
         rotationComp != null
           ? (typeof rotationComp === 'number'
               ? rotationComp
               : (Number(rotationComp?.value) || 0))
           : (Number(entityRef?.rotation) || 0);
+      const rotationOffset = Number(entityRef?.rotationOffset) || 0;
+      const rotation = baseRotation + rotationOffset;
 
       const entityScale = entityRef?.scale || { x: 1, y: 1 };
 
