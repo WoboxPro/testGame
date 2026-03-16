@@ -94,7 +94,7 @@ const TOWER_SOURCE_SIZE = 860;
 const TOWER_SPRITE_SIZE = 50;
 
 // World terrain texture
-const TERRAIN_URL = new URL('./src/img/terrain.png', import.meta.url).href;
+const TERRAIN_URL = new URL('./src/img/terrain2.png', import.meta.url).href;
 
 const canvasHost = ref(null);
 const showUpgradeModal = ref(false);
@@ -500,7 +500,7 @@ async function startGame() {
     deathBehavior: 'stay',
     rotationBehavior: 'mouse',
     rotationSpeed: 20,
-    rotationOffset: Math.PI
+    rotationOffset: -Math.PI / 2
   }));
 
   player.addSlot({
