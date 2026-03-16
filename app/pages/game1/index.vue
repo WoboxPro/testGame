@@ -84,7 +84,7 @@ const ENEMY_COLLISION_SIZE = 20;
 
 // Player sprite (dog)
 const DOG_URL = new URL('./src/img/dog.png', import.meta.url).href;
-const DOG_SOURCE_SIZE = 1024;
+const DOG_SOURCE_SIZE = 600;
 const PLAYER_SPRITE_SIZE = 50;
 const PLAYER_COLLISION_SIZE = 25;
 
@@ -479,7 +479,7 @@ async function startGame() {
 
   player.addSlot({
     id: 'weapon_slot',
-    offset: { x: 30, y: 0 },
+    offset: { x: 15, y: 0 },
     transformBehavior: 'follow_entity',
     physicsMode: 'instant',
     keyActionId: 'fire'
