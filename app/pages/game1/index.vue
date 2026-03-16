@@ -482,7 +482,8 @@ async function startGame() {
     offset: { x: 15, y: 0 },
     transformBehavior: 'follow_entity',
     physicsMode: 'instant',
-    keyActionId: 'fire'
+    keyActionId: 'fire',
+    visualEnabled: false
   });
 
   muzzle = markRaw(new MuzzleEntity({
