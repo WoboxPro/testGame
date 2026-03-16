@@ -51,6 +51,9 @@ export class Canvas {
     // Lighting caches (per camera)
     // key: camera.id -> { darkContainer, ambientGfx, globalGfx, maskRt, maskSprite, maskContainer, maskBg, lightHoles, tintContainer, tintLights, lastSizeKey, lastGlobalKey }
     this._lightingCache = new Map();
+    // World background display cache (per camera)
+    // key: camera.id -> { displayObj, displayType, textureUrl }
+    this._worldTextureDisplayCache = new Map();
     // Background/region texture caches
     this._textureCache = new Map(); // textureUrl -> PIXI.Texture
     this._textureLoadPromises = new Map(); // textureUrl -> Promise<PIXI.Texture | null>
@@ -185,6 +188,11 @@ export class Canvas {
       try { lightingCache.darkContainer?.destroy?.({ children: true }); } catch (_) {}
       try { lightingCache.maskContainer?.destroy?.({ children: true }); } catch (_) {}
       this._lightingCache.delete(cameraId);
+    }
+    const worldTextureCache = this._worldTextureDisplayCache.get(cameraId);
+    if (worldTextureCache?.displayObj) {
+      try { worldTextureCache.displayObj.destroy?.({ children: true }); } catch (_) {}
+      this._worldTextureDisplayCache.delete(cameraId);
     }
 
     // Clean up UI cache for this camera
@@ -993,37 +1001,33 @@ export class Canvas {
     const texture = this._getOrLoadTextureForUrl(textureUrl);
     if (!texture) return;
 
-    if (scaleMode === 'tile' && world.type === 'infinite') {
-      // Для бесконечного мира используем шейдер с бесконечным тайлингом
-      this._renderInfiniteTextureWithShader(camera, texture, tint);
-      return;
+    const displayObj = this._getOrCreateWorldTextureDisplay(camera.id, scaleMode, world.type, textureUrl, texture);
+    if (!displayObj) return;
+
+    if (tint) {
+      try { displayObj.tint = tint; } catch (_) {}
+    } else {
+      try { displayObj.tint = 0xFFFFFF; } catch (_) {}
     }
 
-    // Для bounded мира или других scaleMode используем старый подход
     if (scaleMode === 'tile') {
-      const tilingSprite = new PIXI.TilingSprite({
-        texture,
-        width: world.width,
-        height: world.height
-      });
-
-      if (tint) {
-        try { tilingSprite.tint = tint; } catch (_) {}
+      const tilingSprite = displayObj;
+      const isInfinite = world.type === 'infinite';
+      if (isInfinite) {
+        tilingSprite.x = -50000;
+        tilingSprite.y = -50000;
+      } else {
+        tilingSprite.x = 0;
+        tilingSprite.y = 0;
+        tilingSprite.width = world.width;
+        tilingSprite.height = world.height;
       }
+      tilingSprite.tilePosition.x = 0;
+      tilingSprite.tilePosition.y = 0;
       const { scaleX, scaleY } = this._getTextureScaleFactors(bgTexture, texture);
       tilingSprite.tileScale.set(scaleX, scaleY);
-
-      tilingSprite.x = 0;
-      tilingSprite.y = 0;
-
-      camera.worldBackgroundLayer.addChild(tilingSprite);
     } else if (scaleMode === 'stretch') {
-      const sprite = new PIXI.Sprite(texture);
-
-      if (tint) {
-        try { sprite.tint = tint; } catch (_) {}
-      }
-
+      const sprite = displayObj;
       let targetRect;
       if (world.type === 'bounded') {
         targetRect = { x: 0, y: 0, width: world.width, height: world.height };
@@ -1036,15 +1040,8 @@ export class Canvas {
         };
       }
       this._applyTextureSizingToSprite(sprite, bgTexture, targetRect);
-
-      camera.worldBackgroundLayer.addChild(sprite);
     } else if (scaleMode === 'center') {
-      const sprite = new PIXI.Sprite(texture);
-
-      if (tint) {
-        try { sprite.tint = tint; } catch (_) {}
-      }
-
+      const sprite = displayObj;
       const texWidth = sprite.texture.width;
       const texHeight = sprite.texture.height;
       const { width: finalWidth, height: finalHeight } = this._resolveTextureTargetSize(bgTexture, texWidth, texHeight);
@@ -1058,9 +1055,44 @@ export class Canvas {
         sprite.x = (bounds.minX + bounds.maxX - finalWidth) / 2;
         sprite.y = (bounds.minY + bounds.maxY - finalHeight) / 2;
       }
-
-      camera.worldBackgroundLayer.addChild(sprite);
     }
+
+    if (displayObj.parent !== camera.worldBackgroundLayer) {
+      camera.worldBackgroundLayer.addChild(displayObj);
+    }
+  }
+
+  _getOrCreateWorldTextureDisplay(cameraId, scaleMode, worldType, textureUrl, texture) {
+    const displayType = scaleMode === 'tile'
+      ? (worldType === 'infinite' ? 'tilingInfinite' : 'tiling')
+      : 'sprite';
+    let cache = this._worldTextureDisplayCache.get(cameraId);
+    if (!cache) {
+      cache = { displayObj: null, displayType: null, textureUrl: null };
+      this._worldTextureDisplayCache.set(cameraId, cache);
+    }
+
+    const shouldRecreate = !cache.displayObj || cache.displayType !== displayType;
+    if (shouldRecreate) {
+      try { cache.displayObj?.destroy?.({ children: true }); } catch (_) {}
+      if (displayType === 'tilingInfinite') {
+        cache.displayObj = new PIXI.TilingSprite({ texture, width: 100000, height: 100000 });
+      } else if (displayType === 'tiling') {
+        cache.displayObj = new PIXI.TilingSprite({ texture, width: 1, height: 1 });
+      } else {
+        cache.displayObj = new PIXI.Sprite(texture);
+      }
+      cache.displayType = displayType;
+      cache.textureUrl = textureUrl;
+      return cache.displayObj;
+    }
+
+    if (cache.textureUrl !== textureUrl && cache.displayObj) {
+      cache.displayObj.texture = texture;
+      cache.textureUrl = textureUrl;
+    }
+
+    return cache.displayObj;
   }
 
   _renderInfiniteTextureWithShader(camera, texture, tint) {
@@ -1554,6 +1586,10 @@ export class Canvas {
       try { cache.graphics?.destroy?.({ children: true }); } catch (_) {}
     }
     this._hexGridCache.clear();
+    for (const cache of this._worldTextureDisplayCache.values()) {
+      try { cache.displayObj?.destroy?.({ children: true }); } catch (_) {}
+    }
+    this._worldTextureDisplayCache.clear();
     this._textureCache.clear();
     this._textureLoadPromises.clear();
     this._failedTextureUrls.clear();

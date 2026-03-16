@@ -132,6 +132,7 @@ let uiWaveText = null;
 let uiLevelText = null;
 let uiExpText = null;
 let uiHpText = null;
+let uiFpsText = null;
 
 function createUITexts() {
   const styleWave = new PIXI.TextStyle({
@@ -179,6 +180,12 @@ function createUITexts() {
   uiHpText.x = 10;
   uiHpText.y = 54;
   canvas._uiOverlay.addChild(uiHpText);
+
+  uiFpsText = new PIXI.Text({ text: 'FPS: --', style: styleLevel });
+  uiFpsText.anchor.set(0, 0);
+  uiFpsText.x = 10;
+  uiFpsText.y = 76;
+  canvas._uiOverlay.addChild(uiFpsText);
 }
 
 function updateUIWave() {
@@ -194,6 +201,12 @@ function updateUIHp() {
   if (uiHpText && player) {
     uiHpText.text = `HP: ${player.stats.hp.current}/${player.stats.hp.max}`;
   }
+}
+
+function updateUIFpsFromEngine() {
+  if (!uiFpsText || !canvas?.app?.ticker) return;
+  const fps = Math.round(canvas.app.ticker.FPS || 0);
+  uiFpsText.text = `FPS: ${fps}`;
 }
 
 function openBuildModal() {
@@ -431,8 +444,8 @@ async function startGame() {
       textureUrl: TERRAIN_URL,
       scaleMode: 'tile',
       sizeMode: 'dimensions',
-      width: 150,
-      height: 150
+      width: 200,
+      height: 200
     },
     showBounds: true,
     boundsColor: '#000000'
@@ -793,6 +806,7 @@ function startRenderLoop() {
 
     if (canvas) {
       canvas.render();
+      updateUIFpsFromEngine();
     }
 
     rafId = requestAnimationFrame(loop);
@@ -821,6 +835,7 @@ onUnmounted(() => {
   uiLevelText = null;
   uiExpText = null;
   uiHpText = null;
+  uiFpsText = null;
 
   if (canvas) {
     canvas.destroy();

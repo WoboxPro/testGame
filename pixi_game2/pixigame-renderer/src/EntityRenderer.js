@@ -239,7 +239,7 @@ export class EntityRenderer {
         this._cache.set(cacheKey, displayObj);
       }
 
-      this._updateDisplayObject(displayObj, position, appearance, rotation, entityScale, entityRef?.opacity, world, animations);
+      this._updateDisplayObject(displayObj, position, appearance, rotation, entityScale, world, animations, entityRef?.opacity);
 
       if (displayObj.parent !== container) {
         container.addChild(displayObj);
@@ -371,7 +371,7 @@ export class EntityRenderer {
     return graphics;
   }
 
-  _updateDisplayObject(displayObj, position, appearance, rotation = 0, entityScale = { x: 1, y: 1 }, opacity = 1, world, animations) {
+  _updateDisplayObject(displayObj, position, appearance, rotation = 0, entityScale = { x: 1, y: 1 }, world, animations, opacity = 1) {
     displayObj.position.set(position.x, position.y);
     displayObj.rotation = Number(rotation) || 0;
     displayObj.scale.set(Number(entityScale.x) || 1, Number(entityScale.y) || 1);
