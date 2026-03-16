@@ -134,6 +134,35 @@ let uiExpText = null;
 let uiHpText = null;
 let uiFpsText = null;
 
+function adjustCameraZoom(delta) {
+  if (!camera) return;
+  camera.setZoom((camera.zoom || 1) + delta);
+}
+
+function handleDocumentKeydown(e) {
+  const targetTag = e.target?.tagName;
+  const isTypingContext =
+    targetTag === 'INPUT' ||
+    targetTag === 'TEXTAREA' ||
+    targetTag === 'SELECT' ||
+    e.target?.isContentEditable;
+  if (isTypingContext) return;
+
+  if (e.key === 'Escape' && isBuildMode) {
+    cancelBuildMode();
+    return;
+  }
+
+  // NumPad zoom controls
+  if (e.code === 'NumpadAdd') {
+    e.preventDefault();
+    adjustCameraZoom(0.1);
+  } else if (e.code === 'NumpadSubtract') {
+    e.preventDefault();
+    adjustCameraZoom(-0.1);
+  }
+}
+
 function createUITexts() {
   const styleWave = new PIXI.TextStyle({
     fontFamily: 'Arial',
@@ -350,11 +379,8 @@ function setupBuildEvents() {
     }
   });
   
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isBuildMode) {
-      cancelBuildMode();
-    }
-  });
+  document.removeEventListener('keydown', handleDocumentKeydown);
+  document.addEventListener('keydown', handleDocumentKeydown);
 }
 
 function getExpForLevel(level) {
@@ -437,8 +463,8 @@ async function startGame() {
   world = markRaw(new World({
     id: 'game_world',
     type: 'bounded',
-    width: 800,
-    height: 600,
+    width: 5000,
+    height: 5000,
     backgroundColor: '#000000',
     backgroundTexture: {
       textureUrl: TERRAIN_URL,
@@ -479,9 +505,9 @@ async function startGame() {
     y: 0,
     focusX: 400,
     focusY: 300,
-    zoom: 1,
-    minZoom: 0.5,
-    maxZoom: 2,
+    zoom: 1.5,
+    minZoom: 0.8,
+    maxZoom: 3,
     showBorder: false
   }));
 
@@ -547,6 +573,7 @@ async function startGame() {
 
   world.addEntity(player);
   world.addEntity(muzzle);
+  camera.setFollowEntity(player.id);
 
   world.projectileSystem.registerMuzzle(muzzle);
 
@@ -596,21 +623,24 @@ function getEnemySpeed() {
 
 function spawnEnemy() {
   const margin = 50;
-  const minDistanceFromPlayer = 400;
+  const minDistanceFromPlayer = 500;
+  const maxDistanceFromPlayer = 800;
   let x, y;
   let attempts = 0;
   const maxAttempts = 100;
+  const worldWidth = Number(world?.width) || 800;
+  const worldHeight = Number(world?.height) || 600;
 
   do {
-    x = margin + Math.random() * (800 - margin * 2);
-    y = margin + Math.random() * (600 - margin * 2);
+    x = margin + Math.random() * Math.max(1, (worldWidth - margin * 2));
+    y = margin + Math.random() * Math.max(1, (worldHeight - margin * 2));
     attempts++;
 
     if (player) {
       const dx = player.position.x - x;
       const dy = player.position.y - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist >= minDistanceFromPlayer) break;
+      if (dist >= minDistanceFromPlayer && dist <= maxDistanceFromPlayer) break;
     } else {
       break;
     }
@@ -679,6 +709,27 @@ function updateEnemyMovement(dt) {
       entityRef.position.x += (dx / dist) * speed;
       entityRef.position.y += (dy / dist) * speed;
     }
+  }
+}
+
+function clampEntitiesToWorldBounds() {
+  if (!world) return;
+  const worldW = Number(world.width) || 0;
+  const worldH = Number(world.height) || 0;
+  if (worldW <= 0 || worldH <= 0) return;
+
+  if (player && !player._isDead) {
+    const playerRadius = Number(player.collisionSize) || 20;
+    player.position.x = Math.max(playerRadius, Math.min(worldW - playerRadius, player.position.x));
+    player.position.y = Math.max(playerRadius, Math.min(worldH - playerRadius, player.position.y));
+  }
+
+  for (const [, components] of world.entities) {
+    const entityRef = components.get('_entityRef');
+    if (entityRef?.subtype !== 'enemy' || entityRef._isDead) continue;
+    const enemyRadius = Number(entityRef.collisionSize) || 20;
+    entityRef.position.x = Math.max(enemyRadius, Math.min(worldW - enemyRadius, entityRef.position.x));
+    entityRef.position.y = Math.max(enemyRadius, Math.min(worldH - enemyRadius, entityRef.position.y));
   }
 }
 
@@ -783,6 +834,7 @@ function startRenderLoop() {
       }
 
       updateEnemyMovement(dt);
+      clampEntitiesToWorldBounds();
       checkEnemyPlayerCollision();
       updateTowers(dt);
       world.update(dt * 1000);
@@ -830,6 +882,7 @@ onUnmounted(() => {
     buildPreview.destroy();
     buildPreview = null;
   }
+  document.removeEventListener('keydown', handleDocumentKeydown);
 
   uiWaveText = null;
   uiLevelText = null;

@@ -304,9 +304,34 @@ export class Canvas {
         offsetY = camera.height;
         break;
     }
-    
-    camera.worldLayer.x = offsetX - (camera.focusX * camera.zoom);
-    camera.worldLayer.y = offsetY - (camera.focusY * camera.zoom);
+
+    let focusX = camera.focusX;
+    let focusY = camera.focusY;
+    if (camera.world?.type === 'bounded') {
+      const worldWidth = Number(camera.world.width) || 0;
+      const worldHeight = Number(camera.world.height) || 0;
+      const halfViewW = camera.width / (2 * camera.zoom);
+      const halfViewH = camera.height / (2 * camera.zoom);
+      if (worldWidth > 0) {
+        if (worldWidth <= halfViewW * 2) {
+          focusX = worldWidth / 2;
+        } else {
+          focusX = Math.max(halfViewW, Math.min(worldWidth - halfViewW, focusX));
+        }
+      }
+      if (worldHeight > 0) {
+        if (worldHeight <= halfViewH * 2) {
+          focusY = worldHeight / 2;
+        } else {
+          focusY = Math.max(halfViewH, Math.min(worldHeight - halfViewH, focusY));
+        }
+      }
+      camera.focusX = focusX;
+      camera.focusY = focusY;
+    }
+
+    camera.worldLayer.x = offsetX - (focusX * camera.zoom);
+    camera.worldLayer.y = offsetY - (focusY * camera.zoom);
     camera.worldLayer.scale.set(camera.zoom);
   }
   
